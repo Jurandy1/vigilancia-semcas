@@ -24,22 +24,9 @@ interface RoundItem {
   title: string;
   status: string;
   order: number;
+  questionCount?: number;
   submissionCount: number;
 }
-
-const statusLabel: Record<string, string> = {
-  draft: "Rascunho",
-  waiting: "Aguardando",
-  open: "Em andamento",
-  closed: "Encerrada",
-};
-
-const statusStyle: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  waiting: "bg-gray-100 text-gray-600",
-  open: "bg-green-100 text-green-700",
-  closed: "bg-gray-100 text-gray-500",
-};
 
 type PendingAction = { type: "open" | "close"; round: RoundItem } | null;
 
@@ -47,7 +34,9 @@ export default function RodadasPage() {
   const params = useParams();
   const eventId = params.eventId as string;
 
-  const [event, setEvent] = useState<{ title: string; slug: string } | null>(null);
+  const [event, setEvent] = useState<{ title: string; slug: string; participantCount: number } | null>(
+    null
+  );
   const [rounds, setRounds] = useState<RoundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<PendingAction>(null);
@@ -89,7 +78,11 @@ export default function RodadasPage() {
         token,
         { method: "POST" }
       );
-      if (!res.ok) throw new Error();
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Não foi possível concluir esta operação. Tente novamente.");
+        return;
+      }
       setPending(null);
       await load();
     } catch {
@@ -110,6 +103,11 @@ export default function RodadasPage() {
     );
   }
 
+  const sorted = [...rounds].sort((a, b) => a.order - b.order);
+  const currentRound = sorted.find((r) => r.status === "open") ?? null;
+  const draftRounds = sorted.filter((r) => r.status === "draft" || r.status === "waiting");
+  const closedRounds = sorted.filter((r) => r.status === "closed").reverse();
+
   return (
     <AdminShell eventId={eventId} eventTitle={event?.title} eventSlug={event?.slug}>
       <div className="mb-6 flex items-center justify-between">
@@ -128,75 +126,114 @@ export default function RodadasPage() {
         </div>
       )}
 
-      <div className="max-w-2xl bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
-        {rounds.length === 0 ? (
-          <p className="text-sm text-gray-500 p-5">Nenhuma rodada criada ainda.</p>
-        ) : (
-          rounds
-            .slice()
-            .sort((a, b) => a.order - b.order)
-            .map((round, i) => {
-              const isDraft = round.status === "draft" || round.status === "waiting";
-              const isOpen = round.status === "open";
-              const isClosed = round.status === "closed";
-              const openDisabled = isDraft && hasOpenRound;
+      <div className="max-w-2xl space-y-6">
+        {currentRound && (
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Rodada atual
+            </h2>
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{currentRound.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
+                      Em andamento
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {currentRound.submissionCount} de {event?.participantCount ?? 0} respostas
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    href={`/admin/eventos/${eventId}/rodadas/${currentRound.id}/resultados`}
+                    className="text-sm text-[#0b3a6e] hover:underline px-2"
+                  >
+                    Resultados
+                  </Link>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setPending({ type: "close", round: currentRound })}
+                  >
+                    Encerrar rodada
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
-              return (
+        {draftRounds.length > 0 && (
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Próximas / rascunhos
+            </h2>
+            <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {draftRounds.map((round) => (
                 <div key={round.id} className="flex items-center justify-between py-4 px-5 gap-4">
                   <div className="min-w-0">
-                    <p className="font-medium text-gray-800 truncate">
-                      {i + 1}. {round.title}
-                    </p>
+                    <p className="font-medium text-gray-800 truncate">{round.title}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          statusStyle[round.status] ?? statusStyle.draft
-                        }`}
-                      >
-                        {statusLabel[round.status] ?? round.status}
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">
+                        Rascunho
                       </span>
                       <span className="text-xs text-gray-500">
-                        {round.submissionCount ?? 0} respostas
+                        {round.questionCount ?? 0} perguntas
                       </span>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {(isOpen || isClosed) && (
-                      <Link
-                        href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
-                        className="text-sm text-[#0b3a6e] hover:underline px-2"
-                      >
-                        Resultados
-                      </Link>
-                    )}
-                    {isDraft && (
-                      <Button
-                        size="sm"
-                        disabled={openDisabled}
-                        title={
-                          openDisabled
-                            ? "Encerre a rodada aberta antes de abrir outra."
-                            : undefined
-                        }
-                        onClick={() => setPending({ type: "open", round })}
-                      >
-                        Abrir rodada
-                      </Button>
-                    )}
-                    {isOpen && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setPending({ type: "close", round })}
-                      >
-                        Encerrar rodada
-                      </Button>
-                    )}
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={hasOpenRound}
+                    title={hasOpenRound ? "Encerre a rodada aberta antes de abrir outra." : undefined}
+                    onClick={() => setPending({ type: "open", round })}
+                  >
+                    Abrir rodada
+                  </Button>
                 </div>
-              );
-            })
+              ))}
+            </div>
+          </section>
+        )}
+
+        {closedRounds.length > 0 && (
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Encerradas
+            </h2>
+            <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+              {closedRounds.map((round) => (
+                <div key={round.id} className="flex items-center justify-between py-4 px-5 gap-4">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-800 truncate">{round.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">
+                        Encerrada
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {round.submissionCount} respostas
+                      </span>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
+                    className="text-sm text-[#0b3a6e] hover:underline px-2 shrink-0"
+                  >
+                    Ver resultados
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {rounds.length === 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <p className="text-sm text-gray-500">Nenhuma rodada criada ainda.</p>
+          </div>
         )}
       </div>
 

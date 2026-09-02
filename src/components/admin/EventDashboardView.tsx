@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Users, CheckCircle2, RefreshCw, Monitor } from "lucide-react";
+import { Users, CheckCircle2, RefreshCw, Monitor, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -17,6 +17,7 @@ import {
 import { AdminShell } from "@/components/admin/AdminShell";
 import { DashboardErrorBoundary } from "@/components/admin/DashboardErrorBoundary";
 import { LineChart } from "@/components/admin/LineChart";
+import { EventQrDialog } from "@/components/admin/EventQrDialog";
 import { resolveDashboardState, type DashboardRound } from "@/lib/admin/dashboard-state";
 
 interface DashboardViewProps {
@@ -253,20 +254,39 @@ export function EventDashboardView({
         </div>
       </DashboardErrorBoundary>
 
-      {/* Projector shortcut */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
-        <Monitor className="w-8 h-8 text-[#0b3a6e]" />
-        <div className="flex-1">
-          <p className="text-xs font-medium text-gray-700">Tela do projetor</p>
-          <p className="text-[10px] text-gray-400">Exibir no telão do evento</p>
+      {/* Projector + QR shortcuts */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
+          <Monitor className="w-8 h-8 text-[#0b3a6e]" />
+          <div className="flex-1">
+            <p className="text-xs font-medium text-gray-700">Tela do projetor</p>
+            <p className="text-[10px] text-gray-400">Exibir no telão do evento</p>
+          </div>
+          <Link
+            href={`/projector/${event.slug}`}
+            target="_blank"
+            className="text-xs bg-[#0b3a6e] text-white px-3 py-1.5 rounded-md hover:bg-[#0b3a6e]/90"
+          >
+            Abrir
+          </Link>
         </div>
-        <Link
-          href={`/projector/${event.slug}`}
-          target="_blank"
-          className="text-xs bg-[#0b3a6e] text-white px-3 py-1.5 rounded-md hover:bg-[#0b3a6e]/90"
-        >
-          Abrir
-        </Link>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
+          <QrCode className="w-8 h-8 text-[#0b3a6e]" />
+          <div className="flex-1">
+            <p className="text-xs font-medium text-gray-700">Acesso dos participantes</p>
+            <p className="text-[10px] text-gray-400">/e/{event.slug}</p>
+          </div>
+          <EventQrDialog
+            eventSlug={event.slug}
+            eventTitle={event.title}
+            trigger={
+              <button className="text-xs bg-[#0b3a6e] text-white px-3 py-1.5 rounded-md hover:bg-[#0b3a6e]/90">
+                Ver QR
+              </button>
+            }
+          />
+        </div>
       </div>
 
       <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>

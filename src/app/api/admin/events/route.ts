@@ -15,19 +15,31 @@ export async function GET(request: NextRequest) {
   const db = getAdminDb();
   const snapshot = await db.collection("events").orderBy("createdAt", "desc").get();
 
-  const events = snapshot.docs.map((doc) => {
-    const d = doc.data();
-    return {
-      id: doc.id,
-      title: d.title,
-      slug: d.slug,
-      status: d.status,
-      isTest: d.isTest,
-      order: d.order ?? 0,
-      participantCount: d.participantCount ?? 0,
-      createdAt: d.createdAt ? toIsoString(d.createdAt) : null,
-    };
-  });
+  const events = await Promise.all(
+    snapshot.docs.map(async (doc) => {
+      const d = doc.data();
+
+      const [submissionsCount, currentRoundDoc] = await Promise.all([
+        db.collection(`events/${doc.id}/submissions`).count().get(),
+        d.currentOpenRoundId
+          ? db.doc(`events/${doc.id}/rounds/${d.currentOpenRoundId}`).get()
+          : Promise.resolve(null),
+      ]);
+
+      return {
+        id: doc.id,
+        title: d.title,
+        slug: d.slug,
+        status: d.status,
+        isTest: d.isTest,
+        order: d.order ?? 0,
+        participantCount: d.participantCount ?? 0,
+        submissionCount: submissionsCount.data().count,
+        currentRoundTitle: currentRoundDoc?.exists ? (currentRoundDoc.data()!.title as string) : null,
+        createdAt: d.createdAt ? toIsoString(d.createdAt) : null,
+      };
+    })
+  );
 
   return NextResponse.json({ events });
 }
