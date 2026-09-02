@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env*.local
+*.pem
+*-firebase-adminsdk-*.json
+firebase-adminsdk-*.json
+.firebase/
+dist/
+.claude/
+*.tsbuildinfo
