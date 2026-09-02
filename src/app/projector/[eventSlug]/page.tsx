@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import { doc, onSnapshot } from "firebase/firestore";
 import { getFirestoreDb } from "@/lib/firebase/client";
 import { useRoundStats } from "@/hooks/use-round-stats";
@@ -32,6 +33,7 @@ export default function ProjectorPage() {
   const [countdown, setCountdown] = useState(0);
   const [connectedCount, setConnectedCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [loadError, setLoadError] = useState(false);
 
   const { stats } = useRoundStats(
     publicEvent?.id ?? null,
@@ -52,43 +54,56 @@ export default function ProjectorPage() {
       const eventsRef = collection(db, "publicEvents");
       const q = query(eventsRef, where("slug", "==", eventSlug));
       const snap = await getDocs(q);
-      if (snap.empty) return;
+      if (snap.empty) return undefined;
 
       const eventDoc = snap.docs[0]!;
       const eventId = eventDoc.id;
 
-      const unsubscribe = onSnapshot(doc(db, "publicEvents", eventId), (snapshot) => {
-        if (!snapshot.exists()) return;
-        const data = snapshot.data();
-        setPublicEvent({
-          id: snapshot.id,
-          title: data.title,
-          slug: data.slug,
-          status: data.status,
-          currentOpenRoundId: data.currentOpenRoundId ?? null,
-          currentRoundTitle: data.currentRoundTitle ?? null,
-          currentRoundStatus: data.currentRoundStatus ?? null,
-          accessChallenge: data.accessChallenge
-            ? {
-                code: data.accessChallenge.code,
-                expiresAt:
-                  data.accessChallenge.expiresAt?.toDate?.()?.toISOString?.() ??
-                  data.accessChallenge.expiresAt,
-                rotationSeconds: data.accessChallenge.rotationSeconds ?? 60,
-              }
-            : null,
-        });
-        setConnectedCount(data.participantCount ?? stats.registered);
-        setLastUpdate(new Date());
-      });
+      const unsubscribe = onSnapshot(
+        doc(db, "publicEvents", eventId),
+        (snapshot) => {
+          if (!snapshot.exists()) return;
+          const data = snapshot.data();
+          setPublicEvent({
+            id: snapshot.id,
+            title: data.title,
+            slug: data.slug,
+            status: data.status,
+            currentOpenRoundId: data.currentOpenRoundId ?? null,
+            currentRoundTitle: data.currentRoundTitle ?? null,
+            currentRoundStatus: data.currentRoundStatus ?? null,
+            accessChallenge: data.accessChallenge
+              ? {
+                  code: data.accessChallenge.code,
+                  expiresAt:
+                    data.accessChallenge.expiresAt?.toDate?.()?.toISOString?.() ??
+                    data.accessChallenge.expiresAt,
+                  rotationSeconds: data.accessChallenge.rotationSeconds ?? 60,
+                }
+              : null,
+          });
+          setConnectedCount(data.participantCount ?? stats.registered);
+          setLastUpdate(new Date());
+          setLoadError(false);
+        },
+        (error) => {
+          console.error("Erro ao acompanhar o evento:", error);
+          setLoadError(true);
+        }
+      );
 
       return unsubscribe;
     }
 
     let cleanup: (() => void) | undefined;
-    findEvent().then((unsub) => {
-      cleanup = unsub;
-    });
+    findEvent()
+      .then((unsub) => {
+        cleanup = unsub;
+      })
+      .catch((error) => {
+        console.error("Erro ao buscar o evento:", error);
+        setLoadError(true);
+      });
 
     return () => cleanup?.();
   }, [eventSlug, stats.registered]);
@@ -108,6 +123,15 @@ export default function ProjectorPage() {
   const answering = stats.answering;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#f8f9fb] text-center px-6">
+        <p className="text-xl text-gray-500">Não foi possível carregar o evento.</p>
+        <p className="text-sm text-gray-400">Verifique a conexão e tente novamente.</p>
+      </div>
+    );
+  }
+
   if (!publicEvent) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]">
@@ -124,7 +148,14 @@ export default function ProjectorPage() {
           <div className="absolute left-0 top-0 w-48 h-full bg-gradient-to-r from-blue-100/40 to-transparent" />
         </div>
 
-        <p className="text-5xl font-bold text-[#0b3a6e] mb-3 tracking-wide relative">SEMCAS</p>
+        <Image
+          src="/images/logo-prefeitura-saoluis.jpg"
+          alt="Prefeitura de São Luís"
+          width={360}
+          height={116}
+          priority
+          className="mb-6 relative"
+        />
         <h1 className="text-2xl font-semibold text-gray-700 mb-12 relative">PARTICIPE DA AVALIAÇÃO</h1>
 
         {qrDataUrl && (
@@ -164,7 +195,14 @@ export default function ProjectorPage() {
       <div className="relative w-full max-w-3xl mx-auto text-center space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-5xl font-bold text-[#0b3a6e] tracking-wide mb-3">SEMCAS</h1>
+          <Image
+            src="/images/logo-prefeitura-saoluis.jpg"
+            alt="Prefeitura de São Luís"
+            width={300}
+            height={97}
+            priority
+            className="mx-auto mb-3"
+          />
           <p className="text-lg text-gray-600 max-w-xl mx-auto leading-snug">{publicEvent.title}</p>
           <div className="flex items-center justify-center gap-2 mt-4">
             <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />

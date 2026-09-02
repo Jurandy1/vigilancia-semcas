@@ -20,10 +20,10 @@ export function PrintPoster({ event, appUrl }: PrintPosterProps) {
     <main className="min-h-screen bg-white flex flex-col items-center justify-center p-12 print:p-8">
       <div className="max-w-md w-full text-center space-y-8">
         <Image
-          src="/images/logo-semcas.svg"
-          alt="SEMCAS"
-          width={200}
-          height={80}
+          src="/images/logo-prefeitura-saoluis.jpg"
+          alt="Prefeitura de São Luís"
+          width={280}
+          height={90}
           className="mx-auto"
           priority
         />

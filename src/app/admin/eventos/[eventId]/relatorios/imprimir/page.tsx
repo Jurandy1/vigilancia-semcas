@@ -70,10 +70,10 @@ export default function EventReportPrintPage() {
     <main className="min-h-screen bg-white p-10 print:p-6 max-w-3xl mx-auto">
       <header className="text-center mb-10 print:mb-6">
         <Image
-          src="/images/logo-semcas.svg"
-          alt="SEMCAS"
-          width={180}
-          height={72}
+          src="/images/logo-prefeitura-saoluis.jpg"
+          alt="Prefeitura de São Luís"
+          width={220}
+          height={71}
           className="mx-auto mb-4"
           priority
         />

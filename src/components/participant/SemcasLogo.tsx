@@ -5,17 +5,22 @@ interface SemcasLogoProps {
   className?: string;
 }
 
-const sizes = { sm: 40, md: 56, lg: 80 };
+// Proporção real do arquivo (291x94).
+const sizes = {
+  sm: { width: 130, height: 42 },
+  md: { width: 170, height: 55 },
+  lg: { width: 220, height: 71 },
+};
 
 export function SemcasLogo({ size = "md", className }: SemcasLogoProps) {
-  const px = sizes[size];
+  const { width, height } = sizes[size];
   return (
     <div className={className}>
       <Image
-        src="/images/logo-semcas.svg"
-        alt="SEMCAS"
-        width={px}
-        height={px}
+        src="/images/logo-prefeitura-saoluis.jpg"
+        alt="Prefeitura de São Luís"
+        width={width}
+        height={height}
         priority
         className="mx-auto"
       />
