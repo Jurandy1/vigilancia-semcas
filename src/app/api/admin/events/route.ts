@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       slug: d.slug,
       status: d.status,
       isTest: d.isTest,
+      order: d.order ?? 0,
       participantCount: d.participantCount ?? 0,
       createdAt: d.createdAt ? toIsoString(d.createdAt) : null,
     };
@@ -52,6 +53,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Já existe um evento com este slug." }, { status: 409 });
   }
 
+  const lastEvent = await db.collection("events").orderBy("order", "desc").limit(1).get();
+  const nextOrder = lastEvent.empty ? 1 : (lastEvent.docs[0]!.data().order ?? 0) + 1;
+
   const now = Timestamp.now();
   const eventRef = db.collection("events").doc();
 
@@ -60,6 +64,8 @@ export async function POST(request: NextRequest) {
       title: parsed.data.title,
       slug,
       description: parsed.data.description ?? null,
+      projectorTitle: parsed.data.projectorTitle ?? null,
+      order: nextOrder,
       status: "draft",
       isTest: parsed.data.isTest,
       requireLiveCode: parsed.data.requireLiveCode,

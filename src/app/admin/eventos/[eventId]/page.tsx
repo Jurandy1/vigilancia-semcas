@@ -6,38 +6,18 @@ import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EventDashboardView } from "@/components/admin/EventDashboardView";
+import type { DashboardRound } from "@/lib/admin/dashboard-state";
 
 interface DashboardData {
   event: {
     title: string;
     slug: string;
+    status: string;
     openedAt: string | null;
     participantCount: number;
   };
-  participants: Array<{
-    id: string;
-    displayName: string;
-    status: string;
-    currentQuestion: number;
-    questionCount: number;
-    startedAt: string | null;
-    completedAt: string | null;
-  }>;
-  rounds: Array<{
-    id: string;
-    title: string;
-    status: string;
-    order: number;
-    submissionCount?: number;
-  }>;
+  rounds: DashboardRound[];
   stats: { registered: number; answering: number; completed: number };
-  questionSummaries: Array<{
-    id: string;
-    title: string;
-    type: string;
-    options?: Array<{ option: string; count: number; percent: string }>;
-  }>;
-  recentCompletions: Array<{ displayName: string; completedAt: string | null }>;
   timeline: Array<{ time: string; count: number }>;
 }
 
@@ -48,9 +28,9 @@ export default function EventDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const currentRound = data?.rounds.find((r) => r.status === "open") ?? null;
-  const roundId = currentRound?.id;
+  const roundId = data?.rounds.find((r) => r.status === "open")?.id;
 
   const loadDashboard = useCallback(async () => {
     const token = await getAdminIdToken();
@@ -78,24 +58,51 @@ export default function EventDashboardPage() {
     };
   }, [router, loadDashboard]);
 
-  async function handleCloseRound() {
-    if (!currentRound) return;
+  async function runAction(path: string) {
     setActionLoading(true);
-    const token = await getAdminIdToken();
-    if (!token) return;
-    await adminFetch(`/api/admin/events/${eventId}/rounds/${currentRound.id}/close`, token, {
-      method: "POST",
-    });
-    await loadDashboard();
-    setActionLoading(false);
+    setActionError(null);
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch(`/api/admin/events/${eventId}${path}`, token, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setActionError(json.error ?? "Não foi possível concluir esta operação. Tente novamente.");
+        return;
+      }
+      await loadDashboard();
+    } catch {
+      setActionError("Não foi possível concluir esta operação. Tente novamente.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleOpenEvent() {
+    await runAction("/open");
+  }
+
+  async function handleCloseRound() {
+    if (!roundId) return;
+    await runAction(`/rounds/${roundId}/close`);
+  }
+
+  async function handleOpenNextRound() {
+    await runAction("/rounds/next/open");
+  }
+
+  async function handleFinalizeEvent() {
+    await runAction("/close");
   }
 
   if (loading || !data) {
     return (
       <div className="min-h-screen bg-[#f4f6f9] p-6 space-y-4">
         <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
@@ -105,18 +112,24 @@ export default function EventDashboardPage() {
   }
 
   return (
-    <EventDashboardView
-      eventId={eventId}
-      event={data.event}
-      participants={data.participants}
-      stats={data.stats}
-      questionSummaries={data.questionSummaries}
-      recentCompletions={data.recentCompletions}
-      timeline={data.timeline}
-      rounds={data.rounds}
-      currentRound={currentRound}
-      onCloseRound={handleCloseRound}
-      actionLoading={actionLoading}
-    />
+    <>
+      {actionError && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-4 py-3 shadow-lg">
+          {actionError}
+        </div>
+      )}
+      <EventDashboardView
+        eventId={eventId}
+        event={data.event}
+        stats={data.stats}
+        timeline={data.timeline}
+        rounds={data.rounds}
+        onOpenEvent={handleOpenEvent}
+        onCloseRound={handleCloseRound}
+        onOpenNextRound={handleOpenNextRound}
+        onFinalizeEvent={handleFinalizeEvent}
+        actionLoading={actionLoading}
+      />
+    </>
   );
 }

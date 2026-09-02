@@ -11,6 +11,7 @@ export const createEventSchema = z.object({
     .max(80)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug inválido."),
   description: z.string().trim().max(500).optional().nullable(),
+  projectorTitle: z.string().trim().max(200).optional().nullable(),
   isTest: z.boolean().default(false),
   requireLiveCode: z.boolean().default(false),
 });

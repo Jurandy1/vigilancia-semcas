@@ -121,10 +121,13 @@ export async function POST(
           updatedAt: FieldValue.serverTimestamp(),
         });
       } else {
+        // Só soma em "answering" na transição real para esse estado — não a cada
+        // chamada de progresso (senão infla a cada pergunta avançada pela mesma pessoa).
+        const enteringAnswering = wasNew || prevStatus !== "answering";
         const updates: Record<string, unknown> = {
-          answering: FieldValue.increment(1),
           updatedAt: FieldValue.serverTimestamp(),
         };
+        if (enteringAnswering) updates.answering = FieldValue.increment(1);
         if (wasNew) updates.registered = FieldValue.increment(1);
         if (prevStatus === "completed") updates.completed = FieldValue.increment(-1);
         tx.update(shardRef, updates);

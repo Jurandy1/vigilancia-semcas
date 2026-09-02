@@ -3,7 +3,6 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { getParticipantDisplayName } from "@/lib/utils/participant-display";
 import { toIsoString } from "@/lib/firebase/helpers";
-import { aggregateSingleChoiceCounts } from "@/lib/reports/aggregate-single-choice";
 
 export const runtime = "nodejs";
 
@@ -45,7 +44,7 @@ export async function GET(
   }
 
   // Independent reads — fire them together instead of awaiting one at a time.
-  const [roundDoc, participantsSnap, prSnap, roundsSnap, shardsSnap, questionsSnap, roundSubmissionsSnap] =
+  const [roundDoc, participantsSnap, prSnap, roundsSnap, shardsSnap, roundSubmissionsSnap] =
     await Promise.all([
       roundId ? db.doc(`events/${eventId}/rounds/${roundId}`).get() : Promise.resolve(null),
       db.collection(`events/${eventId}/participants`).orderBy("createdAt", "desc").get(),
@@ -53,9 +52,6 @@ export async function GET(
       db.collection(`events/${eventId}/rounds`).orderBy("order").get(),
       roundId
         ? db.collection(`publicStats/${eventId}/rounds/${roundId}/shards`).get()
-        : Promise.resolve(null),
-      roundId
-        ? db.collection(`events/${eventId}/rounds/${roundId}/questions`).orderBy("order").get()
         : Promise.resolve(null),
       roundId
         ? db.collection(`events/${eventId}/submissions`).where("roundId", "==", roundId).get()
@@ -117,36 +113,6 @@ export async function GET(
     });
   }
 
-  let questionSummaries: Array<{
-    id: string;
-    title: string;
-    type: string;
-    options?: Array<{ option: string; count: number; percent: string }>;
-  }> = [];
-
-  if (roundId && questionsSnap && roundSubmissionsSnap) {
-    const submissionDatas = roundSubmissionsSnap.docs.map((d) => d.data());
-
-    questionSummaries = questionsSnap.docs.slice(0, 3).map((qDoc) => {
-      const q = qDoc.data();
-      const summary: (typeof questionSummaries)[0] = {
-        id: qDoc.id,
-        title: q.title as string,
-        type: q.type as string,
-      };
-
-      if (q.type === "single_choice" && q.options) {
-        summary.options = aggregateSingleChoiceCounts(
-          q.options as string[],
-          submissionDatas,
-          qDoc.id
-        );
-      }
-
-      return summary;
-    });
-  }
-
   let timeline: Array<{ time: string; count: number }> = [];
   const completionTimestamps = prSnap.docs
     .map((d) => d.data().completedAt)
@@ -184,7 +150,6 @@ export async function GET(
     participants,
     rounds,
     stats,
-    questionSummaries,
     recentCompletions,
     questionCount,
     timeline,

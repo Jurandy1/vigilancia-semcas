@@ -8,6 +8,8 @@ export interface Event {
   title: string;
   slug: string;
   description: string | null;
+  projectorTitle: string | null;
+  order: number;
   status: EventStatus;
   isTest: boolean;
   requireLiveCode: boolean;
