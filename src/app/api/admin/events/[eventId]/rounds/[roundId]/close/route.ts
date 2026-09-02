@@ -18,13 +18,14 @@ export async function POST(
   const now = Timestamp.now();
 
   await db.runTransaction(async (tx) => {
+    // Firestore exige que todas as leituras da transação aconteçam antes de qualquer escrita.
+    const eventRef = db.doc(`events/${eventId}`);
+    const eventDoc = await tx.get(eventRef);
+
     tx.update(db.doc(`events/${eventId}/rounds/${roundId}`), {
       status: "closed",
       closedAt: now,
     });
-
-    const eventRef = db.doc(`events/${eventId}`);
-    const eventDoc = await tx.get(eventRef);
 
     if (eventDoc.data()?.currentOpenRoundId === roundId) {
       tx.update(eventRef, {

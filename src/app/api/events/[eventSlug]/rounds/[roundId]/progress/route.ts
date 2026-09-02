@@ -82,8 +82,12 @@ export async function POST(
     const shardPath = getShardPath(eventId, roundId, shardId);
 
     await db.runTransaction(async (tx) => {
+      // Firestore exige que todas as leituras da transação aconteçam antes de qualquer escrita.
       const freshPr = await tx.get(prRef);
       if (freshPr.exists && freshPr.data()?.status === "completed") return;
+
+      const shardRef = db.doc(shardPath);
+      const shardDoc = await tx.get(shardRef);
 
       const wasNew = !freshPr.exists;
       const prevStatus = freshPr.data()?.status;
@@ -108,8 +112,6 @@ export async function POST(
         lastActivityAt: now,
       });
 
-      const shardRef = db.doc(shardPath);
-      const shardDoc = await tx.get(shardRef);
       if (!shardDoc.exists) {
         tx.set(shardRef, {
           shardId,
@@ -130,7 +132,8 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    console.error("Erro ao registrar progresso:", error);
     return NextResponse.json(
       { error: "Não foi possível concluir esta operação. Tente novamente." },
       { status: 500 }

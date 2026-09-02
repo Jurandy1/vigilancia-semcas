@@ -142,6 +142,7 @@ export async function POST(
     let alreadySubmitted = false;
 
     await db.runTransaction(async (tx) => {
+      // Firestore exige que todas as leituras da transação aconteçam antes de qualquer escrita.
       const existingSubmission = await tx.get(submissionRef);
       if (existingSubmission.exists) {
         alreadySubmitted = true;
@@ -153,6 +154,10 @@ export async function POST(
         alreadySubmitted = true;
         return;
       }
+
+      const shardRef = db.doc(shardPath);
+      const shardDoc = await tx.get(shardRef);
+      const wasNew = !prDoc.exists;
 
       tx.set(submissionRef, {
         id: submissionId,
@@ -183,10 +188,6 @@ export async function POST(
       tx.update(db.doc(`events/${eventId}/participants/${participant.id}`), {
         lastActivityAt: now,
       });
-
-      const shardRef = db.doc(shardPath);
-      const shardDoc = await tx.get(shardRef);
-      const wasNew = !prDoc.exists;
 
       if (!shardDoc.exists) {
         tx.set(shardRef, {
@@ -223,7 +224,8 @@ export async function POST(
       success: true,
       alreadySubmitted,
     });
-  } catch {
+  } catch (error) {
+    console.error("Erro ao enviar respostas:", error);
     return NextResponse.json(
       { error: "Não foi possível concluir esta operação. Tente novamente." },
       { status: 500 }
