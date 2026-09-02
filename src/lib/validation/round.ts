@@ -7,13 +7,14 @@ export const resultsVisibilitySchema = z.enum(["hidden", "after_close", "admin_o
 export const questionSchema = z.object({
   id: z.string().optional(),
   order: z.number().int().min(1),
-  type: z.enum(["single_choice", "text"]),
+  type: z.enum(["single_choice", "multi_choice", "text"]),
   title: z.string().trim().min(3).max(500),
   required: z.boolean().default(true),
   options: z.array(z.string().trim().min(1).max(200)).optional(),
   maxLength: z.number().int().min(1).max(5000).optional(),
+  maxSelections: z.number().int().min(1).optional(),
 }).superRefine((data, ctx) => {
-  if (data.type === "single_choice") {
+  if (data.type === "single_choice" || data.type === "multi_choice") {
     if (!data.options || data.options.length < 2) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

@@ -92,7 +92,7 @@ interface MockSubmission {
   roundId: string;
   participantId: string;
   mode: "identified" | "anonymous";
-  answers: Array<{ questionId: string; type: string; value: string }>;
+  answers: Array<{ questionId: string; type: string; value: string | string[] }>;
   submittedAt: string;
 }
 
@@ -262,7 +262,7 @@ export function submitMockAnswers(params: {
   roundId: string;
   participantId: string;
   mode: "identified" | "anonymous";
-  answers: Array<{ questionId: string; type: string; value: string }>;
+  answers: Array<{ questionId: string; type: string; value: string | string[] }>;
 }) {
   const submissionId = `${params.roundId}_${params.participantId}`;
   if (store.submissions.has(submissionId)) {

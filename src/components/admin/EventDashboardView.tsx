@@ -87,7 +87,7 @@ export function EventDashboardView({
   }
 
   return (
-    <AdminShell eventId={eventId} eventSlug={event.slug} eventTitle={event.title}>
+    <AdminShell eventId={eventId} eventSlug={event.slug} eventTitle={event.title} eventStatus={event.status}>
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h1>

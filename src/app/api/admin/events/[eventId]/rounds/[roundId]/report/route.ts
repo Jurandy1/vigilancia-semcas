@@ -4,7 +4,7 @@ import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth
 import { getParticipantDisplayName } from "@/lib/utils/participant-display";
 import { formatPercent } from "@/lib/utils/format";
 import { toIsoString } from "@/lib/firebase/helpers";
-import { aggregateSingleChoiceCounts } from "@/lib/reports/aggregate-single-choice";
+import { aggregateChoiceCounts } from "@/lib/reports/aggregate-choice-counts";
 
 export const runtime = "nodejs";
 
@@ -46,12 +46,13 @@ export async function GET(
       title: q.title,
     };
 
-    if (q.type === "single_choice") {
-      questionReport.options = aggregateSingleChoiceCounts(
+    if (q.type === "single_choice" || q.type === "multi_choice") {
+      questionReport.options = aggregateChoiceCounts(
         q.options as string[],
         submissionDatas,
         qDoc.id
       );
+      questionReport.allowsMultiple = q.type === "multi_choice";
     }
 
     if (q.type === "text") {

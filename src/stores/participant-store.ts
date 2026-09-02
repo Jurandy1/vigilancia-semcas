@@ -96,7 +96,7 @@ export const useParticipantStore = create<ParticipantStore>()(
 );
 
 export function buildAnswersFromDraft(
-  questions: { id: string; type: "single_choice" | "text" }[],
+  questions: { id: string; type: "single_choice" | "multi_choice" | "text" }[],
   draft: Record<string, string>
 ): Answer[] {
   return questions
@@ -104,6 +104,6 @@ export function buildAnswersFromDraft(
     .map((q) => ({
       questionId: q.id,
       type: q.type,
-      value: draft[q.id]!,
+      value: q.type === "multi_choice" ? (JSON.parse(draft[q.id]!) as string[]) : draft[q.id]!,
     }));
 }

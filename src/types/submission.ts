@@ -4,7 +4,7 @@ import type { QuestionType } from "./round";
 export interface Answer {
   questionId: string;
   type: QuestionType;
-  value: string;
+  value: string | string[];
 }
 
 export interface Submission {

@@ -2,8 +2,11 @@ import { z } from "zod";
 
 export const answerSchema = z.object({
   questionId: z.string().min(1),
-  type: z.enum(["single_choice", "text"]),
-  value: z.string().trim().min(1).max(5000),
+  type: z.enum(["single_choice", "multi_choice", "text"]),
+  value: z.union([
+    z.string().trim().min(1).max(5000),
+    z.array(z.string().trim().min(1).max(200)).min(1).max(50),
+  ]),
 });
 
 export const progressSchema = z.object({

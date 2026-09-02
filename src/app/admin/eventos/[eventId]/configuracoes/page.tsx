@@ -8,12 +8,18 @@ import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAccessCode } from "@/lib/utils/format";
 
 interface EventSettings {
   title: string;
   slug: string;
+  status: string;
+  description: string | null;
+  projectorTitle: string | null;
   requireLiveCode: boolean;
   isTest: boolean;
 }
@@ -30,6 +36,12 @@ export default function EventConfiguracoesPage() {
   const [rotating, setRotating] = useState(false);
   const [newCode, setNewCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [generalSaved, setGeneralSaved] = useState(false);
+  const [savingGeneral, setSavingGeneral] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [projectorTitleDraft, setProjectorTitleDraft] = useState("");
 
   const eventUrl =
     typeof window !== "undefined" && event
@@ -43,6 +55,9 @@ export default function EventConfiguracoesPage() {
       const res = await adminFetch(`/api/admin/events/${eventId}`, token);
       const data = await res.json();
       setEvent(data.event);
+      setTitleDraft(data.event.title ?? "");
+      setDescriptionDraft(data.event.description ?? "");
+      setProjectorTitleDraft(data.event.projectorTitle ?? "");
     }
     const unsub = onAdminAuthChange((user) => {
       if (!user) {
@@ -63,6 +78,38 @@ export default function EventConfiguracoesPage() {
     await navigator.clipboard.writeText(eventUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function saveGeneral(e: React.FormEvent) {
+    e.preventDefault();
+    if (!event) return;
+    setGeneralError(null);
+    setGeneralSaved(false);
+    setSavingGeneral(true);
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch(`/api/admin/events/${eventId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: titleDraft,
+          description: descriptionDraft || null,
+          projectorTitle: projectorTitleDraft || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGeneralError(data.error ?? "Não foi possível salvar as alterações.");
+        return;
+      }
+      setEvent({ ...event, title: titleDraft, description: descriptionDraft || null, projectorTitle: projectorTitleDraft || null });
+      setGeneralSaved(true);
+      setTimeout(() => setGeneralSaved(false), 2000);
+    } catch {
+      setGeneralError("Não foi possível salvar as alterações.");
+    } finally {
+      setSavingGeneral(false);
+    }
   }
 
   async function toggleLiveCode() {
@@ -115,7 +162,7 @@ export default function EventConfiguracoesPage() {
   }
 
   return (
-    <AdminShell eventId={eventId} eventSlug={event.slug} eventTitle={event.title}>
+    <AdminShell eventId={eventId} eventSlug={event.slug} eventTitle={event.title} eventStatus={event.status}>
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900">Configurações do evento</h1>
         <p className="text-sm text-gray-500 mt-1">{event.title}</p>
@@ -127,7 +174,45 @@ export default function EventConfiguracoesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Geral */}
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <h2 className="text-sm font-semibold text-gray-800 mb-4">Geral</h2>
+          <form onSubmit={saveGeneral} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="titleDraft" className="text-xs">Título</Label>
+              <Input
+                id="titleDraft"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="descriptionDraft" className="text-xs">Descrição</Label>
+              <Textarea
+                id="descriptionDraft"
+                value={descriptionDraft}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="projectorTitleDraft" className="text-xs">Título para o projetor</Label>
+              <Input
+                id="projectorTitleDraft"
+                value={projectorTitleDraft}
+                onChange={(e) => setProjectorTitleDraft(e.target.value)}
+                placeholder="Usa o título do evento se vazio"
+              />
+            </div>
+            {generalError && <p className="text-sm text-red-600">{generalError}</p>}
+            <Button type="submit" size="sm" disabled={savingGeneral}>
+              {savingGeneral ? "Salvando..." : generalSaved ? "Salvo!" : "Salvar"}
+            </Button>
+          </form>
+        </div>
+
         {/* Link & QR */}
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <h2 className="text-sm font-semibold text-gray-800 mb-4">Acesso ao evento</h2>

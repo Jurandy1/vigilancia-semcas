@@ -13,9 +13,11 @@ import QRCode from "qrcode";
 interface PublicEventData {
   id: string;
   title: string;
+  projectorTitle: string | null;
   slug: string;
   status: string;
   currentOpenRoundId: string | null;
+  currentRoundId: string | null;
   currentRoundTitle: string | null;
   currentRoundStatus: string | null;
   accessChallenge: {
@@ -37,7 +39,7 @@ export default function ProjectorPage() {
 
   const { stats } = useRoundStats(
     publicEvent?.id ?? null,
-    publicEvent?.currentOpenRoundId ?? null,
+    publicEvent?.currentRoundId ?? publicEvent?.currentOpenRoundId ?? null,
     eventSlug
   );
 
@@ -67,9 +69,11 @@ export default function ProjectorPage() {
           setPublicEvent({
             id: snapshot.id,
             title: data.title,
+            projectorTitle: data.projectorTitle ?? null,
             slug: data.slug,
             status: data.status,
             currentOpenRoundId: data.currentOpenRoundId ?? null,
+            currentRoundId: data.currentRoundId ?? null,
             currentRoundTitle: data.currentRoundTitle ?? null,
             currentRoundStatus: data.currentRoundStatus ?? null,
             accessChallenge: data.accessChallenge
@@ -118,6 +122,9 @@ export default function ProjectorPage() {
   }, [publicEvent?.accessChallenge]);
 
   const isRoundOpen = publicEvent?.currentRoundStatus === "open";
+  const hasHadRound = Boolean(publicEvent?.currentRoundTitle);
+  const isIntermission = Boolean(publicEvent) && !isRoundOpen && hasHadRound;
+  const displayTitle = publicEvent?.projectorTitle ?? publicEvent?.title ?? "";
   const total = Math.max(connectedCount, stats.registered, stats.completed + stats.answering);
   const completed = stats.completed;
   const answering = stats.answering;
@@ -140,7 +147,34 @@ export default function ProjectorPage() {
     );
   }
 
-  /* ── Entry screen (no round open) ── */
+  /* ── Intermission screen (round closed, waiting for the next one — never fall back to the QR entry screen here) ── */
+  if (isIntermission) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb] p-12 text-center">
+        <Image
+          src="/images/logo-prefeitura-saoluis.jpg"
+          alt="Prefeitura de São Luís"
+          width={280}
+          height={90}
+          priority
+          className="mb-8"
+        />
+        <p className="text-lg text-gray-600 max-w-xl mx-auto leading-snug mb-1">{displayTitle}</p>
+        <h1 className="text-3xl font-semibold text-[#0b3a6e] mb-4">Aguardando próxima atividade</h1>
+        <p className="text-lg text-gray-500 mb-10">
+          {publicEvent!.currentRoundTitle} encerrada — {stats.completed} respostas recebidas
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse" />
+          <span className="text-sm text-blue-500 font-medium">
+            A tela atualiza automaticamente quando a próxima rodada começar
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Entry screen (no round has ever opened for this event) ── */
   if (!isRoundOpen) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb] p-12 text-center relative overflow-hidden">
@@ -203,7 +237,10 @@ export default function ProjectorPage() {
             priority
             className="mx-auto mb-3"
           />
-          <p className="text-lg text-gray-600 max-w-xl mx-auto leading-snug">{publicEvent.title}</p>
+          <p className="text-lg text-gray-600 max-w-xl mx-auto leading-snug">{displayTitle}</p>
+          {publicEvent.currentRoundTitle && (
+            <p className="text-base font-medium text-[#0b3a6e] mt-1">{publicEvent.currentRoundTitle}</p>
+          )}
           <div className="flex items-center justify-center gap-2 mt-4">
             <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
             <span className="text-sm text-green-600 font-medium">Atualização em tempo real</span>

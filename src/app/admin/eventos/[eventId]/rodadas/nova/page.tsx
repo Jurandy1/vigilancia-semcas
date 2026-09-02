@@ -10,13 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert } from "@/components/ui/alert";
 import { AdminShell } from "@/components/admin/AdminShell";
-
-interface QuestionDraft {
-  title: string;
-  type: "single_choice" | "text";
-  options: string[];
-  required: boolean;
-}
+import {
+  QuestionEditorList,
+  QuestionPreviewDialog,
+  cloneQuestions,
+  validateQuestions,
+  type QuestionDraft,
+} from "@/components/admin/QuestionEditor";
 
 const DEFAULT_QUESTIONS: QuestionDraft[] = [
   {
@@ -69,11 +69,11 @@ export default function NovaRodadaPage() {
   const eventId = params.eventId as string;
   const [title, setTitle] = useState("Avaliação do Evento");
   const [description, setDescription] = useState("");
-  const [questions, setQuestions] = useState<QuestionDraft[]>(DEFAULT_QUESTIONS);
+  const [questions, setQuestions] = useState<QuestionDraft[]>(cloneQuestions(DEFAULT_QUESTIONS));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [useDefault, setUseDefault] = useState(true);
   const [event, setEvent] = useState<{ title: string; slug: string } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     async function loadEvent() {
@@ -89,9 +89,24 @@ export default function NovaRodadaPage() {
     return unsub;
   }, [eventId]);
 
+  function loadDefaults() {
+    setQuestions(cloneQuestions(DEFAULT_QUESTIONS));
+  }
+
+  function clearAll() {
+    setQuestions(cloneQuestions([{ title: "", type: "single_choice", options: ["", ""], required: true }]));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    const validationError = validateQuestions(questions);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -109,8 +124,10 @@ export default function NovaRodadaPage() {
             type: q.type,
             title: q.title,
             required: q.required,
-            options: q.type === "single_choice" ? q.options : undefined,
+            options: q.type !== "text" ? q.options.map((o) => o.trim()).filter(Boolean) : undefined,
             maxLength: q.type === "text" ? 2000 : undefined,
+            maxSelections:
+              q.type === "multi_choice" && q.maxSelections ? q.maxSelections : undefined,
           })),
         }),
       });
@@ -131,8 +148,18 @@ export default function NovaRodadaPage() {
 
   return (
     <AdminShell eventId={eventId} eventTitle={event?.title} eventSlug={event?.slug}>
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Nova rodada</h1>
+        <QuestionPreviewDialog
+          questions={questions}
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          trigger={
+            <Button type="button" variant="outline" size="sm">
+              Visualizar como participante
+            </Button>
+          }
+        />
       </div>
 
       <div className="max-w-2xl">
@@ -147,29 +174,16 @@ export default function NovaRodadaPage() {
             <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={useDefault}
-              onChange={(e) => {
-                setUseDefault(e.target.checked);
-                if (e.target.checked) setQuestions(DEFAULT_QUESTIONS);
-              }}
-            />
-            Usar perguntas padrão da avaliação do evento
-          </label>
-
-          <div className="space-y-4">
-            {questions.map((q, i) => (
-              <div key={i} className="border border-border rounded-md p-4 space-y-2">
-                <p className="text-xs text-muted-foreground">Pergunta {i + 1}</p>
-                <p className="text-sm font-medium">{q.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {q.type === "single_choice" ? "Escolha única" : "Texto aberto"}
-                </p>
-              </div>
-            ))}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={loadDefaults}>
+              Usar perguntas padrão
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={clearAll}>
+              Começar do zero
+            </Button>
           </div>
+
+          <QuestionEditorList questions={questions} onChange={setQuestions} />
 
           {error && <Alert variant="destructive">{error}</Alert>}
 

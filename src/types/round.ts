@@ -1,6 +1,6 @@
 import type { RoundStatus, RoundType, ResultsVisibility } from "./event";
 
-export type QuestionType = "single_choice" | "text";
+export type QuestionType = "single_choice" | "multi_choice" | "text";
 
 export interface Question {
   id: string;
@@ -10,6 +10,7 @@ export interface Question {
   required: boolean;
   options?: string[];
   maxLength?: number;
+  maxSelections?: number;
 }
 
 export interface Round {

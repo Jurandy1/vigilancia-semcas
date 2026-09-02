@@ -78,6 +78,7 @@ export async function openRoundTransaction(
       db.doc(`publicEvents/${eventId}`),
       {
         currentOpenRoundId: roundId,
+        currentRoundId: roundId,
         currentRoundTitle: roundDoc.data()!.title,
         currentRoundStatus: "open",
         updatedAt: FieldValue.serverTimestamp(),

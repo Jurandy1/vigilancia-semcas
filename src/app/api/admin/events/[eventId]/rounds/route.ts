@@ -95,6 +95,7 @@ export async function POST(
         required: q.required ?? true,
         options: q.options ?? null,
         maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),
+        maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
       });
     });
   });

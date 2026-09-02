@@ -104,10 +104,34 @@ export default function RoundPage() {
     saveDraftAnswer(roundId, currentQuestion.id, value);
   }
 
+  function toggleMultiChoice(option: string) {
+    if (!currentQuestion) return;
+    const selected: string[] = draft[currentQuestion.id]
+      ? (JSON.parse(draft[currentQuestion.id]!) as string[])
+      : [];
+    if (
+      !selected.includes(option) &&
+      currentQuestion.maxSelections &&
+      selected.length >= currentQuestion.maxSelections
+    ) {
+      setError(`Selecione no máximo ${currentQuestion.maxSelections} opções.`);
+      return;
+    }
+    setError("");
+    const next = selected.includes(option)
+      ? selected.filter((o) => o !== option)
+      : [...selected, option];
+    saveDraftAnswer(roundId, currentQuestion.id, JSON.stringify(next));
+  }
+
   function handleContinue() {
     if (!currentQuestion) return;
     const answer = draft[currentQuestion.id];
-    if (currentQuestion.required && !answer?.trim()) {
+    const isEmpty =
+      currentQuestion.type === "multi_choice"
+        ? !answer || (JSON.parse(answer) as string[]).length === 0
+        : !answer?.trim();
+    if (currentQuestion.required && isEmpty) {
       setError("Esta pergunta é obrigatória.");
       return;
     }
@@ -227,6 +251,10 @@ export default function RoundPage() {
   if (!currentQuestion) return null;
 
   const currentAnswer = draft[currentQuestion.id] ?? "";
+  const selectedOptions: string[] =
+    currentQuestion.type === "multi_choice" && currentAnswer
+      ? (JSON.parse(currentAnswer) as string[])
+      : [];
 
   return (
     <main className="min-h-screen p-6 max-w-md mx-auto flex flex-col">
@@ -254,6 +282,35 @@ export default function RoundPage() {
               </div>
             ))}
           </RadioGroup>
+        )}
+
+        {currentQuestion.type === "multi_choice" && (
+          <div className="space-y-2">
+            {currentQuestion.options?.map((option) => {
+              const checked = selectedOptions.includes(option);
+              return (
+                <label
+                  key={option}
+                  htmlFor={option}
+                  className="flex items-center space-x-3 border border-border rounded-md px-4 py-3 cursor-pointer hover:bg-muted/50"
+                >
+                  <input
+                    type="checkbox"
+                    id={option}
+                    checked={checked}
+                    onChange={() => toggleMultiChoice(option)}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span className="flex-1 font-normal">{option}</span>
+                </label>
+              );
+            })}
+            {currentQuestion.maxSelections && (
+              <p className="text-xs text-muted-foreground">
+                Selecione até {currentQuestion.maxSelections} opções.
+              </p>
+            )}
+          </div>
         )}
 
         {currentQuestion.type === "text" && (

@@ -28,6 +28,7 @@ export async function GET(
       title: d.title,
       slug: d.slug,
       description: d.description ?? null,
+      projectorTitle: d.projectorTitle ?? null,
       status: d.status,
       isTest: d.isTest ?? false,
       requireLiveCode: d.requireLiveCode ?? false,
@@ -64,15 +65,28 @@ export async function PATCH(
 
   const now = FieldValue.serverTimestamp();
 
-  await db.doc(`events/${eventId}`).update({
-    requireLiveCode: parsed.data.requireLiveCode,
-    updatedAt: now,
-  });
+  const eventUpdates: Record<string, unknown> = { updatedAt: now };
+  const publicUpdates: Record<string, unknown> = { updatedAt: now };
 
-  await db.doc(`publicEvents/${eventId}`).set(
-    { requireLiveCode: parsed.data.requireLiveCode, updatedAt: now },
-    { merge: true }
-  );
+  if (parsed.data.title !== undefined) {
+    eventUpdates.title = parsed.data.title;
+    publicUpdates.title = parsed.data.title;
+  }
+  if (parsed.data.description !== undefined) {
+    eventUpdates.description = parsed.data.description;
+    publicUpdates.description = parsed.data.description;
+  }
+  if (parsed.data.projectorTitle !== undefined) {
+    eventUpdates.projectorTitle = parsed.data.projectorTitle;
+    publicUpdates.projectorTitle = parsed.data.projectorTitle;
+  }
+  if (parsed.data.requireLiveCode !== undefined) {
+    eventUpdates.requireLiveCode = parsed.data.requireLiveCode;
+    publicUpdates.requireLiveCode = parsed.data.requireLiveCode;
+  }
 
-  return NextResponse.json({ success: true, requireLiveCode: parsed.data.requireLiveCode });
+  await db.doc(`events/${eventId}`).update(eventUpdates);
+  await db.doc(`publicEvents/${eventId}`).set(publicUpdates, { merge: true });
+
+  return NextResponse.json({ success: true });
 }

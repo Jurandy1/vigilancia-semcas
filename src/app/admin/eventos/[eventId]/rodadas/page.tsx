@@ -34,9 +34,9 @@ export default function RodadasPage() {
   const params = useParams();
   const eventId = params.eventId as string;
 
-  const [event, setEvent] = useState<{ title: string; slug: string; participantCount: number } | null>(
-    null
-  );
+  const [event, setEvent] = useState<
+    { title: string; slug: string; status: string; participantCount: number } | null
+  >(null);
   const [rounds, setRounds] = useState<RoundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<PendingAction>(null);
@@ -109,7 +109,7 @@ export default function RodadasPage() {
   const closedRounds = sorted.filter((r) => r.status === "closed").reverse();
 
   return (
-    <AdminShell eventId={eventId} eventTitle={event?.title} eventSlug={event?.slug}>
+    <AdminShell eventId={eventId} eventTitle={event?.title} eventSlug={event?.slug} eventStatus={event?.status}>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Rodadas</h1>
@@ -184,15 +184,25 @@ export default function RodadasPage() {
                       </span>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={hasOpenRound}
-                    title={hasOpenRound ? "Encerre a rodada aberta antes de abrir outra." : undefined}
-                    onClick={() => setPending({ type: "open", round })}
-                  >
-                    Abrir rodada
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {round.submissionCount === 0 && (
+                      <Link
+                        href={`/admin/eventos/${eventId}/rodadas/${round.id}/editar`}
+                        className="text-sm text-[#0b3a6e] hover:underline px-2"
+                      >
+                        Editar
+                      </Link>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={hasOpenRound}
+                      title={hasOpenRound ? "Encerre a rodada aberta antes de abrir outra." : undefined}
+                      onClick={() => setPending({ type: "open", round })}
+                    >
+                      Abrir rodada
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

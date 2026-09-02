@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
       slug,
       title: parsed.data.title,
       description: parsed.data.description ?? null,
+      projectorTitle: parsed.data.projectorTitle ?? null,
       status: "draft",
       requireLiveCode: parsed.data.requireLiveCode,
       currentOpenRoundId: null,

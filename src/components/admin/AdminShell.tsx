@@ -24,7 +24,15 @@ interface AdminShellProps {
   eventId?: string;
   eventSlug?: string;
   eventTitle?: string;
+  eventStatus?: string;
 }
+
+const eventStatusIndicator: Record<string, { label: string; dotClassName: string; textClassName: string }> = {
+  open: { label: "Em andamento", dotClassName: "bg-green-500 animate-pulse", textClassName: "text-green-600" },
+  waiting: { label: "Aguardando início", dotClassName: "bg-gray-400", textClassName: "text-gray-500" },
+  draft: { label: "Rascunho", dotClassName: "bg-gray-400", textClassName: "text-gray-500" },
+  closed: { label: "Encerrado", dotClassName: "bg-gray-400", textClassName: "text-gray-500" },
+};
 
 const navItems = [
   { href: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -35,7 +43,7 @@ const navItems = [
   { href: "configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function AdminShell({ children, eventId, eventSlug, eventTitle }: AdminShellProps) {
+export function AdminShell({ children, eventId, eventSlug, eventTitle, eventStatus }: AdminShellProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -155,10 +163,14 @@ export function AdminShell({ children, eventId, eventSlug, eventTitle }: AdminSh
                 Abrir tela do projetor
               </Link>
             )}
-            <div className="flex items-center gap-1.5 text-sm">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-red-600 font-medium">Evento ao vivo</span>
-            </div>
+            {eventStatus && eventStatusIndicator[eventStatus] && (
+              <div className="flex items-center gap-1.5 text-sm">
+                <span className={cn("w-2 h-2 rounded-full", eventStatusIndicator[eventStatus]!.dotClassName)} />
+                <span className={cn("font-medium", eventStatusIndicator[eventStatus]!.textClassName)}>
+                  {eventStatusIndicator[eventStatus]!.label}
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
               <div className="w-8 h-8 rounded-full bg-[#0b3a6e] text-white text-xs font-bold flex items-center justify-center">
                 AD

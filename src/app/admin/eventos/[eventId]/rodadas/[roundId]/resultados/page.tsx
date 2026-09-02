@@ -40,7 +40,7 @@ export default function RoundReportPage() {
     const questions = report.questions as Array<Record<string, unknown>>;
     const individual = report.individual as Array<{
       displayName: string;
-      answers: Array<{ questionId: string; value: string }>;
+      answers: Array<{ questionId: string; value: string | string[] }>;
     }>;
 
     const qTitles = questions.map((q) => q.title as string);
@@ -49,7 +49,8 @@ export default function RoundReportPage() {
       const answers = qTitles.map((_, i) => {
         const qId = (questions[i] as { id: string }).id;
         const ans = ind.answers.find((a) => a.questionId === qId);
-        return ans?.value ?? "";
+        if (!ans) return "";
+        return Array.isArray(ans.value) ? ans.value.join("; ") : ans.value;
       });
       rows.push([ind.displayName, ...answers]);
     });
@@ -113,27 +114,34 @@ export default function RoundReportPage() {
               {i + 1}. {q.title as string}
             </h2>
 
-            {q.type === "single_choice" && (
-              <table className="w-full text-sm border border-gray-200">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left p-2">Opção</th>
-                    <th className="text-right p-2">Qtd</th>
-                    <th className="text-right p-2">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(q.options as Array<{ option: string; count: number; percent: string }>).map(
-                    (opt) => (
-                      <tr key={opt.option} className="border-b border-gray-100">
-                        <td className="p-2">{opt.option}</td>
-                        <td className="p-2 text-right">{opt.count}</td>
-                        <td className="p-2 text-right">{opt.percent}</td>
-                      </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
+            {(q.type === "single_choice" || q.type === "multi_choice") && (
+              <>
+                {q.allowsMultiple ? (
+                  <p className="text-xs text-gray-500 mb-2">
+                    Múltipla escolha — percentual de respondentes que selecionaram cada opção. A soma pode ultrapassar 100%.
+                  </p>
+                ) : null}
+                <table className="w-full text-sm border border-gray-200">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <th className="text-left p-2">Opção</th>
+                      <th className="text-right p-2">Qtd</th>
+                      <th className="text-right p-2">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(q.options as Array<{ option: string; count: number; percent: string }>).map(
+                      (opt) => (
+                        <tr key={opt.option} className="border-b border-gray-100">
+                          <td className="p-2">{opt.option}</td>
+                          <td className="p-2 text-right">{opt.count}</td>
+                          <td className="p-2 text-right">{opt.percent}</td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </>
             )}
 
             {q.type === "text" && (

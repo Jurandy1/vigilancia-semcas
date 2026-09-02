@@ -1,62 +1,35 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EventDashboardView } from "@/components/admin/EventDashboardView";
-import type { DashboardRound } from "@/lib/admin/dashboard-state";
-
-interface DashboardData {
-  event: {
-    title: string;
-    slug: string;
-    status: string;
-    openedAt: string | null;
-    participantCount: number;
-  };
-  rounds: DashboardRound[];
-  stats: { registered: number; answering: number; completed: number };
-  timeline: Array<{ time: string; count: number }>;
-}
+import { useDashboardRealtime } from "@/hooks/use-dashboard-realtime";
 
 export default function EventDashboardPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.eventId as string;
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const roundId = data?.rounds.find((r) => r.status === "open")?.id;
-
-  const loadDashboard = useCallback(async () => {
-    const token = await getAdminIdToken();
-    if (!token) return;
-    const url = `/api/admin/events/${eventId}/dashboard${roundId ? `?roundId=${roundId}` : ""}`;
-    const res = await adminFetch(url, token);
-    const json = await res.json();
-    setData(json);
-    setLoading(false);
-  }, [eventId, roundId]);
+  const { event, rounds, stats, timeline, loading } = useDashboardRealtime(
+    authReady ? eventId : null
+  );
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
     const unsub = onAdminAuthChange((user) => {
       if (!user) {
         router.replace("/admin/login");
         return;
       }
-      loadDashboard();
-      interval = setInterval(loadDashboard, 5000);
+      setAuthReady(true);
     });
-    return () => {
-      unsub();
-      if (interval) clearInterval(interval);
-    };
-  }, [router, loadDashboard]);
+    return unsub;
+  }, [router]);
 
   async function runAction(path: string) {
     setActionLoading(true);
@@ -70,9 +43,9 @@ export default function EventDashboardPage() {
       const json = await res.json();
       if (!res.ok) {
         setActionError(json.error ?? "Não foi possível concluir esta operação. Tente novamente.");
-        return;
       }
-      await loadDashboard();
+      // Nenhum recarregamento manual necessário — os listeners do Firestore
+      // já refletem a mudança assim que o servidor grava o novo estado.
     } catch {
       setActionError("Não foi possível concluir esta operação. Tente novamente.");
     } finally {
@@ -85,8 +58,9 @@ export default function EventDashboardPage() {
   }
 
   async function handleCloseRound() {
-    if (!roundId) return;
-    await runAction(`/rounds/${roundId}/close`);
+    const openRoundId = rounds.find((r) => r.status === "open")?.id;
+    if (!openRoundId) return;
+    await runAction(`/rounds/${openRoundId}/close`);
   }
 
   async function handleOpenNextRound() {
@@ -97,7 +71,7 @@ export default function EventDashboardPage() {
     await runAction("/close");
   }
 
-  if (loading || !data) {
+  if (loading || !event) {
     return (
       <div className="min-h-screen bg-[#f4f6f9] p-6 space-y-4">
         <Skeleton className="h-8 w-64" />
@@ -120,10 +94,10 @@ export default function EventDashboardPage() {
       )}
       <EventDashboardView
         eventId={eventId}
-        event={data.event}
-        stats={data.stats}
-        timeline={data.timeline}
-        rounds={data.rounds}
+        event={event}
+        stats={stats}
+        timeline={timeline}
+        rounds={rounds}
         onOpenEvent={handleOpenEvent}
         onCloseRound={handleCloseRound}
         onOpenNextRound={handleOpenNextRound}

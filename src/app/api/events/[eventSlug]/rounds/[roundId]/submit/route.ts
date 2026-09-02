@@ -20,26 +20,40 @@ import {
 
 export const runtime = "nodejs";
 
-function validateAnswers(questions: Question[], answers: { questionId: string; type: string; value: string }[]) {
+function validateAnswers(
+  questions: Question[],
+  answers: { questionId: string; type: string; value: string | string[] }[]
+) {
   const errors: string[] = [];
   const answerMap = new Map(answers.map((a) => [a.questionId, a]));
 
   for (const q of questions) {
     const answer = answerMap.get(q.id);
-    if (q.required && (!answer || !answer.value.trim())) {
+    const isEmpty =
+      !answer ||
+      (Array.isArray(answer.value) ? answer.value.length === 0 : !answer.value.trim());
+
+    if (q.required && isEmpty) {
       errors.push(`Pergunta obrigatória não respondida: ${q.title}`);
       continue;
     }
-    if (!answer) continue;
+    if (!answer || isEmpty) continue;
 
     if (q.type === "single_choice") {
-      if (!q.options?.includes(answer.value)) {
+      if (typeof answer.value !== "string" || !q.options?.includes(answer.value)) {
         errors.push(`Opção inválida para: ${q.title}`);
+      }
+    }
+    if (q.type === "multi_choice") {
+      if (!Array.isArray(answer.value) || !answer.value.every((v) => q.options?.includes(v))) {
+        errors.push(`Opção inválida para: ${q.title}`);
+      } else if (q.maxSelections && answer.value.length > q.maxSelections) {
+        errors.push(`Número de opções excede o permitido para: ${q.title}`);
       }
     }
     if (q.type === "text") {
       const max = q.maxLength ?? 2000;
-      if (answer.value.length > max) {
+      if (typeof answer.value !== "string" || answer.value.length > max) {
         errors.push(`Resposta muito longa para: ${q.title}`);
       }
     }

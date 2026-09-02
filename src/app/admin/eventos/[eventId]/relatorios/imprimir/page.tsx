@@ -15,6 +15,7 @@ interface RoundReport {
     title: string;
     type: string;
     options?: Array<{ option: string; count: number; percent: string }>;
+    allowsMultiple?: boolean;
     answers?: Array<{ displayName: string; value: string }>;
   }>;
 }
@@ -97,18 +98,25 @@ export default function EventReportPrintPage() {
                 {i + 1}. {q.title}
               </p>
 
-              {q.type === "single_choice" && q.options && (
-                <table className="w-full text-sm border border-gray-200">
-                  <tbody>
-                    {q.options.map((opt) => (
-                      <tr key={opt.option} className="border-b border-gray-100">
-                        <td className="p-1.5">{opt.option}</td>
-                        <td className="p-1.5 text-right w-16">{opt.count}</td>
-                        <td className="p-1.5 text-right w-16">{opt.percent}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {(q.type === "single_choice" || q.type === "multi_choice") && q.options && (
+                <>
+                  {q.allowsMultiple ? (
+                    <p className="text-xs text-gray-400 mb-1">
+                      Múltipla escolha — a soma dos percentuais pode ultrapassar 100%.
+                    </p>
+                  ) : null}
+                  <table className="w-full text-sm border border-gray-200">
+                    <tbody>
+                      {q.options.map((opt) => (
+                        <tr key={opt.option} className="border-b border-gray-100">
+                          <td className="p-1.5">{opt.option}</td>
+                          <td className="p-1.5 text-right w-16">{opt.count}</td>
+                          <td className="p-1.5 text-right w-16">{opt.percent}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
               )}
 
               {q.type === "text" && q.answers && (
