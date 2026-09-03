@@ -55,4 +55,5 @@ export interface PublicEvent {
   sequenceRootSlug?: string | null;
   nextEventId?: string | null;
   nextEventTitle?: string | null;
+  nextEventSlug?: string | null;
 }

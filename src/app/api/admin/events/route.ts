@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { events },
-    { headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" } }
+    { headers: { "Cache-Control": "no-store" } }
   );
 }
 

@@ -10,9 +10,12 @@ interface PublicEventRow {
   status: string; require_live_code: boolean; participant_count: number; current_open_round_id: string | null;
   current_round_title: string | null; current_round_status: string | null;
   access_challenge: { code: string; expiresAt: string; rotationSeconds: number } | null; updated_at: string;
+  sequence_id: string | null; sequence_order: number | null; sequence_size: number | null;
+  sequence_root_slug: string | null;
+  next_event_id: string | null; next_event_title: string | null; next_event_slug: string | null;
 }
 
-const FIELDS = "event_id,slug,title,description,projector_title,status,require_live_code,participant_count,current_open_round_id,current_round_title,current_round_status,access_challenge,updated_at";
+const FIELDS = "event_id,slug,title,description,projector_title,status,require_live_code,participant_count,current_open_round_id,current_round_title,current_round_status,access_challenge,updated_at,sequence_id,sequence_order,sequence_size,sequence_root_slug,next_event_id,next_event_title,next_event_slug";
 const CACHE_PREFIX = "semcas-public-event:";
 
 function mapRow(row: PublicEventRow): PublicEvent {
@@ -23,6 +26,10 @@ function mapRow(row: PublicEventRow): PublicEvent {
     currentOpenRoundId: row.current_open_round_id ?? null, currentRoundTitle: row.current_round_title ?? null,
     currentRoundStatus: (row.current_round_status as PublicEvent["currentRoundStatus"]) ?? null,
     accessChallenge: row.access_challenge, updatedAt: row.updated_at,
+    sequenceId: row.sequence_id ?? null, sequenceOrder: row.sequence_order ?? null,
+    sequenceSize: row.sequence_size ?? null, sequenceRootSlug: row.sequence_root_slug ?? null,
+    nextEventId: row.next_event_id ?? null, nextEventTitle: row.next_event_title ?? null,
+    nextEventSlug: row.next_event_slug ?? null,
   };
 }
 

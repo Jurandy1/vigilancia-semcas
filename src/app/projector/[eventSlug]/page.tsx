@@ -56,18 +56,37 @@ function ProjectorChrome({
 
 export default function ProjectorPage() {
   const params = useParams();
-  const eventSlug = params.eventSlug as string;
+  // Link fixo divulgado para a plateia (QR Code e URL exibidos nunca mudam,
+  // mesmo quando a sequência avança para o próximo evento).
+  const rootSlug = params.eventSlug as string;
+  // Slug do evento cujos dados estão sendo exibidos agora — avança sozinho
+  // quando o evento atual encerra e a sequência abre o próximo.
+  const [activeSlug, setActiveSlug] = useState(rootSlug);
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [eventUrl, setEventUrl] = useState("");
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const { publicEvent, loading, connectionIssue: eventConnectionIssue } = usePublicEvent(null, eventSlug);
+  useEffect(() => {
+    setActiveSlug(rootSlug);
+  }, [rootSlug]);
+
+  const { publicEvent, loading, connectionIssue: eventConnectionIssue } = usePublicEvent(null, activeSlug);
   const { stats, connectionIssue: statsConnectionIssue } = useRoundStats(publicEvent?.id ?? null, publicEvent?.currentOpenRoundId ?? null);
   const connectionIssue = eventConnectionIssue || statsConnectionIssue;
 
   useEffect(() => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
-    QRCode.toDataURL(`${appUrl}/e/${eventSlug}`, { width: 230, margin: 0 }).then(setQrDataUrl);
-  }, [eventSlug]);
+    if (publicEvent?.status !== "closed" || !publicEvent.nextEventSlug) return;
+    setActiveSlug(publicEvent.nextEventSlug);
+  }, [publicEvent]);
+
+  useEffect(() => {
+    // Preferir sempre a origem real do navegador: se NEXT_PUBLIC_APP_URL for
+    // configurada incorretamente (ex.: apontando para localhost), o QR Code
+    // real exibido no telão não pode ser afetado por isso.
+    const appUrl = window.location.origin || process.env.NEXT_PUBLIC_APP_URL;
+    setEventUrl(`${window.location.host}/e/${rootSlug}`);
+    QRCode.toDataURL(`${appUrl}/e/${rootSlug}`, { width: 230, margin: 0 }).then(setQrDataUrl);
+  }, [rootSlug]);
 
   useEffect(() => {
     setLastUpdate(new Date());
@@ -76,15 +95,12 @@ export default function ProjectorPage() {
   const connectedCount = publicEvent?.participantCount ?? 0;
   const isRoundOpen = publicEvent?.currentRoundStatus === "open";
   const hasHadRound = Boolean(publicEvent?.currentRoundTitle);
-  const isIntermission = Boolean(publicEvent) && !isRoundOpen && hasHadRound;
+  const isFinished = publicEvent?.status === "closed" && !publicEvent.nextEventSlug;
+  const isIntermission = Boolean(publicEvent) && !isRoundOpen && hasHadRound && !isFinished;
   const displayTitle = publicEvent?.projectorTitle ?? publicEvent?.title ?? "";
   const total = Math.max(connectedCount, stats.registered, stats.completed + stats.answering);
   const completed = stats.completed;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const eventUrl =
-    typeof window !== "undefined"
-      ? `${window.location.host}/e/${eventSlug}`
-      : `localhost:3000/e/${eventSlug}`;
 
   if (!loading && !publicEvent) {
     return (
@@ -99,6 +115,18 @@ export default function ProjectorPage() {
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#eef2f7" }}>
         <p style={{ fontSize: "20px", color: "#5b6b7f" }}>Carregando...</p>
       </div>
+    );
+  }
+
+  if (isFinished) {
+    return (
+      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+        <div>
+          <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Encerrado</p>
+          <p style={{ margin: "24px auto 0", fontSize: "46px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Obrigado pela participação</p>
+          <p style={{ margin: "22px 0 0", fontSize: "20px", color: "#5b6b7f" }}>Este evento foi encerrado.</p>
+        </div>
+      </ProjectorChrome>
     );
   }
 

@@ -88,6 +88,9 @@ export async function PATCH(
     eventUpdates.require_live_code = parsed.data.requireLiveCode;
     publicUpdates.require_live_code = parsed.data.requireLiveCode;
   }
+  if (parsed.data.isTest !== undefined) {
+    eventUpdates.is_test = parsed.data.isTest;
+  }
 
   await supabase.from("events").update(eventUpdates).eq("id", eventId);
   await supabase.from("public_events").update(publicUpdates).eq("event_id", eventId);
@@ -176,8 +179,20 @@ export async function DELETE(
     }
   }
 
+  // Zera a referência circular (events.current_open_round_id -> rounds.id) antes de excluir,
+  // já que essa FK não tem ON DELETE CASCADE e bloquearia a exclusão das rodadas.
+  if (event.current_open_round_id) {
+    await supabase.from("events").update({ current_open_round_id: null }).eq("id", eventId);
+  }
+
   // ON DELETE CASCADE cuida de rounds/questions/participants/participantRounds/submissions/public_round_stats.
-  await supabase.from("events").delete().eq("id", eventId);
+  const { error: deleteError } = await supabase.from("events").delete().eq("id", eventId);
+  if (deleteError) {
+    return NextResponse.json(
+      { error: "Não foi possível excluir o evento. Tente novamente." },
+      { status: 500 }
+    );
+  }
   await supabase.from("public_events").delete().eq("event_id", eventId);
 
   return NextResponse.json({ success: true });

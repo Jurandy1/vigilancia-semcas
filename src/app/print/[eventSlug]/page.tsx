@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { getEventBySlug } from "@/lib/data/events";
 import { PrintPoster } from "./PrintPoster";
 
@@ -19,7 +20,13 @@ export default async function PrintPage({
     );
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  // Nunca confiar só no fallback fixo: se NEXT_PUBLIC_APP_URL não estiver
+  // configurada no ambiente de produção, isso imprimiria "localhost" no
+  // pôster real. Preferimos sempre o host da requisição atual.
+  const headerList = await headers();
+  const host = headerList.get("host");
+  const protocol = headerList.get("x-forwarded-proto") ?? (host?.includes("localhost") ? "http" : "https");
+  const appUrl = host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   return <PrintPoster event={event} appUrl={appUrl} />;
 }

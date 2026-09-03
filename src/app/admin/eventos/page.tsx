@@ -96,7 +96,7 @@ export default function AdminEventosPage() {
   const load = useCallback(async () => {
     const token = await getAdminIdToken();
     if (!token) return;
-    const res = await adminFetch("/api/admin/events", token);
+    const res = await adminFetch("/api/admin/events", token, { cache: "no-store" });
     const data = await res.json();
     setEvents(data.events ?? []);
     setLoading(false);

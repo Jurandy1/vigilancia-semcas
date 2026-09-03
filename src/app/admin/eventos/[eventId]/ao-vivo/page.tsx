@@ -239,7 +239,7 @@ export default function AoVivoPage() {
                 }
               />
               <Link
-                href={`/projector/${event.slug}`}
+                href={`/projector/${event.sequenceRootSlug ?? event.slug}`}
                 target="_blank"
                 className="inline-flex items-center h-10 px-4 text-sm font-semibold text-white border border-white/45 rounded-md hover:bg-white/10 no-underline"
               >
@@ -510,7 +510,7 @@ export default function AoVivoPage() {
                   Perguntas e resultados não aparecem para a plateia.
                 </p>
                 <Link
-                  href={`/projector/${event.slug}`}
+                  href={`/projector/${event.sequenceRootSlug ?? event.slug}`}
                   target="_blank"
                   className="flex items-center justify-center w-full mt-3.5 h-[38px] text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9] hover:border-[#0b3a6e] no-underline"
                 >

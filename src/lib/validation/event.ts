@@ -25,6 +25,7 @@ export const updateEventSettingsSchema = z.object({
   description: z.string().trim().max(500).optional().nullable(),
   projectorTitle: z.string().trim().max(200).optional().nullable(),
   requireLiveCode: z.boolean().optional(),
+  isTest: z.boolean().optional(),
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;

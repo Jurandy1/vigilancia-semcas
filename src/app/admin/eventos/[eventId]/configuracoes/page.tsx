@@ -30,6 +30,7 @@ interface EventSettings {
   projectorTitle: string | null;
   requireLiveCode: boolean;
   isTest: boolean;
+  sequenceRootSlug: string | null;
 }
 
 type ConfigTab = "geral" | "participacao" | "acesso" | "projetor" | "seguranca";
@@ -55,10 +56,11 @@ export default function EventConfiguracoesPage() {
   const [projectorTitleDraft, setProjectorTitleDraft] = useState("");
   const [closing, setClosing] = useState(false);
   const [closeLoading, setCloseLoading] = useState(false);
+  const [savingIsTest, setSavingIsTest] = useState(false);
 
   const eventUrl =
     typeof window !== "undefined" && event
-      ? `${window.location.origin}/e/${event.slug}`
+      ? `${window.location.origin}/e/${event.sequenceRootSlug ?? event.slug}`
       : "";
 
   useEffect(() => {
@@ -127,6 +129,27 @@ export default function EventConfiguracoesPage() {
       setGeneralError("Não foi possível salvar as alterações.");
     } finally {
       setSavingGeneral(false);
+    }
+  }
+
+  async function toggleIsTest() {
+    if (!event || savingIsTest) return;
+    setGeneralError(null);
+    setSavingIsTest(true);
+    const next = !event.isTest;
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch(`/api/admin/events/${eventId}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ isTest: next }),
+      });
+      if (!res.ok) throw new Error();
+      setEvent({ ...event, isTest: next });
+    } catch {
+      setGeneralError("Não foi possível concluir esta operação. Tente novamente.");
+    } finally {
+      setSavingIsTest(false);
     }
   }
 
@@ -320,6 +343,28 @@ export default function EventConfiguracoesPage() {
                       <span style={{ fontSize: "12.5px", color: "#1a7f4b" }}>Salvo agora há pouco</span>
                     )}
                   </div>
+
+                  <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid #eef1f5", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>Marcar como evento de teste</p>
+                      <p style={{ marginTop: "4px", marginBottom: 0, fontSize: "13px", color: "#5b6b7f", lineHeight: 1.5 }}>
+                        Eventos de teste ficam identificados com o rótulo &quot;Teste&quot; na lista de eventos.
+                        Desmarque se este evento passou a ser real.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={event.isTest}
+                      disabled={savingIsTest}
+                      onClick={toggleIsTest}
+                      style={{ flexShrink: 0, width: "44px", height: "24px", borderRadius: "99px", position: "relative", border: "none", cursor: savingIsTest ? "not-allowed" : "pointer", opacity: savingIsTest ? 0.5 : 1, backgroundColor: event.isTest ? "#0b3a6e" : "#dde4ee", transition: "background-color 0.2s" }}
+                    >
+                      <span
+                        style={{ position: "absolute", top: "2px", left: event.isTest ? "22px" : "2px", width: "20px", height: "20px", backgroundColor: "#fff", borderRadius: "99px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", transition: "left 0.2s" }}
+                      />
+                    </button>
+                  </div>
                 </form>
               )}
 
@@ -369,7 +414,7 @@ export default function EventConfiguracoesPage() {
                     )}
                     <div>
                       <EventQrDialog
-                        eventSlug={event.slug}
+                        eventSlug={event.sequenceRootSlug ?? event.slug}
                         eventTitle={event.title}
                         trigger={
                           <button
@@ -382,7 +427,7 @@ export default function EventConfiguracoesPage() {
                       />
                       <p style={{ marginTop: "10px", marginBottom: 0, fontSize: "12.5px", color: "#8a97a8", lineHeight: 1.5 }}>
                         O cartaz A4 fica em{" "}
-                        <code style={{ fontSize: "12px" }}>/print/{event.slug}</code>.
+                        <code style={{ fontSize: "12px" }}>/print/{event.sequenceRootSlug ?? event.slug}</code>.
                       </p>
                     </div>
                   </div>
@@ -447,7 +492,7 @@ export default function EventConfiguracoesPage() {
                     </p>
                   </div>
                   <Link
-                    href={`/projector/${event.slug}`}
+                    href={`/projector/${event.sequenceRootSlug ?? event.slug}`}
                     target="_blank"
                     style={{ display: "inline-flex", alignItems: "center", marginTop: "16px", height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, color: "#0b3a6e", border: "1px solid #c9d4e2", borderRadius: "6px", textDecoration: "none" }}
                   >

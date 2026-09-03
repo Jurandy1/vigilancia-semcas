@@ -12,12 +12,18 @@ export default function AguardePage() {
   const router = useRouter();
   const params = useParams();
   const eventSlug = params.eventSlug as string;
-  const { eventId } = useParticipantStore();
+  const { eventId, reset } = useParticipantStore();
   const [resolvedEventId, setResolvedEventId] = useState<string | null>(eventId);
   const [newRoundAvailable, setNewRoundAvailable] = useState(false);
   const [newRoundId, setNewRoundId] = useState<string | null>(null);
 
   const { publicEvent, loading } = usePublicEvent(resolvedEventId, eventSlug);
+
+  useEffect(() => {
+    if (publicEvent?.status !== "closed" || !publicEvent.nextEventSlug) return;
+    reset();
+    router.replace(`/e/${publicEvent.nextEventSlug}`);
+  }, [publicEvent, reset, router]);
 
   useEffect(() => {
     async function resolveSession() {
