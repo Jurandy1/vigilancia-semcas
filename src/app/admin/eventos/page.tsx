@@ -9,18 +9,21 @@ import {
   ArrowUp,
   Copy,
   MessageSquareText,
+  MonitorUp,
   MoreVertical,
   ListOrdered,
   Plus,
   Printer,
   QrCode,
   Settings,
+  Star,
   Trash2,
   UsersRound,
   XCircle,
 } from "lucide-react";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -57,6 +60,7 @@ interface EventItem {
   slug: string;
   status: string;
   isTest: boolean;
+  isDailyActive: boolean;
   participantCount: number;
   submissionCount: number;
   currentRoundTitle: string | null;
@@ -113,6 +117,8 @@ export default function AdminEventosPage() {
     return unsub;
   }, [router, load]);
 
+  const dailyActiveEvent = useMemo(() => events.find((e) => e.isDailyActive) ?? null, [events]);
+
   const counts = useMemo(() => {
     return {
       todos: events.length,
@@ -132,6 +138,48 @@ export default function AdminEventosPage() {
 
   async function copyLink(slug: string) {
     await navigator.clipboard.writeText(`${window.location.origin}/e/${slug}`);
+  }
+
+  async function setDailyActive(event: EventItem) {
+    setActionLoading(true);
+    setError(null);
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch("/api/admin/events/daily-active", token, {
+        method: "POST",
+        body: JSON.stringify({ eventId: event.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Não foi possível definir o evento do dia.");
+        return;
+      }
+      await load();
+    } catch {
+      setError("Não foi possível definir o evento do dia.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function clearDailyActive() {
+    setActionLoading(true);
+    setError(null);
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch("/api/admin/events/daily-active", token, { method: "DELETE" });
+      if (!res.ok) {
+        setError("Não foi possível remover o evento do dia.");
+        return;
+      }
+      await load();
+    } catch {
+      setError("Não foi possível remover o evento do dia.");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function confirmCloseEvent() {
@@ -281,6 +329,40 @@ export default function AdminEventosPage() {
           </div>
         )}
 
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "14px", marginBottom: "18px", padding: "14px 18px", borderRadius: "10px", border: "1px solid #b9d5ed", background: "#edf6fd" }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: "11px", fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#0b4a83" }}>QR Code fixo</p>
+            {dailyActiveEvent ? (
+              <p style={{ margin: "4px 0 0", fontSize: "13.5px", color: "#244c70" }}>
+                Hoje aponta para <strong>{dailyActiveEvent.title}</strong>. O link e o QR nunca mudam — só troque qual evento está ativo.
+              </p>
+            ) : (
+              <p style={{ margin: "4px 0 0", fontSize: "13.5px", color: "#244c70" }}>
+                Nenhum evento definido. Imprima este QR uma vez e use &quot;Definir como evento do dia&quot; em qualquer evento para ativá-lo.
+              </p>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <EventQrDialog
+              eventSlug={DAILY_ACTIVE_SLUG}
+              eventTitle="QR fixo do dia"
+              trigger={
+                <button type="button" style={{ height: "36px", padding: "0 14px", border: "1px solid #79a9ce", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0b4a83", cursor: "pointer" }}>
+                  Ver QR fixo
+                </button>
+              }
+            />
+            <a href={`/projector/${DAILY_ACTIVE_SLUG}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", height: "36px", padding: "0 14px", border: "1px solid #79a9ce", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0b4a83", textDecoration: "none" }}>
+              Abrir projetor fixo
+            </a>
+            {dailyActiveEvent && (
+              <button type="button" onClick={clearDailyActive} disabled={actionLoading} style={{ height: "36px", padding: "0 14px", border: "1px solid #c9d4e2", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#5b6b7f", cursor: actionLoading ? "not-allowed" : "pointer" }}>
+                Desativar
+              </button>
+            )}
+          </div>
+        </div>
+
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
           {filters.map((f) => {
             const selected = filter === f.key;
@@ -364,6 +446,12 @@ export default function AdminEventosPage() {
                           Sequência {event.sequenceOrder + 1} de {event.sequenceSize}
                         </span>
                       )}
+                      {event.isDailyActive && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#0b4a83", background: "#edf6fd", border: "1px solid #b9d5ed", borderRadius: "4px", padding: "2px 6px" }}>
+                          <Star style={{ width: "11px", height: "11px" }} />
+                          QR fixo hoje
+                        </span>
+                      )}
                     </div>
                     
                     {event.currentRoundTitle ? (
@@ -439,10 +527,20 @@ export default function AdminEventosPage() {
                           </a>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
+                          <a href={`/projector/${event.sequenceRootSlug ?? event.slug}`} target="_blank" rel="noreferrer">
+                            <MonitorUp className="w-4 h-4" />
+                            Abrir projetor
+                          </a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
                           <Link href={`/admin/eventos/${event.id}/configuracoes`}>
                             <Settings className="w-4 h-4" />
                             Configurar
                           </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => (event.isDailyActive ? clearDailyActive() : setDailyActive(event))}>
+                          <Star className="w-4 h-4" />
+                          {event.isDailyActive ? "Remover do QR fixo" : "Definir como evento do dia"}
                         </DropdownMenuItem>
                         {event.status === "open" && (
                           <>

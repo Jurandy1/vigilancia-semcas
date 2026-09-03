@@ -16,6 +16,7 @@ create table events (
   "order" int,
   status text not null default 'draft' check (status in ('draft','waiting','open','closed')),
   is_test boolean not null default false,
+  is_daily_active boolean not null default false,
   require_live_code boolean not null default false,
   current_open_round_id uuid,
   participant_count int not null default 0,
@@ -35,6 +36,7 @@ create table events (
   next_event_slug text
 );
 create unique index one_open_event on events ((true)) where status = 'open';
+create unique index one_daily_active_event on events ((true)) where is_daily_active = true;
 create index events_sequence_id_idx on events (sequence_id);
 
 create table rounds (
@@ -143,6 +145,7 @@ create table public_events (
   projector_title text,
   status text not null,
   require_live_code boolean not null default false,
+  is_daily_active boolean not null default false,
   participant_count int not null default 0,
   current_open_round_id uuid,
   current_round_title text,
@@ -362,6 +365,54 @@ begin
 end;
 $$;
 
+create or replace function reset_round(p_round_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_event_id uuid;
+  v_event_status text;
+  v_other_open boolean;
+begin
+  select event_id into v_event_id from rounds where id = p_round_id for update;
+  if v_event_id is null then
+    raise exception 'ROUND_NOT_FOUND';
+  end if;
+
+  select status into v_event_status from events where id = v_event_id for update;
+
+  delete from submissions where round_id = p_round_id;
+  delete from participant_rounds where round_id = p_round_id;
+  delete from public_round_stats where round_id = p_round_id;
+
+  update rounds
+  set status = 'draft', registered_count = 0, answering_count = 0, completed_count = 0,
+      opened_at = null, closed_at = null
+  where id = p_round_id;
+
+  if v_event_status = 'closed' then
+    select exists (select 1 from events where status = 'open' and id <> v_event_id) into v_other_open;
+    if v_other_open then
+      raise exception 'ANOTHER_EVENT_OPEN';
+    end if;
+
+    update events
+    set status = 'open', closed_at = null, current_open_round_id = null, updated_at = now()
+    where id = v_event_id;
+
+    update public_events
+    set status = 'open', current_open_round_id = null, current_round_title = null,
+        current_round_status = null, updated_at = now()
+    where event_id = v_event_id;
+  elsif v_event_status = 'open' then
+    update events set current_open_round_id = null, updated_at = now()
+    where id = v_event_id and current_open_round_id = p_round_id;
+    update public_events
+    set current_open_round_id = null, current_round_title = null, current_round_status = null,
+        updated_at = now()
+    where event_id = v_event_id and current_open_round_id = p_round_id;
+  end if;
+end;
+$$;
+
 create or replace function advance_sequence(p_event_id uuid) returns uuid
 language plpgsql security definer set search_path = public as $$
 declare
@@ -383,6 +434,37 @@ begin
   perform open_event(v_next_event_id);
 
   return v_next_event_id;
+end;
+$$;
+
+-- Ativa p_event_id (ou, se ele pertencer a uma sequência, o evento raiz dela)
+-- como o evento fixo do dia — o alvo de /e/atual e /projector/atual — desmarcando
+-- qualquer outro que estivesse ativo.
+create or replace function set_daily_active_event(p_event_id uuid) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  v_root_id uuid;
+begin
+  select coalesce(sequence_root_event_id, id) into v_root_id from events where id = p_event_id;
+  if v_root_id is null then
+    raise exception 'EVENT_NOT_FOUND';
+  end if;
+
+  update events set is_daily_active = false, updated_at = now() where is_daily_active = true;
+  update public_events set is_daily_active = false, updated_at = now() where is_daily_active = true;
+
+  update events set is_daily_active = true, updated_at = now() where id = v_root_id;
+  update public_events set is_daily_active = true, updated_at = now() where event_id = v_root_id;
+
+  return v_root_id;
+end;
+$$;
+
+create or replace function clear_daily_active_event() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  update events set is_daily_active = false, updated_at = now() where is_daily_active = true;
+  update public_events set is_daily_active = false, updated_at = now() where is_daily_active = true;
 end;
 $$;
 

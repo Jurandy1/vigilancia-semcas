@@ -27,7 +27,7 @@ interface RoundItem {
   submissionCount: number;
 }
 
-type PendingAction = { type: "open" | "close"; round: RoundItem } | null;
+type PendingAction = { type: "open" | "close" | "reset"; round: RoundItem } | null;
 
 function RoundCard({
   round,
@@ -239,6 +239,14 @@ export default function RodadasPage() {
                     >
                       Encerrar
                     </button>
+                    <button
+                      type="button"
+                      className={dangerBtn}
+                      style={{ height: "36px", borderRadius: "8px" }}
+                      onClick={() => setPending({ type: "reset", round })}
+                    >
+                      Resetar
+                    </button>
                   </>
                 }
               />
@@ -313,13 +321,23 @@ export default function RodadasPage() {
                 round={round}
                 participantCount={participantCount}
                 actions={
-                  <Link
-                    href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
-                    className={outlineBtn}
-                    style={{ height: "36px", borderRadius: "8px" }}
-                  >
-                    Ver resultados
-                  </Link>
+                  <>
+                    <Link
+                      href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
+                      className={outlineBtn}
+                      style={{ height: "36px", borderRadius: "8px" }}
+                    >
+                      Ver resultados
+                    </Link>
+                    <button
+                      type="button"
+                      className={dangerBtn}
+                      style={{ height: "36px", borderRadius: "8px" }}
+                      onClick={() => setPending({ type: "reset", round })}
+                    >
+                      Resetar
+                    </button>
+                  </>
                 }
               />
             ))}
@@ -331,22 +349,34 @@ export default function RodadasPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pending?.type === "open" ? "Abrir rodada?" : "Encerrar rodada?"}
+              {pending?.type === "open"
+                ? "Abrir rodada?"
+                : pending?.type === "reset"
+                  ? "Resetar rodada e apagar respostas?"
+                  : "Encerrar rodada?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pending?.type === "open"
                 ? "Todos os participantes aptos poderão responder esta etapa."
-                : "Após o encerramento, novas respostas não serão aceitas."}
+                : pending?.type === "reset"
+                  ? `Isso apaga permanentemente ${pending.round.submissionCount} resposta(s) já recebidas nesta rodada e a volta ao estado inicial (rascunho), mesmo que o evento já esteja encerrado. Esta ação não pode ser desfeita — use apenas se algo deu errado e a rodada precisa ser votada de novo do zero.`
+                  : "Após o encerramento, novas respostas não serão aceitas."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmAction} disabled={actionLoading}>
+            <AlertDialogAction
+              onClick={confirmAction}
+              disabled={actionLoading}
+              className={pending?.type === "reset" ? "bg-[#b42318] hover:bg-[#8f1c13]" : undefined}
+            >
               {actionLoading
                 ? "Aguarde..."
                 : pending?.type === "open"
                   ? "Abrir rodada"
-                  : "Encerrar rodada"}
+                  : pending?.type === "reset"
+                    ? "Apagar e resetar"
+                    : "Encerrar rodada"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

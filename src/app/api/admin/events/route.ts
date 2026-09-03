@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const [{ data: rows }, { data: roundRows }] = await Promise.all([
     supabase
       .from("events")
-      .select("id,title,slug,status,is_test,order,participant_count,created_at,current_open_round_id,sequence_id,sequence_order,sequence_size,sequence_root_event_id,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
+      .select("id,title,slug,status,is_test,is_daily_active,order,participant_count,created_at,current_open_round_id,sequence_id,sequence_order,sequence_size,sequence_root_event_id,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
       .order("created_at", { ascending: false }),
     supabase.from("rounds").select("id,event_id,title,completed_count"),
   ]);
@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         slug: d.slug,
         status: d.status,
         isTest: d.is_test,
+        isDailyActive: d.is_daily_active ?? false,
         order: d.order ?? 0,
         participantCount: d.participant_count ?? 0,
         submissionCount: submissionsByEvent.get(d.id) ?? 0,

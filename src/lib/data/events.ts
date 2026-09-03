@@ -1,4 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
+
+export { DAILY_ACTIVE_SLUG };
 
 export interface EventSummary {
   id: string;
@@ -14,7 +17,10 @@ export interface EventSummary {
 
 export async function getEventBySlug(slug: string): Promise<EventSummary | null> {
   const supabase = getSupabaseAdmin();
-  const { data } = await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
+  const { data } =
+    slug === DAILY_ACTIVE_SLUG
+      ? await supabase.from("events").select("*").eq("is_daily_active", true).maybeSingle()
+      : await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
   if (!data) return null;
 
   let row = data;

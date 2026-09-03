@@ -9,6 +9,7 @@ export type AuditAction =
   | "participant_completed"
   | "round_opened"
   | "round_closed"
+  | "round_reset"
   | "event_opened"
   | "event_closed"
   | "report_exported";

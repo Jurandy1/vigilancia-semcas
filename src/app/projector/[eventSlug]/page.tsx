@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { usePublicEvent } from "@/hooks/use-public-event";
 import { useRoundStats } from "@/hooks/use-round-stats";
 import { SemcasBrand } from "@/components/branding/SemcasBrand";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 import QRCode from "qrcode";
 
 function ProjectorChrome({
@@ -61,13 +63,35 @@ export default function ProjectorPage() {
   const rootSlug = params.eventSlug as string;
   // Slug do evento cujos dados estão sendo exibidos agora — avança sozinho
   // quando o evento atual encerra e a sequência abre o próximo.
-  const [activeSlug, setActiveSlug] = useState(rootSlug);
+  const [activeSlug, setActiveSlug] = useState(rootSlug === DAILY_ACTIVE_SLUG ? null : rootSlug);
+  const [resolvingDailyActive, setResolvingDailyActive] = useState(rootSlug === DAILY_ACTIVE_SLUG);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [eventUrl, setEventUrl] = useState("");
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
   useEffect(() => {
-    setActiveSlug(rootSlug);
+    if (rootSlug !== DAILY_ACTIVE_SLUG) {
+      setActiveSlug(rootSlug);
+      setResolvingDailyActive(false);
+      return;
+    }
+    // Link fixo: descobre qual evento está marcado como "o de hoje" antes de
+    // assinar os dados ao vivo — a URL/QR exibidos continuam mostrando /atual.
+    let cancelled = false;
+    setResolvingDailyActive(true);
+    getSupabaseClient()
+      .from("public_events")
+      .select("slug")
+      .eq("is_daily_active", true)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setActiveSlug(data?.slug ?? null);
+        setResolvingDailyActive(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [rootSlug]);
 
   const { publicEvent, loading, connectionIssue: eventConnectionIssue } = usePublicEvent(null, activeSlug);
@@ -102,7 +126,15 @@ export default function ProjectorPage() {
   const completed = stats.completed;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  if (!loading && !publicEvent) {
+  if (!resolvingDailyActive && rootSlug === DAILY_ACTIVE_SLUG && !activeSlug) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#eef2f7" }}>
+        <p style={{ fontSize: "20px", color: "#5b6b7f" }}>Nenhum evento está definido como &quot;o de hoje&quot; no momento.</p>
+      </div>
+    );
+  }
+
+  if (!resolvingDailyActive && !loading && !publicEvent) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#eef2f7" }}>
         <p style={{ fontSize: "20px", color: "#5b6b7f" }}>Não foi possível carregar o evento.</p>
