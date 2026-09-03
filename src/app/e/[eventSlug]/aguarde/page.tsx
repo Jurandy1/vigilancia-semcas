@@ -68,6 +68,32 @@ export default function AguardePage() {
     );
   }
 
+  if (!publicEvent?.currentOpenRoundId) {
+    return (
+      <ParticipantShell eventTitle={publicEvent?.title}>
+        <section
+          aria-label="Aguardando início do evento"
+          className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8"
+        >
+          <span
+            aria-hidden
+            className="w-14 h-14 rounded-full bg-[#eef3f9] border border-[#d6e0ec] text-[#0b3a6e] text-[26px] flex items-center justify-center"
+          >
+            ⏳
+          </span>
+          <h2 className="mt-5 mb-0 text-xl font-bold text-[#1a1a1a]">Você entrou no evento</h2>
+          <p className="mt-2.5 mb-0 text-[15px] text-[#5b6b7f]">
+            Aguarde o organizador iniciar a primeira atividade.
+          </p>
+          <p className="mt-[26px] mb-0 inline-flex items-center gap-2 text-[13px] text-[#8a97a8]">
+            <span className="w-2 h-2 rounded-full bg-[#8a97a8] animate-pulse" />
+            Esta tela atualiza sozinha quando a atividade abrir
+          </p>
+        </section>
+      </ParticipantShell>
+    );
+  }
+
   if (newRoundAvailable && newRoundId) {
     return (
       <ParticipantShell eventTitle={publicEvent?.title}>
