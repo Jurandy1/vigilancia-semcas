@@ -158,16 +158,6 @@ export default function AdminEventosPage() {
     }
   }
 
-  function openSequenceManager() {
-    const existingSequenceId = events.find((event) => event.sequenceId)?.sequenceId;
-    const existing = events
-      .filter((event) => event.sequenceId === existingSequenceId)
-      .sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
-    setSequenceIds(existing.map((event) => event.id));
-    setError(null);
-    setSequenceOpen(true);
-  }
-
   useEffect(() => {
     if (loading || sequenceQueryHandled.current) return;
     if (new URLSearchParams(window.location.search).get("sequencia") === "1") {

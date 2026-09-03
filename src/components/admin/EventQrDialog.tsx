@@ -48,41 +48,48 @@ export function EventQrDialog({ eventSlug, eventTitle, trigger }: EventQrDialogP
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-2xl p-0">
+        <div className="bg-[linear-gradient(135deg,#0a2d55,#0b4a83)] px-5 py-5 pr-12 text-white sm:px-6">
         <DialogHeader>
-          <DialogTitle>Acesso ao evento</DialogTitle>
-          <DialogDescription className="text-pretty">{eventTitle}</DialogDescription>
+          <DialogTitle className="text-lg text-white">Acesso ao evento</DialogTitle>
+          <DialogDescription className="text-pretty text-blue-100">{eventTitle}</DialogDescription>
         </DialogHeader>
-
-        {qrDataUrl && (
-          <div className="mx-auto w-fit rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrDataUrl} alt="QR Code do evento" className="w-52 h-52" />
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          <code className="flex-1 min-w-0 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 truncate">
-            {eventUrl}
-          </code>
-          <Button size="sm" variant="outline" onClick={copyLink} className="shrink-0">
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          </Button>
         </div>
 
-        <div className="flex gap-2">
-          <Button asChild variant="outline" className="flex-1">
+        <div className="grid gap-4 px-5 pb-5 sm:px-6 sm:pb-6">
+          {qrDataUrl && (
+            <div className="mx-auto mt-1 w-fit max-w-full rounded-2xl border border-[#dbe4ef] bg-white p-3 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrDataUrl} alt="QR Code do evento" className="h-auto w-48 max-w-full sm:w-56" />
+            </div>
+          )}
+
+          <div>
+            <p className="mb-1.5 mt-0 text-xs font-semibold uppercase tracking-wide text-[#64748b]">Link de participação</p>
+            <div className="flex min-w-0 items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded-lg border border-[#dbe4ef] bg-[#f8fafc] px-3 py-2.5 text-xs text-[#33415c]">
+                {eventUrl}
+              </code>
+              <Button size="sm" variant="outline" onClick={copyLink} className="h-10 shrink-0" aria-label="Copiar link">
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button asChild variant="outline" className="w-full">
             <a href={qrDataUrl} download={`qrcode-${eventSlug}.png`}>
               <Download className="w-4 h-4" />
               Baixar QR
             </a>
           </Button>
-          <Button asChild variant="outline" className="flex-1">
+          <Button asChild variant="outline" className="w-full">
             <Link href={`/print/${eventSlug}`} target="_blank">
               <Printer className="w-4 h-4" />
               Imprimir A4
             </Link>
           </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

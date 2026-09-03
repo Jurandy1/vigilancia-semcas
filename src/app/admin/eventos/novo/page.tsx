@@ -13,7 +13,18 @@ import { cn } from "@/lib/utils";
 interface CreatedEvent {
   eventId: string;
   slug: string;
+  accessSlug: string;
   title: string;
+}
+
+interface AvailableEvent {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  sequenceId: string | null;
+  sequenceOrder: number | null;
+  sequenceRootSlug: string | null;
 }
 
 function EventCreatedView({ created }: { created: CreatedEvent }) {
@@ -23,10 +34,10 @@ function EventCreatedView({ created }: { created: CreatedEvent }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const url = `${window.location.origin}/e/${created.slug}`;
+    const url = `${window.location.origin}/e/${created.accessSlug}`;
     setEventUrl(url);
     QRCode.toDataURL(url, { width: 260, margin: 2 }).then(setQrDataUrl);
-  }, [created.slug]);
+  }, [created.accessSlug]);
 
   async function copyLink() {
     await navigator.clipboard.writeText(eventUrl);
@@ -90,14 +101,26 @@ export default function NovoEventoPage() {
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<CreatedEvent | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [attachToEventId, setAttachToEventId] = useState("");
+  const [availableEvents, setAvailableEvents] = useState<AvailableEvent[]>([]);
 
   useEffect(() => {
-    const unsub = onAdminAuthChange((user) => {
+    const unsub = onAdminAuthChange(async (user) => {
       if (!user) {
         router.replace("/admin/login");
         return;
       }
       setAuthReady(true);
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch("/api/admin/events", token);
+      if (!res.ok) return;
+      const data = await res.json();
+      setAvailableEvents(
+        ((data.events ?? []) as AvailableEvent[]).filter(
+          (event) => event.status === "draft" || event.status === "waiting"
+        )
+      );
     });
     return unsub;
   }, [router]);
@@ -126,7 +149,34 @@ export default function NovoEventoPage() {
         setError(data.error ?? "Erro ao criar evento.");
         return;
       }
-      setCreated({ eventId: data.eventId, slug: data.slug, title });
+
+      if (attachToEventId) {
+        const anchor = availableEvents.find((event) => event.id === attachToEventId);
+        const existingSequence = anchor?.sequenceId
+          ? availableEvents
+              .filter((event) => event.sequenceId === anchor.sequenceId)
+              .sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0))
+              .map((event) => event.id)
+          : [attachToEventId];
+        const sequenceRes = await adminFetch("/api/admin/events/sequence", token, {
+          method: "POST",
+          body: JSON.stringify({ eventIds: [...existingSequence, data.eventId] }),
+        });
+        const sequenceData = await sequenceRes.json();
+        if (!sequenceRes.ok) {
+          setError(
+            `O evento foi criado, mas não foi vinculado à sequência: ${sequenceData.error ?? "erro desconhecido"}`
+          );
+          return;
+        }
+      }
+      const anchor = availableEvents.find((event) => event.id === attachToEventId);
+      setCreated({
+        eventId: data.eventId,
+        slug: data.slug,
+        accessSlug: anchor?.sequenceRootSlug ?? anchor?.slug ?? data.slug,
+        title,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar evento.");
     } finally {
@@ -288,6 +338,26 @@ export default function NovoEventoPage() {
                 />
                 Exigir código temporário no projetor
               </label>
+              <div className="mt-5 border-t border-[#eef1f5] pt-5">
+                <label className="block mb-1.5 text-[12.5px] font-semibold text-[#33415c]">
+                  Compartilhar QR Code com outro evento <span className="font-normal text-[#8a97a8]">(opcional)</span>
+                </label>
+                <select
+                  value={attachToEventId}
+                  onChange={(e) => setAttachToEventId(e.target.value)}
+                  className="h-[42px] w-full rounded-md border border-[#c9d4e2] bg-white px-3 text-sm text-[#33415c]"
+                >
+                  <option value="">Usar um QR Code próprio</option>
+                  {availableEvents.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      Anexar depois de “{event.title}”{event.sequenceId ? " (sequência existente)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="mb-0 mt-2 text-xs leading-relaxed text-[#8a97a8]">
+                  O novo evento será o próximo da sequência e usará o mesmo QR Code do primeiro.
+                </p>
+              </div>
             </>
           )}
 
@@ -306,6 +376,11 @@ export default function NovoEventoPage() {
                   Status inicial: <strong className="text-[#33415c]">Aguardando</strong>, sem
                   rodadas.
                 </p>
+                {attachToEventId && (
+                  <p className="m-0">
+                    QR Code compartilhado com: <strong className="text-[#33415c]">{availableEvents.find((event) => event.id === attachToEventId)?.title}</strong>
+                  </p>
+                )}
                 {isTest && (
                   <p className="m-0">
                     Selo: <strong className="text-[#8a5a00]">Evento de teste</strong>

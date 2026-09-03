@@ -11,24 +11,24 @@ export async function GET(request: NextRequest) {
   if (!admin) return adminUnauthorized();
 
   const supabase = getSupabaseAdmin();
-  const { data: rows } = await supabase
-    .from("events")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [{ data: rows }, { data: roundRows }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id,title,slug,status,is_test,order,participant_count,created_at,current_open_round_id,sequence_id,sequence_order,sequence_size,sequence_root_event_id,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
+      .order("created_at", { ascending: false }),
+    supabase.from("rounds").select("id,event_id,title,completed_count"),
+  ]);
 
-  const events = await Promise.all(
-    (rows ?? []).map(async (d) => {
-      const [{ count: submissionCount }, currentRound] = await Promise.all([
-        supabase
-          .from("submissions")
-          .select("id", { count: "exact", head: true })
-          .eq("event_id", d.id),
-        d.current_open_round_id
-          ? supabase.from("rounds").select("title").eq("id", d.current_open_round_id).maybeSingle()
-          : Promise.resolve({ data: null }),
-      ]);
+  const roundTitleById = new Map((roundRows ?? []).map((round) => [round.id, round.title]));
+  const submissionsByEvent = new Map<string, number>();
+  for (const round of roundRows ?? []) {
+    submissionsByEvent.set(
+      round.event_id,
+      (submissionsByEvent.get(round.event_id) ?? 0) + (round.completed_count ?? 0)
+    );
+  }
 
-      return {
+  const events = (rows ?? []).map((d) => ({
         id: d.id,
         title: d.title,
         slug: d.slug,
@@ -36,8 +36,10 @@ export async function GET(request: NextRequest) {
         isTest: d.is_test,
         order: d.order ?? 0,
         participantCount: d.participant_count ?? 0,
-        submissionCount: submissionCount ?? 0,
-        currentRoundTitle: currentRound.data?.title ?? null,
+        submissionCount: submissionsByEvent.get(d.id) ?? 0,
+        currentRoundTitle: d.current_open_round_id
+          ? roundTitleById.get(d.current_open_round_id) ?? null
+          : null,
         createdAt: d.created_at,
         sequenceId: d.sequence_id ?? null,
         sequenceOrder: d.sequence_order ?? null,
@@ -47,11 +49,12 @@ export async function GET(request: NextRequest) {
         nextEventId: d.next_event_id ?? null,
         nextEventTitle: d.next_event_title ?? null,
         nextEventSlug: d.next_event_slug ?? null,
-      };
-    })
-  );
+      }));
 
-  return NextResponse.json({ events });
+  return NextResponse.json(
+    { events },
+    { headers: { "Cache-Control": "private, max-age=10, stale-while-revalidate=30" } }
+  );
 }
 
 export async function POST(request: NextRequest) {

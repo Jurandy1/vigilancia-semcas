@@ -21,6 +21,9 @@ interface PublicEventRow {
   updated_at: string;
 }
 
+const PUBLIC_EVENT_FIELDS =
+  "event_id,slug,title,description,projector_title,status,require_live_code,participant_count,current_open_round_id,current_round_title,current_round_status,access_challenge,updated_at";
+
 function mapRow(row: PublicEventRow): PublicEvent {
   return {
     id: row.event_id,
@@ -59,7 +62,7 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
       if (!resolvedEventId && eventSlug) {
         const { data } = await supabase
           .from("public_events")
-          .select("*")
+          .select(PUBLIC_EVENT_FIELDS)
           .eq("slug", eventSlug)
           .maybeSingle();
         if (data) {
@@ -69,7 +72,7 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
       } else if (resolvedEventId) {
         const { data } = await supabase
           .from("public_events")
-          .select("*")
+          .select(PUBLIC_EVENT_FIELDS)
           .eq("event_id", resolvedEventId)
           .maybeSingle();
         if (data) setPublicEvent(mapRow(data as PublicEventRow));

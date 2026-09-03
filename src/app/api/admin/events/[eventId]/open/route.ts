@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { writeAuditLog } from "@/lib/supabase/helpers";
+import { openRoundTransaction } from "@/lib/rounds/open-round";
 
 export const runtime = "nodejs";
 
@@ -36,5 +37,33 @@ export async function POST(
 
   await writeAuditLog({ eventId, action: "event_opened", actorType: "admin", actorId: admin.uid });
 
-  return NextResponse.json({ success: true });
+  // Iniciar o evento também abre automaticamente a primeira rodada disponível.
+  const { data: firstRound } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("event_id", eventId)
+    .in("status", ["draft", "waiting"])
+    .order("order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (firstRound) {
+    const roundResult = await openRoundTransaction(eventId, firstRound.id);
+    if (!roundResult.ok) {
+      return NextResponse.json(
+        { error: `O evento foi iniciado, mas a primeira rodada não pôde ser aberta: ${roundResult.error}` },
+        { status: roundResult.status }
+      );
+    }
+    await writeAuditLog({
+      eventId,
+      action: "round_opened",
+      actorType: "admin",
+      actorId: admin.uid,
+      roundId: firstRound.id,
+    });
+    return NextResponse.json({ success: true, roundId: firstRound.id });
+  }
+
+  return NextResponse.json({ success: true, roundId: null });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { writeAuditLog } from "@/lib/supabase/helpers";
+import { openRoundTransaction } from "@/lib/rounds/open-round";
 
 export const runtime = "nodejs";
 
@@ -66,10 +67,37 @@ export async function POST(
     }),
   ]);
 
+  // Ao avançar na sequência, o próximo evento já fica realmente em andamento:
+  // sua primeira rodada é aberta sem exigir um segundo clique do operador.
+  const { data: firstRound } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("event_id", nextEventId as string)
+    .in("status", ["draft", "waiting"])
+    .order("order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  let openedRoundId: string | null = null;
+  if (firstRound) {
+    const roundResult = await openRoundTransaction(nextEventId as string, firstRound.id);
+    if (roundResult.ok) {
+      openedRoundId = firstRound.id;
+      await writeAuditLog({
+        eventId: nextEventId as string,
+        action: "round_opened",
+        actorType: "admin",
+        actorId: admin.uid,
+        roundId: firstRound.id,
+      });
+    }
+  }
+
   return NextResponse.json({
     success: true,
     nextEventId,
     nextEventSlug: nextEvent?.slug ?? null,
     nextEventTitle: nextEvent?.title ?? null,
+    openedRoundId,
   });
 }

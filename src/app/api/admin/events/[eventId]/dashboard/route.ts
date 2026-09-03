@@ -14,10 +14,14 @@ export async function GET(
 
   const { eventId } = await params;
   const { searchParams } = new URL(request.url);
-  const roundId = searchParams.get("roundId");
+  const requestedRoundId = searchParams.get("roundId");
 
   const supabase = getSupabaseAdmin();
-  const { data: eventData } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();
+  const { data: eventData } = await supabase
+    .from("events")
+    .select("id,title,slug,status,participant_count,opened_at,created_at,current_open_round_id,sequence_id,sequence_order,sequence_size,sequence_root_event_id,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
+    .eq("id", eventId)
+    .maybeSingle();
   if (!eventData) {
     return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
   }
@@ -40,13 +44,32 @@ export async function GET(
     nextEventSlug: eventData.next_event_slug ?? null,
   };
 
+  const roundId = requestedRoundId ?? eventData.current_open_round_id ?? null;
+
   const [participantsResult, roundResult, roundsResult, prResult] = await Promise.all([
-    supabase.from("participants").select("*").eq("event_id", eventId).order("created_at", { ascending: false }),
-    roundId ? supabase.from("rounds").select("*").eq("id", roundId).maybeSingle() : Promise.resolve({ data: null }),
-    supabase.from("rounds").select("*").eq("event_id", eventId).order("order", { ascending: true }),
+    supabase
+      .from("participants")
+      .select("id,mode,name,last_activity_at,created_at")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: false }),
     roundId
-      ? supabase.from("participant_rounds").select("*").eq("round_id", roundId)
-      : supabase.from("participant_rounds").select("*").eq("event_id", eventId),
+      ? supabase
+          .from("rounds")
+          .select("id,question_count,registered_count,answering_count,completed_count")
+          .eq("id", roundId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("rounds")
+      .select("id,title,status,order,completed_count")
+      .eq("event_id", eventId)
+      .order("order", { ascending: true }),
+    roundId
+      ? supabase
+          .from("participant_rounds")
+          .select("participant_id,status,current_question,started_at,completed_at")
+          .eq("round_id", roundId)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const participantRows = participantsResult.data ?? [];
@@ -55,7 +78,7 @@ export async function GET(
   const questionCount = roundResult.data?.question_count ?? 0;
 
   const participants = participantRows.map((p) => {
-    const pr = roundId ? prMap.get(p.id) : null;
+    const pr = prMap.get(p.id);
     const status = pr?.status ?? "waiting";
     return {
       id: p.id,
@@ -78,7 +101,7 @@ export async function GET(
     submissionCount: r.completed_count ?? 0,
   }));
 
-  const currentRoundRow = roundId ? roundResult.data : null;
+  const currentRoundRow = roundResult.data;
   const stats = {
     registered: currentRoundRow?.registered_count ?? 0,
     answering: currentRoundRow?.answering_count ?? 0,

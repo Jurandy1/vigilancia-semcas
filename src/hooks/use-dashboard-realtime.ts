@@ -83,8 +83,16 @@ export function useDashboardRealtime(eventId: string | null) {
 
     async function bootstrap() {
       const [{ data: eventRow }, { data: roundRows }] = await Promise.all([
-        supabase.from("events").select("*").eq("id", eventId).maybeSingle(),
-        supabase.from("rounds").select("*").eq("event_id", eventId).order("order", { ascending: true }),
+        supabase
+          .from("events")
+          .select("title,slug,status,opened_at,participant_count,sequence_id,sequence_order,sequence_size,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
+          .eq("id", eventId)
+          .maybeSingle(),
+        supabase
+          .from("rounds")
+          .select("id,title,status,order,registered_count,answering_count,completed_count")
+          .eq("event_id", eventId)
+          .order("order", { ascending: true }),
       ]);
       if (eventRow) setEvent(mapEventRow(eventRow));
       if (roundRows) setRoundsRaw(roundRows.map(mapRoundRow));
@@ -110,7 +118,7 @@ export function useDashboardRealtime(eventId: string | null) {
         () => {
           supabase
             .from("rounds")
-            .select("*")
+            .select("id,title,status,order,registered_count,answering_count,completed_count")
             .eq("event_id", eventId)
             .order("order", { ascending: true })
             .then(({ data }) => {

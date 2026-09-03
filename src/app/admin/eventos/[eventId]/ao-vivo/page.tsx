@@ -38,19 +38,14 @@ export default function AoVivoPage() {
   const [authReady, setAuthReady] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
-  const [confirmNextEvent, setConfirmNextEvent] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
-  const [participantsPending, setParticipantsPending] = useState({
-    answering: 0,
-    waiting: 0,
-    completed: 0,
-  });
 
   const { event, rounds, stats, loading } = useDashboardRealtime(authReady ? eventId : null);
   const dashboardState = resolveDashboardState(event?.status ?? "draft", rounds);
   const currentRound = dashboardState.currentRound;
+  const currentRoundId = currentRound?.id ?? null;
   const nextRound = dashboardState.nextRound;
 
   useEffect(() => {
@@ -65,7 +60,7 @@ export default function AoVivoPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!authReady || !currentRound) {
+    if (!authReady || !currentRoundId) {
       setQuestions([]);
       setSelectedQuestionId(null);
       return;
@@ -75,10 +70,10 @@ export default function AoVivoPage() {
 
     async function loadReport() {
       const token = await getAdminIdToken();
-      if (!token || !currentRound) return;
+      if (!token) return;
       try {
         const res = await adminFetch(
-          `/api/admin/events/${eventId}/rounds/${currentRound.id}/report`,
+          `/api/admin/events/${eventId}/rounds/${currentRoundId}/report`,
           token
         );
         const data = await res.json();
@@ -94,45 +89,10 @@ export default function AoVivoPage() {
     }
 
     loadReport();
-    const interval = setInterval(loadReport, 8000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
-  }, [authReady, currentRound, eventId]);
-
-  useEffect(() => {
-    if (!authReady || !currentRound) return;
-    let cancelled = false;
-
-    async function loadParticipants() {
-      const token = await getAdminIdToken();
-      if (!token || !currentRound) return;
-      try {
-        const res = await adminFetch(
-          `/api/admin/events/${eventId}/dashboard?roundId=${currentRound.id}`,
-          token
-        );
-        const data = await res.json();
-        if (!res.ok || cancelled) return;
-        const list = (data.participants ?? []) as Array<{ status: string }>;
-        setParticipantsPending({
-          answering: list.filter((p) => p.status === "answering").length,
-          waiting: list.filter((p) => p.status === "waiting").length,
-          completed: list.filter((p) => p.status === "completed").length,
-        });
-      } catch {
-        /* keep previous */
-      }
-    }
-
-    loadParticipants();
-    const interval = setInterval(loadParticipants, 10000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [authReady, currentRound, eventId]);
+  }, [authReady, currentRoundId, eventId, stats.completed]);
 
   const selectedQuestion = useMemo(
     () => questions.find((q) => q.id === selectedQuestionId) ?? questions[0] ?? null,
@@ -142,6 +102,11 @@ export default function AoVivoPage() {
   const total = event?.participantCount ?? 0;
   const completed = stats.completed;
   const answering = Math.max(0, stats.answering);
+  const participantsPending = {
+    answering,
+    waiting: Math.max(0, stats.registered - stats.answering - stats.completed),
+    completed: stats.completed,
+  };
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   const openedTime = event?.openedAt
     ? new Date(event.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
@@ -271,7 +236,7 @@ export default function AoVivoPage() {
               ) : event.nextEventId && (event.status === "open" || event.status === "closed") ? (
                 <button
                   type="button"
-                  onClick={() => setConfirmNextEvent(true)}
+                  onClick={() => runAction("/next")}
                   disabled={actionLoading}
                   className="h-10 px-4 text-sm font-semibold bg-[#5ecf92] text-[#082f57] border border-[#5ecf92] rounded-md hover:bg-[#7bdda7] disabled:opacity-50"
                 >
@@ -558,30 +523,6 @@ export default function AoVivoPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmNextEvent} onOpenChange={setConfirmNextEvent}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Iniciar o próximo evento?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {event.status === "open" ? "O evento atual será encerrado e " : ""}
-              “{event.nextEventTitle}” será iniciado. O mesmo QR Code passará a direcionar os participantes para ele.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={actionLoading}
-              onClick={() => {
-                setConfirmNextEvent(false);
-                void runAction("/next");
-              }}
-              className="bg-[#18754a] hover:bg-[#12633e]"
-            >
-              Iniciar próximo evento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AdminShell>
   );
 }

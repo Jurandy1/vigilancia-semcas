@@ -7,63 +7,18 @@ import { adminFetch } from "@/lib/api-client";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   QuestionEditorList,
-  cloneQuestions,
+  blankQuestion,
   validateQuestions,
   type QuestionDraft,
 } from "@/components/admin/QuestionEditor";
-
-const DEFAULT_QUESTIONS: QuestionDraft[] = [
-  {
-    title: "Como você avalia a metodologia utilizada no evento?",
-    type: "single_choice",
-    options: ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
-    required: true,
-  },
-  {
-    title: "Como você avalia o local onde o evento foi realizado?",
-    type: "single_choice",
-    options: ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
-    required: true,
-  },
-  {
-    title: "Como você avalia a organização geral do evento?",
-    type: "single_choice",
-    options: ["Excelente", "Bom", "Regular", "Ruim", "Péssimo"],
-    required: true,
-  },
-  {
-    title: "A duração do evento foi adequada?",
-    type: "single_choice",
-    options: ["Sim", "Parcialmente", "Não"],
-    required: true,
-  },
-  {
-    title: "Quais foram os principais pontos positivos do evento?",
-    type: "text",
-    options: [],
-    required: true,
-  },
-  {
-    title: "O conteúdo abordado no evento foi relevante para sua atuação profissional?",
-    type: "single_choice",
-    options: ["Muito relevante", "Relevante", "Pouco relevante", "Não foi relevante"],
-    required: true,
-  },
-  {
-    title: "Quais sugestões você daria para melhorar os próximos eventos?",
-    type: "text",
-    options: [],
-    required: true,
-  },
-];
 
 export default function NovaRodadaPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.eventId as string;
-  const [title, setTitle] = useState("Avaliação do Evento");
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [questions, setQuestions] = useState<QuestionDraft[]>(cloneQuestions(DEFAULT_QUESTIONS));
+  const [questions, setQuestions] = useState<QuestionDraft[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [event, setEvent] = useState<{ title: string; slug: string } | null>(null);
@@ -156,19 +111,11 @@ export default function NovaRodadaPage() {
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             <button
               type="button"
-              onClick={() => setQuestions(cloneQuestions(DEFAULT_QUESTIONS))}
+              onClick={() => setQuestions([blankQuestion()])}
+              disabled={questions.length > 0}
               className="h-10 px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9]"
             >
-              Usar padrão
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                setQuestions(cloneQuestions([{ title: "", type: "single_choice", options: ["", ""], required: true }]))
-              }
-              className="h-10 px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9]"
-            >
-              Começar do zero
+              + Primeira pergunta
             </button>
             <button
               type="submit"

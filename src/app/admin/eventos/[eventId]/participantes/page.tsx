@@ -46,17 +46,22 @@ export default function EventParticipantsPage() {
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
     const unsub = onAdminAuthChange((user) => {
       if (!user) {
         router.replace("/admin/login");
         return;
       }
-      load();
-      interval = setInterval(load, 5000);
+      void load();
+      interval = setInterval(refreshWhenVisible, 10_000);
     });
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       unsub();
       if (interval) clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [router, load]);
 
@@ -84,7 +89,7 @@ export default function EventParticipantsPage() {
           Participantes
         </h1>
         <p className="mt-1.5 mb-0 text-sm text-[#5b6b7f]">
-          {data.event.participantCount} participantes no evento · atualiza a cada 5 segundos
+          {data.event.participantCount} participantes no evento · atualização automática
         </p>
 
         <div className="mt-5">
