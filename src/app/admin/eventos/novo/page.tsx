@@ -77,10 +77,10 @@ function EventCreatedView({ created }: { created: CreatedEvent }) {
               Criar primeira rodada
             </Link>
             <Link
-              href={`/admin/eventos/${created.eventId}/ao-vivo`}
+              href={`/admin/eventos/${created.eventId}`}
               className="inline-flex items-center h-10 px-4 text-sm font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md no-underline"
             >
-              Ir para sessão ao vivo
+              Abrir painel do evento
             </Link>
           </div>
         </div>

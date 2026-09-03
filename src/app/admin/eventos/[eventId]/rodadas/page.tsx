@@ -225,7 +225,7 @@ export default function RodadasPage() {
                       Resultados
                     </Link>
                     <Link
-                      href={`/admin/eventos/${eventId}/ao-vivo`}
+                      href={`/admin/eventos/${eventId}`}
                       className={outlineBtn}
                       style={{ height: "36px", borderRadius: "8px" }}
                     >

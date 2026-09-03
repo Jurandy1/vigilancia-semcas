@@ -410,7 +410,7 @@ export default function AdminEventosPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/admin/eventos/${event.id}/ao-vivo`}>Ir para sessão ao vivo</Link>
+                          <Link href={`/admin/eventos/${event.id}`}>Abrir painel do evento</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link href={`/admin/eventos/${event.id}/perguntas`}>

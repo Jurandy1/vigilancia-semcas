@@ -12,7 +12,6 @@ import {
   ListChecks,
   LogOut,
   Menu,
-  Radio,
   Settings2,
   UsersRound,
   X,
@@ -78,8 +77,7 @@ function resolveScreenLabel(pathname: string, eventId?: string, override?: strin
   if (override) return override;
   if (!eventId) return "Eventos";
   const base = `/admin/eventos/${eventId}`;
-  if (pathname === base) return "Visão geral";
-  if (pathname.startsWith(`${base}/ao-vivo`)) return "Ao vivo";
+  if (pathname === base || pathname.startsWith(`${base}/ao-vivo`)) return "Painel do evento";
   if (pathname.includes("/resultados")) return "Resultados";
   if (pathname.startsWith(`${base}/perguntas`)) return "Editar perguntas";
   if (pathname.startsWith(`${base}/rodadas`)) return "Editar perguntas";
@@ -143,8 +141,7 @@ export function AdminShell({
           {
             label: "Evento atual",
             items: [
-              { href: base, label: "Visão geral", icon: LayoutDashboard, match: "exact" as const },
-              { href: `${base}/ao-vivo`, label: "Ao vivo", icon: Radio },
+              { href: base, label: "Painel do evento", icon: LayoutDashboard, match: "exact" as const },
               { href: "/admin/eventos/sequencia", label: "Sequência de eventos", icon: Layers3 },
               { href: `${base}/participantes`, label: "Participantes", icon: UsersRound },
               { href: `${base}/perguntas`, label: "Perguntas do evento", icon: ListChecks },
