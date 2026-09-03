@@ -4,18 +4,16 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { usePublicEvent } from "@/hooks/use-public-event";
 import { useRoundStats } from "@/hooks/use-round-stats";
-import { SemcasBrand } from "@/components/branding/SemcasBrand";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
+import { ORG_SHORT, SECTOR_NAME } from "@/lib/branding";
 import QRCode from "qrcode";
 
 function ProjectorChrome({
-  title,
   lastUpdate,
   connectionIssue,
   children,
 }: {
-  title: string;
   lastUpdate: Date;
   connectionIssue?: boolean;
   children: React.ReactNode;
@@ -23,16 +21,16 @@ function ProjectorChrome({
   return (
     <div style={{ minHeight: "100vh", background: "#eef2f7", padding: "26px 22px 48px" }}>
       <div style={{ maxWidth: "1240px", margin: "0 auto" }}>
-        
+
         {/* The new designer puts the projector directly in a card instead of full screen. Let's make it look like the mockup */}
         <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", overflow: "hidden" }}>
-          
+
           <div style={{ background: "#fff", borderBottom: "1px solid #dbe4ef", padding: "18px 28px", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
             <img src="/logo-prefeitura-saoluis.jpg" alt="Prefeitura de São Luís" style={{ height: "44px", width: "auto", display: "block" }} />
             <span aria-hidden="true" style={{ width: "1px", height: "40px", background: "#e2e8f0" }}></span>
             <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>SEMCAS · Prefeitura de São Luís</p>
-              <p style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 600, color: "#11243c" }}>{title}</p>
+              <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>{ORG_SHORT}</p>
+              <p style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 600, color: "#11243c" }}>{SECTOR_NAME.toUpperCase()}</p>
             </div>
             
             <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 600, color: connectionIssue ? "#9a6700" : "#18754A" }}>
@@ -121,7 +119,6 @@ export default function ProjectorPage() {
   const hasHadRound = Boolean(publicEvent?.currentRoundTitle);
   const isFinished = publicEvent?.status === "closed" && !publicEvent.nextEventSlug;
   const isIntermission = Boolean(publicEvent) && !isRoundOpen && hasHadRound && !isFinished;
-  const displayTitle = publicEvent?.projectorTitle ?? publicEvent?.title ?? "";
   const total = Math.max(connectedCount, stats.registered, stats.completed + stats.answering);
   const completed = stats.completed;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -152,7 +149,7 @@ export default function ProjectorPage() {
 
   if (isFinished) {
     return (
-      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
         <div>
           <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Encerrado</p>
           <p style={{ margin: "24px auto 0", fontSize: "46px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Obrigado pela participação</p>
@@ -164,7 +161,7 @@ export default function ProjectorPage() {
 
   if (isIntermission) {
     return (
-      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
         <div>
           <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Intervalo</p>
           <p style={{ margin: "24px auto 0", fontSize: "46px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Aguarde a próxima atividade</p>
@@ -176,7 +173,7 @@ export default function ProjectorPage() {
 
   if (!isRoundOpen) {
     return (
-      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
         <div>
           <p style={{ margin: 0, fontSize: "52px", fontWeight: 800, letterSpacing: "-.02em", color: "#0B3A6E", lineHeight: 1 }}>PARTICIPE</p>
           <p style={{ margin: "16px 0 30px", fontSize: "20px", color: "#33415c" }}>Escaneie o QR Code ou acesse pelo link abaixo</p>
@@ -197,7 +194,7 @@ export default function ProjectorPage() {
   }
 
   return (
-    <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+    <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
       <div>
         <p style={{ margin: "0 0 30px", fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Votação em andamento</p>
         

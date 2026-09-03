@@ -19,7 +19,7 @@ export async function GET(
   const supabase = getSupabaseAdmin();
   const { data: eventData } = await supabase
     .from("events")
-    .select("id,title,slug,status,participant_count,opened_at,created_at,current_open_round_id,sequence_id,sequence_order,sequence_size,sequence_root_event_id,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
+    .select("id,title,slug,status,participant_count,opened_at,closed_at,created_at,current_open_round_id,sequence_id,sequence_order,sequence_size,sequence_root_event_id,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
     .eq("id", eventId)
     .maybeSingle();
   if (!eventData) {
@@ -33,6 +33,7 @@ export async function GET(
     status: eventData.status,
     participantCount: eventData.participant_count ?? 0,
     openedAt: eventData.opened_at ?? null,
+    closedAt: eventData.closed_at ?? null,
     createdAt: eventData.created_at,
     sequenceId: eventData.sequence_id ?? null,
     sequenceOrder: eventData.sequence_order ?? null,
