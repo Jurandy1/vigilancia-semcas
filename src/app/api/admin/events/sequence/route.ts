@@ -45,30 +45,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Um dos eventos selecionados não existe mais." }, { status: 404 });
   }
 
-  const docs = parsed.data.eventIds.map((id) => byId.get(id)!);
-  const unavailable = docs.find((row) => row.status === "open" || row.status === "closed");
-  if (unavailable) {
-    return NextResponse.json(
-      { error: "Organize a sequência antes de iniciar os eventos. Eventos iniciados ou encerrados não podem ser reordenados." },
-      { status: 409 }
-    );
-  }
+  const submitted = parsed.data.eventIds.map((id) => byId.get(id)!);
+
+  // Eventos já iniciados ou encerrados não podem ser reordenados nem removidos
+  // da sequência (isso quebraria o QR/link já distribuído e o histórico), mas
+  // isso não deve travar a organização do restante: eles ficam ancorados na
+  // posição relativa atual, e só os eventos ainda em rascunho/aguardando são
+  // reordenados de fato, na ordem que o admin enviou.
+  const locked = submitted
+    .filter((row) => row.status === "open" || row.status === "closed")
+    .sort((a, b) => (a.sequence_order ?? 0) - (b.sequence_order ?? 0));
+  const lockedIds = new Set(locked.map((row) => row.id));
+  const editable = submitted.filter((row) => !lockedIds.has(row.id));
+  const docs = [...locked, ...editable];
 
   const previousSequenceIds = Array.from(
-    new Set(docs.map((row) => row.sequence_id as string | null).filter(Boolean))
+    new Set(submitted.map((row) => row.sequence_id as string | null).filter(Boolean))
   ) as string[];
 
   const previousMembers = previousSequenceIds.length
     ? ((await supabase.from("events").select("*").in("sequence_id", previousSequenceIds)).data ?? [])
     : [];
 
-  const sequenceId = crypto.randomUUID();
+  const sequenceId = locked.length > 0 ? (locked[0]!.sequence_id as string) : crypto.randomUUID();
   const root = docs[0]!;
-  const selectedIds = new Set(parsed.data.eventIds);
+  const selectedIds = new Set(docs.map((row) => row.id));
   const touched = new Set<string>();
 
   for (const member of previousMembers) {
-    if (touched.has(member.id) || selectedIds.has(member.id)) continue;
+    // Nunca desvincula um evento já iniciado/encerrado, mesmo que o admin não
+    // o tenha incluído de novo na seleção — o histórico dele fica intacto.
+    if (touched.has(member.id) || selectedIds.has(member.id) || member.status === "open" || member.status === "closed") continue;
     touched.add(member.id);
     const cleared = { ...EMPTY_SEQUENCE, updated_at: new Date().toISOString() };
     await supabase.from("events").update(cleared).eq("id", member.id);

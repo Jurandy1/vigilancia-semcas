@@ -20,6 +20,7 @@ interface EventItem {
 
 export default function EventSequencePage() {
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [lockedIds, setLockedIds] = useState<string[]>([]);
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,13 +36,26 @@ export default function EventSequencePage() {
     setEvents(loaded);
 
     const activeSequenceId = loaded.find((event) => event.sequenceId)?.sequenceId;
-    const sequenced = loaded
-      .filter((event) => event.sequenceId === activeSequenceId)
+    const sequenceMembers = loaded.filter((event) => event.sequenceId === activeSequenceId);
+
+    // Eventos já iniciados ou encerrados ficam travados na posição em que já
+    // estão — mudar a ordem deles quebraria o QR/link já em uso e o histórico.
+    const locked = sequenceMembers
+      .filter((event) => event.status === "open" || event.status === "closed")
       .sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
-    const available = loaded.filter(
-      (event) => event.status === "draft" || event.status === "waiting"
+    setLockedIds(locked.map((event) => event.id));
+
+    // O restante (em rascunho/aguardando) pode ser livremente reorganizado —
+    // tanto os que já estão nessa sequência quanto qualquer outro disponível.
+    const sequencedEditable = sequenceMembers
+      .filter((event) => event.status === "draft" || event.status === "waiting")
+      .sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
+    const otherAvailable = loaded.filter(
+      (event) =>
+        (event.status === "draft" || event.status === "waiting") &&
+        !sequencedEditable.some((e) => e.id === event.id)
     );
-    setOrderedIds((sequenced.length > 0 ? sequenced : available).map((event) => event.id));
+    setOrderedIds([...sequencedEditable, ...otherAvailable].map((event) => event.id));
     setLoading(false);
   }, []);
 
@@ -51,10 +65,15 @@ export default function EventSequencePage() {
     });
   }, [load]);
 
+  const lockedEvents = useMemo(
+    () => lockedIds.map((id) => events.find((event) => event.id === id)).filter(Boolean) as EventItem[],
+    [events, lockedIds]
+  );
   const orderedEvents = useMemo(
     () => orderedIds.map((id) => events.find((event) => event.id === id)).filter(Boolean) as EventItem[],
     [events, orderedIds]
   );
+  const totalCount = lockedEvents.length + orderedEvents.length;
 
   function move(eventId: string, direction: -1 | 1) {
     setSaved(false);
@@ -69,7 +88,7 @@ export default function EventSequencePage() {
   }
 
   async function save() {
-    if (orderedIds.length < 2) {
+    if (lockedIds.length + orderedIds.length < 2) {
       setError("A sequência precisa ter pelo menos dois eventos.");
       return;
     }
@@ -81,7 +100,7 @@ export default function EventSequencePage() {
       if (!token) return;
       const response = await adminFetch("/api/admin/events/sequence", token, {
         method: "POST",
-        body: JSON.stringify({ eventIds: orderedIds }),
+        body: JSON.stringify({ eventIds: [...lockedIds, ...orderedIds] }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -121,20 +140,49 @@ export default function EventSequencePage() {
           <div className="admin-card overflow-hidden">
             <div className="border-b border-[#e3eaf2] bg-[#f8fafc] px-5 py-4 sm:px-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-[#0b4a83]">
-                <ListOrdered className="h-4 w-4" /> {orderedEvents.length} eventos na sequência
+                <ListOrdered className="h-4 w-4" /> {totalCount} eventos na sequência
               </div>
             </div>
 
             <div className="space-y-0 px-4 py-3 sm:px-6 sm:py-4">
+              {lockedEvents.map((event, index) => (
+                <div key={event.id}>
+                  <article className="grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] p-4 sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:p-5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#8a97a8] text-lg font-bold text-white sm:h-14 sm:w-14">
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="m-0 text-xs font-bold uppercase tracking-[0.08em] text-[#8a5a00]">
+                        {event.status === "open" ? "Em andamento — não pode ser reordenado" : "Já encerrado — não pode ser reordenado"}
+                      </p>
+                      <h2 className="mb-0 mt-1 text-base font-semibold leading-snug text-[#11243c] sm:text-lg">
+                        {event.title}
+                      </h2>
+                    </div>
+                    <div className="flex flex-col gap-1.5 sm:flex-row">
+                      <span className="flex h-10 w-10 items-center justify-center text-[#8a97a8]" aria-hidden>
+                        <CheckCircle2 className="h-4 w-4" />
+                      </span>
+                    </div>
+                  </article>
+                  <div className="flex h-10 items-center justify-center text-[#7a91aa]" aria-hidden>
+                    <ArrowRight className="h-5 w-5 rotate-90" />
+                  </div>
+                </div>
+              ))}
               {orderedEvents.map((event, index) => (
                 <div key={event.id}>
                   <article className="grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-white p-4 sm:grid-cols-[64px_minmax(0,1fr)_auto] sm:p-5">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b4a83] text-lg font-bold text-white sm:h-14 sm:w-14">
-                      {String(index + 1).padStart(2, "0")}
+                      {String(lockedEvents.length + index + 1).padStart(2, "0")}
                     </div>
                     <div className="min-w-0">
                       <p className="m-0 text-xs font-bold uppercase tracking-[0.08em] text-[#18754a]">
-                        {index === 0 ? "Começa primeiro" : index === orderedEvents.length - 1 ? "Último evento" : "Próximo evento"}
+                        {lockedEvents.length === 0 && index === 0
+                          ? "Começa primeiro"
+                          : index === orderedEvents.length - 1
+                            ? "Último evento"
+                            : "Próximo evento"}
                       </p>
                       <h2 className="mb-0 mt-1 text-base font-semibold leading-snug text-[#11243c] sm:text-lg">
                         {event.title}
@@ -156,6 +204,11 @@ export default function EventSequencePage() {
                   )}
                 </div>
               ))}
+              {totalCount === 0 && (
+                <p className="m-0 py-6 text-center text-sm text-[#8a97a8]">
+                  Nenhum evento em rascunho/aguardando disponível para sequenciar.
+                </p>
+              )}
             </div>
 
             <div className="border-t border-[#e3eaf2] bg-[#f8fafc] px-5 py-4 sm:px-6">
@@ -166,7 +219,7 @@ export default function EventSequencePage() {
                 </p>
               )}
               <div className="flex justify-end">
-                <Button onClick={save} disabled={saving || orderedEvents.length < 2} className="h-11 rounded-xl px-6">
+                <Button onClick={save} disabled={saving || totalCount < 2} className="h-11 rounded-xl px-6">
                   {saving ? "Salvando..." : "Salvar ordem dos eventos"}
                 </Button>
               </div>
