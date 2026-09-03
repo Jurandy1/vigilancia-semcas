@@ -59,16 +59,19 @@ export function LiveParticipantList({ participants }: LiveParticipantListProps) 
   ];
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-3.5 flex-wrap">
-        <input
-          aria-label="Buscar por nome"
-          placeholder="Buscar por nome..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-10 w-[260px] max-w-full border border-[#c9d4e2] rounded-md px-3 text-sm"
-        />
-        <div role="tablist" aria-label="Filtrar participantes" className="flex gap-1.5 flex-wrap">
+    <div style={{ marginTop: "18px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center", marginBottom: "14px" }}>
+        <label style={{ position: "relative", flex: 1, minWidth: "240px" }}>
+          <span style={{ position: "absolute", left: 0, top: "-18px", fontSize: 0 }}>Buscar participante</span>
+          <input
+            type="search"
+            placeholder="Buscar participante..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: "100%", height: "38px", border: "1px solid #c9d4e2", borderRadius: "8px", padding: "0 12px", fontSize: "13.5px", background: "#fff", color: "#11243c" }}
+          />
+        </label>
+        <div role="tablist" aria-label="Filtrar participantes" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {filters.map((f) => {
             const selected = filter === f.key;
             return (
@@ -78,12 +81,32 @@ export function LiveParticipantList({ participants }: LiveParticipantListProps) 
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setFilter(f.key)}
-                className={cn(
-                  "h-9 px-3 text-[13px] font-semibold rounded-md border",
-                  selected
-                    ? "bg-[#eef3f9] border-[#0b3a6e] text-[#0b3a6e]"
-                    : "bg-white border-[#dde4ee] text-[#5b6b7f] hover:border-[#0b3a6e]"
-                )}
+                style={{
+                  height: "38px",
+                  padding: "0 14px",
+                  border: selected ? "1px solid #0B3A6E" : "1px solid #c9d4e2",
+                  background: selected ? "#0B3A6E" : "#fff",
+                  borderRadius: "8px",
+                  fontSize: "12.5px",
+                  fontWeight: selected ? 600 : 500,
+                  color: selected ? "#fff" : "#5b6b7f",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+                onMouseOver={(e) => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = "#a8b8cc";
+                    e.currentTarget.style.background = "#f8fafd";
+                    e.currentTarget.style.color = "#33415c";
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = "#c9d4e2";
+                    e.currentTarget.style.background = "#fff";
+                    e.currentTarget.style.color = "#5b6b7f";
+                  }
+                }}
               >
                 {f.label}
               </button>
@@ -92,66 +115,95 @@ export function LiveParticipantList({ participants }: LiveParticipantListProps) 
         </div>
       </div>
 
-      <div className="bg-white border border-[#dde4ee] rounded-lg overflow-x-auto">
-        <table className="w-full border-collapse text-[13.5px] min-w-[640px]">
-          <thead>
-            <tr>
-              {["Participante", "Tipo", "Situação", "Progresso", "Última atividade"].map((h) => (
-                <th
-                  key={h}
-                  scope="col"
-                  className="text-left px-4 py-3 text-[11.5px] font-bold tracking-[0.06em] uppercase text-[#8a97a8] border-b border-[#dde4ee]"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((p) => (
-              <tr key={p.id}>
-                <td className="px-4 py-3 border-b border-[#f2f5f8] text-[#1a1a1a]">
-                  {p.displayName}
-                </td>
-                <td className="px-4 py-3 border-b border-[#f2f5f8] text-[#5b6b7f]">
-                  {p.mode === "anonymous" ? "Anônimo" : "Identificado"}
-                </td>
-                <td className="px-4 py-3 border-b border-[#f2f5f8]">
-                  <span
-                    className={cn(
-                      "inline-flex text-xs font-semibold border rounded px-2 py-0.5",
-                      statusStyle[p.status] ?? statusStyle.waiting
-                    )}
+      <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", minWidth: "720px", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#f7f9fc" }}>
+                {["Participante", "Tipo", "Situação", "Progresso", "Última atividade"].map((h, i) => (
+                  <th
+                    key={h}
+                    scope="col"
+                    style={{
+                      textAlign: i === 4 ? "right" : "left",
+                      padding: "11px 16px",
+                      fontSize: "10.5px",
+                      fontWeight: 700,
+                      letterSpacing: ".1em",
+                      textTransform: "uppercase",
+                      color: "#5b6b7f",
+                      borderBottom: "1px solid #dbe4ef",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f7f9fc"
+                    }}
                   >
-                    {statusLabel[p.status] ?? p.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 border-b border-[#f2f5f8] text-[#5b6b7f] tabular-nums">
-                  {p.status === "completed"
-                    ? `${p.questionCount ?? p.currentQuestion}/${p.questionCount ?? p.currentQuestion}`
-                    : p.currentQuestion > 0
-                      ? `${p.currentQuestion}/${p.questionCount ?? "?"}`
-                      : "—"}
-                </td>
-                <td className="px-4 py-3 border-b border-[#f2f5f8] text-[#8a97a8]">
-                  {p.lastActivityAt
-                    ? new Date(p.lastActivityAt).toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "—"}
-                </td>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((p) => {
+                const isCompleted = p.status === "completed";
+                const isAnswering = p.status === "answering";
+                const isWaiting = p.status === "waiting";
+                
+                let badgeStyle = "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#5b6b7f;background:#f4f6f9;border:1px solid #dde4ee;border-radius:4px;padding:2px 6px;";
+                let dotColor = "#8a97a8";
+                
+                if (isCompleted) {
+                  badgeStyle = "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#1a7f4b;background:#e8f5ee;border:1px solid #c3e4d1;border-radius:4px;padding:2px 6px;";
+                  dotColor = "#1a7f4b";
+                } else if (isAnswering) {
+                  badgeStyle = "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8a5a00;background:#fdf5e3;border:1px solid #f0dfae;border-radius:4px;padding:2px 6px;";
+                  dotColor = "#dba514";
+                }
+
+                return (
+                  <tr key={p.id}>
+                    <td title={p.displayName} style={{ padding: "12px 16px", borderBottom: "1px solid #f2f5f8", fontSize: "13.5px", color: "#11243c", maxWidth: "280px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.displayName}
+                    </td>
+                    <td style={{ padding: "12px 16px", borderBottom: "1px solid #f2f5f8", fontSize: "13px", color: "#5b6b7f" }}>
+                      {p.mode === "anonymous" ? "Anônimo" : "Identificado"}
+                    </td>
+                    <td style={{ padding: "12px 16px", borderBottom: "1px solid #f2f5f8", fontSize: "13px" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 600, color: isCompleted ? "#1a7f4b" : isAnswering ? "#8a5a00" : "#5b6b7f", background: isCompleted ? "#e8f5ee" : isAnswering ? "#fdf5e3" : "#f4f6f9", border: isCompleted ? "1px solid #c3e4d1" : isAnswering ? "1px solid #f0dfae" : "1px solid #dde4ee", borderRadius: "4px", padding: "2px 6px" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "99px", background: dotColor }} />
+                        {statusLabel[p.status] ?? p.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: "12px 16px", borderBottom: "1px solid #f2f5f8", fontSize: "13px", color: "#5b6b7f", fontFamily: "ui-monospace,Consolas,monospace" }}>
+                      {p.status === "completed"
+                        ? `${p.questionCount ?? p.currentQuestion}/${p.questionCount ?? p.currentQuestion}`
+                        : p.currentQuestion > 0
+                          ? `${p.currentQuestion}/${p.questionCount ?? "?"}`
+                          : "—"}
+                    </td>
+                    <td style={{ padding: "12px 16px", borderBottom: "1px solid #f2f5f8", fontSize: "13px", color: "#8a97a8", textAlign: "right", fontFamily: "ui-monospace,Consolas,monospace" }}>
+                      {p.lastActivityAt
+                        ? new Date(p.lastActivityAt).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         {filtered.length === 0 && (
-          <p className="text-sm text-[#8a97a8] py-6 px-4">Nenhum participante encontrado.</p>
+          <p style={{ margin: 0, fontSize: "13px", color: "#8a97a8", padding: "24px 16px" }}>
+            Nenhum participante encontrado.
+          </p>
         )}
       </div>
-      <p className="mt-3 mb-0 text-[12.5px] text-[#8a97a8] leading-relaxed">
+      <p style={{ margin: "12px 0 0", fontSize: "12px", lineHeight: 1.6, color: "#8a97a8" }}>
         Participantes identificados aparecem com o nome informado; anônimos aparecem como
-        “Anônimo”. Exibindo {filtered.length} de {participants.length} linhas.
+        “Anônimo”. Exibindo {filtered.length} de {participants.length} registros no momento.
       </p>
     </div>
   );

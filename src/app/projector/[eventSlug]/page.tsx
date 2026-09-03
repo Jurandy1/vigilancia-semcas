@@ -2,61 +2,54 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Image from "next/image";
 import { usePublicEvent } from "@/hooks/use-public-event";
 import { useRoundStats } from "@/hooks/use-round-stats";
+import { SemcasBrand } from "@/components/branding/SemcasBrand";
 import QRCode from "qrcode";
 
 function ProjectorChrome({
   title,
   lastUpdate,
+  connectionIssue,
   children,
 }: {
   title: string;
   lastUpdate: Date;
+  connectionIssue?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-[#f7f9fb] text-[#1a1a1a]">
-      <header className="shrink-0 bg-[#0b3a6e] text-white px-5 sm:px-12 py-4 flex items-center justify-between gap-8">
-        <div className="flex items-center gap-5 min-w-0">
-          <div className="bg-white rounded px-2.5 py-1.5 shrink-0">
-            <Image
-              src="/images/logo-prefeitura-saoluis.jpg"
-              alt="Prefeitura de São Luís"
-              width={176}
-              height={57}
-              priority
-              className="block w-[140px] sm:w-[176px] h-auto"
-            />
-          </div>
-          <div className="border-l border-white/30 pl-5 min-w-0 hidden sm:block">
-            <div className="text-[22px] font-bold tracking-[0.1em]">SEMCAS</div>
-            <div className="text-sm text-white/70 mt-0.5">
-              Secretaria Municipal da Criança e Assistência Social
+    <div style={{ minHeight: "100vh", background: "#eef2f7", padding: "26px 22px 48px" }}>
+      <div style={{ maxWidth: "1240px", margin: "0 auto" }}>
+        
+        {/* The new designer puts the projector directly in a card instead of full screen. Let's make it look like the mockup */}
+        <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", overflow: "hidden" }}>
+          
+          <div style={{ background: "#fff", borderBottom: "1px solid #dbe4ef", padding: "18px 28px", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+            <img src="/logo-prefeitura-saoluis.jpg" alt="Prefeitura de São Luís" style={{ height: "44px", width: "auto", display: "block" }} />
+            <span aria-hidden="true" style={{ width: "1px", height: "40px", background: "#e2e8f0" }}></span>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>SEMCAS · Prefeitura de São Luís</p>
+              <p style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 600, color: "#11243c" }}>{title}</p>
             </div>
+            
+            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 600, color: connectionIssue ? "#9a6700" : "#18754A" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "99px", background: connectionIssue ? "#dba514" : "#1a7f4b", animation: connectionIssue ? "none" : "semcasPulse 2.4s ease-in-out infinite" }}></span>
+              {connectionIssue ? "Conexão instável" : "Atualização em tempo real"}
+            </span>
           </div>
-        </div>
-        <div className="text-right shrink-0 max-w-[44ch]">
-          <p className="m-0 text-[15px] text-white/70 leading-snug text-pretty">{title}</p>
-          <p className="mt-1.5 mb-0 inline-flex items-center gap-2 text-sm font-semibold text-[#a8e0c0]">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#5ecf92] animate-pulse" />
-            Atualização em tempo real
-          </p>
-        </div>
-      </header>
 
-      <main className="flex-1 flex items-center justify-center p-5 sm:p-12">{children}</main>
+          <div style={{ background: "#f4f7fb", padding: "52px 32px 60px", textAlign: "center", minHeight: "440px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            {children}
+          </div>
+          
+        </div>
 
-      <footer className="shrink-0 bg-white border-t border-[#e2e8f0] px-5 sm:px-12 py-3.5 flex items-center justify-between gap-6">
-        <p className="m-0 text-[15px] text-[#5b6b7f]">
-          SEMCAS · Secretaria Municipal da Criança e Assistência Social · Prefeitura de São Luís
+        <p style={{ margin: "12px 0 0", fontSize: "12.5px", lineHeight: 1.6, color: "#8a97a8", maxWidth: "70ch" }}>
+          O telão exibe apenas contagens. Perguntas e resultados nunca aparecem para a plateia — permanecem no painel administrativo e nos relatórios. Última atualização: {lastUpdate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
         </p>
-        <p className="m-0 text-[15px] text-[#8a97a8] shrink-0">
-          Última atualização:{" "}
-          {lastUpdate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-        </p>
-      </footer>
+
+      </div>
     </div>
   );
 }
@@ -67,12 +60,13 @@ export default function ProjectorPage() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const { publicEvent, loading } = usePublicEvent(null, eventSlug);
-  const { stats } = useRoundStats(publicEvent?.id ?? null, publicEvent?.currentOpenRoundId ?? null);
+  const { publicEvent, loading, connectionIssue: eventConnectionIssue } = usePublicEvent(null, eventSlug);
+  const { stats, connectionIssue: statsConnectionIssue } = useRoundStats(publicEvent?.id ?? null, publicEvent?.currentOpenRoundId ?? null);
+  const connectionIssue = eventConnectionIssue || statsConnectionIssue;
 
   useEffect(() => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
-    QRCode.toDataURL(`${appUrl}/e/${eventSlug}`, { width: 400, margin: 2 }).then(setQrDataUrl);
+    QRCode.toDataURL(`${appUrl}/e/${eventSlug}`, { width: 230, margin: 0 }).then(setQrDataUrl);
   }, [eventSlug]);
 
   useEffect(() => {
@@ -94,139 +88,79 @@ export default function ProjectorPage() {
 
   if (!loading && !publicEvent) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#f7f9fb] text-center px-6">
-        <p className="text-xl text-gray-500">Não foi possível carregar o evento.</p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#eef2f7" }}>
+        <p style={{ fontSize: "20px", color: "#5b6b7f" }}>Não foi possível carregar o evento.</p>
       </div>
     );
   }
 
   if (!publicEvent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb]">
-        <p className="text-2xl text-gray-400">Carregando...</p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#eef2f7" }}>
+        <p style={{ fontSize: "20px", color: "#5b6b7f" }}>Carregando...</p>
       </div>
     );
   }
 
   if (isIntermission) {
     return (
-      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate}>
-        <section aria-label="Intervalo entre rodadas" className="w-full max-w-[900px] text-center">
-          <h1 className="m-0 text-[clamp(34px,5vw,60px)] leading-tight font-bold tracking-[-0.015em] text-[#0b3a6e]">
-            Aguardando próxima atividade
-          </h1>
-          <p className="mt-7 mb-0 text-[clamp(19px,2.4vw,30px)] text-[#33415c]">
-            Votação encerrada — {total} participantes, {completed} finalizaram
-          </p>
-          <p className="mt-12 mb-0 inline-flex items-center gap-3.5 text-2xl text-[#5b6b7f]">
-            <span className="w-3 h-3 rounded-full bg-[#0b3a6e] animate-pulse" />
-            A tela atualiza automaticamente quando a próxima rodada começar
-          </p>
-        </section>
+      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+        <div>
+          <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Intervalo</p>
+          <p style={{ margin: "24px auto 0", fontSize: "46px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Aguarde a próxima atividade</p>
+          <p style={{ margin: "22px 0 0", fontSize: "20px", color: "#5b6b7f" }}>Mantenha o celular à mão — a próxima rodada abre em instantes.</p>
+        </div>
       </ProjectorChrome>
     );
   }
 
   if (!isRoundOpen) {
     return (
-      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate}>
-        <section
-          aria-label="Entrada dos participantes"
-          className="w-full max-w-[1240px] grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_460px] gap-10 lg:gap-16 items-center"
-        >
-          <div>
-            <h1 className="m-0 text-[clamp(52px,7vw,88px)] leading-[0.95] font-extrabold tracking-[-0.02em] text-[#0b3a6e]">
-              PARTICIPE
-            </h1>
-            <p className="mt-6 mb-0 text-[clamp(20px,2.4vw,30px)] leading-snug text-[#33415c] max-w-[24ch] text-pretty">
-              Escaneie o QR Code ou acesse pelo link abaixo.
-            </p>
-            <div className="mt-10 bg-white border border-[#e2e8f0] rounded-[10px] px-8 py-7 inline-block max-w-full">
-              <p className="m-0 text-[clamp(15px,1.6vw,20px)] font-bold tracking-[0.12em] uppercase text-[#5b6b7f]">
-                Link do evento
-              </p>
-              <p className="mt-3.5 mb-0 text-[clamp(22px,3vw,44px)] font-bold leading-snug text-[#0b3a6e] break-words">
-                {eventUrl}
-              </p>
-            </div>
-            <p className="mt-7 mb-0 text-[clamp(16px,2vw,26px)] text-[#5b6b7f] break-words">
-              Sem código e sem cadastro — basta abrir e responder.
-            </p>
-          </div>
-          <div>
-            {qrDataUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrDataUrl}
-                alt="QR Code de acesso ao evento"
-                className="w-full bg-white border border-[#e2e8f0] rounded-xl p-6"
-              />
+      <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+        <div>
+          <p style={{ margin: 0, fontSize: "52px", fontWeight: 800, letterSpacing: "-.02em", color: "#0B3A6E", lineHeight: 1 }}>PARTICIPE</p>
+          <p style={{ margin: "16px 0 30px", fontSize: "20px", color: "#33415c" }}>Escaneie o QR Code ou acesse pelo link abaixo</p>
+          
+          <div aria-hidden="true" style={{ width: "230px", height: "230px", margin: "0 auto", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="QR Code" style={{ width: "100%", height: "100%" }} />
+            ) : (
+              <div style={{ width: "100%", height: "100%", background: "repeating-linear-gradient(45deg,#e9eef5 0 10px,#fff 10px 20px)" }} />
             )}
-            <p className="mt-6 mb-0 text-center text-[clamp(21px,2.6vw,30px)] font-bold text-[#0b3a6e]">
-              {connectedCount} participantes conectados
-            </p>
-            <p className="mt-2 mb-0 text-center text-[19px] text-[#5b6b7f]">
-              Aguardando a abertura da primeira rodada
-            </p>
           </div>
-        </section>
+          
+          <p style={{ margin: "22px 0 0", fontSize: "22px", fontFamily: "ui-monospace,Consolas,monospace", color: "#0B3A6E" }}>{eventUrl}</p>
+          <p style={{ margin: "26px 0 0", fontSize: "32px", fontWeight: 700, color: "#11243c" }}>{connectedCount} participantes conectados</p>
+        </div>
       </ProjectorChrome>
     );
   }
 
   return (
-    <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate}>
-      <section
-        aria-label="Participação da rodada em andamento"
-        className="w-full max-w-[1240px] text-center"
-      >
-        <p className="m-0 text-[clamp(16px,1.8vw,22px)] font-bold tracking-[0.14em] uppercase text-[#5b6b7f]">
-          Votação em andamento
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-10 mt-8 sm:mt-12">
-          <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 sm:p-11">
-            <p className="m-0 text-[clamp(18px,2.2vw,28px)] font-semibold text-[#5b6b7f]">
-              Participantes até agora
-            </p>
-            <p className="mt-4 mb-0 text-[clamp(88px,13vw,180px)] font-extrabold leading-[0.9] text-[#0b3a6e] tabular-nums">
-              {total}
-            </p>
+    <ProjectorChrome title={displayTitle} lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+      <div>
+        <p style={{ margin: "0 0 30px", fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Votação em andamento</p>
+        
+        <div style={{ display: "flex", gap: "24px", justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ background: "#fff", border: "1px solid #dbe4ef", borderRadius: "10px", padding: "26px 44px", minWidth: "280px" }}>
+            <p style={{ margin: 0, fontSize: "15px", fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", color: "#5b6b7f" }}>Participantes até agora</p>
+            <p style={{ margin: "14px 0 0", fontSize: "88px", fontWeight: 800, lineHeight: ".9", letterSpacing: "-.03em", color: "#0B3A6E" }}>{total}</p>
           </div>
-          <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 sm:p-11">
-            <p className="m-0 text-[clamp(18px,2.2vw,28px)] font-semibold text-[#5b6b7f]">
-              Já finalizaram
-            </p>
-            <p className="mt-4 mb-0 text-[clamp(88px,13vw,180px)] font-extrabold leading-[0.9] text-[#1a7f4b] tabular-nums">
-              {completed}
-            </p>
+          <div style={{ background: "#fff", border: "1px solid #dbe4ef", borderRadius: "10px", padding: "26px 44px", minWidth: "280px" }}>
+            <p style={{ margin: 0, fontSize: "15px", fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", color: "#5b6b7f" }}>Já finalizaram</p>
+            <p style={{ margin: "14px 0 0", fontSize: "88px", fontWeight: 800, lineHeight: ".9", letterSpacing: "-.03em", color: "#18754A" }}>{completed}</p>
           </div>
         </div>
 
-        <div className="mt-8 sm:mt-12 mx-auto max-w-[1000px]">
-          <div
-            role="img"
-            aria-label={`${completed} de ${total} participantes finalizaram`}
-            className="h-[26px] bg-[#e6eaf0] rounded-[13px] overflow-hidden"
-          >
-            <div
-              className="h-full bg-[#0b3a6e] rounded-[13px] transition-all duration-700"
-              style={{ width: `${percent}%` }}
-            />
+        <div style={{ maxWidth: "620px", margin: "34px auto 0" }}>
+          <div role="img" aria-label={`${percent}% dos participantes finalizaram`} style={{ height: "18px", background: "#e3e9f1", borderRadius: "99px", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${percent}%`, background: "#0B3A6E", borderRadius: "99px", transition: "width 0.5s ease-in-out" }}></div>
           </div>
-          <div className="flex items-center justify-between mt-4 text-[clamp(17px,2vw,26px)] text-[#5b6b7f]">
-            <span>
-              {completed} de {total} finalizaram
-            </span>
-            <span className="font-bold text-[#0b3a6e]">{percent}%</span>
-          </div>
+          <p style={{ margin: "12px 0 0", fontSize: "19px", color: "#33415c" }}>
+            {completed} de {total} finalizaram · <strong style={{ color: "#0B3A6E" }}>{percent}%</strong>
+          </p>
         </div>
-
-        <p className="mt-8 sm:mt-12 mb-0 inline-flex items-center gap-3.5 text-[clamp(19px,2.4vw,28px)] font-semibold text-[#5b6b7f]">
-          <span className="w-3.5 h-3.5 rounded-full bg-[#0b3a6e] animate-pulse" />
-          Votação aberta — responda pelo seu celular
-        </p>
-      </section>
+      </div>
     </ProjectorChrome>
   );
 }

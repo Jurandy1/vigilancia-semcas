@@ -81,45 +81,50 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
 
   return (
     <ParticipantShell eventTitle={event.title}>
-      <section aria-label="Entrada" className="flex-1 flex flex-col p-6">
+      <section aria-label="Entrada" style={{ padding: "20px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
         {isDevMock && (
-          <div className="mb-4 rounded-md bg-[#fdf5e3] border border-[#f0dfae] px-3 py-2 text-xs text-[#8a5a00]">
+          <div style={{ marginBottom: "16px", borderRadius: "6px", background: "#fdf5e3", border: "1px solid #f0dfae", padding: "8px 12px", fontSize: "12px", color: "#8a5a00" }}>
             Modo desenvolvimento local — dados simulados
           </div>
         )}
-        <h2 className="m-0 text-xl font-bold leading-snug text-pretty text-[#1a1a1a]">
+        <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, lineHeight: 1.35, color: "#11243c" }}>
           {event.title}
         </h2>
-        <p className="mt-3.5 mb-0 text-[15px] text-[#5b6b7f]">Como deseja participar?</p>
+        <p style={{ margin: "14px 0 0", fontSize: "14px", color: "#5b6b7f" }}>Como deseja participar?</p>
 
-        <div className="flex flex-col gap-3 mt-5">
+        <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
           <button
             type="button"
             onClick={() => router.push(`/e/${event.slug}/participar?mode=identified`)}
-            className="text-left bg-white border border-[#c9d4e2] rounded-lg p-4 min-h-16 hover:border-[#0b3a6e] hover:bg-[#f7f9fc]"
+            style={{ textAlign: "left", padding: "14px 16px", border: "1px solid #c9d4e2", borderRadius: "10px", background: "#fff", cursor: "pointer", minHeight: "64px" }}
+            onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }}
+            onMouseOut={(e) => { e.currentTarget.style.borderColor = "#c9d4e2"; e.currentTarget.style.background = "#fff"; }}
           >
-            <span className="block text-base font-semibold text-[#1a1a1a]">
+            <span style={{ display: "block", fontSize: "14.5px", fontWeight: 600, color: "#11243c" }}>
               Responder com identificação
             </span>
-            <span className="block text-[13px] text-[#5b6b7f] mt-1">
+            <span style={{ display: "block", marginTop: "3px", fontSize: "12.5px", color: "#5b6b7f" }}>
               Informarei meu nome completo
             </span>
           </button>
+          
           <button
             type="button"
             onClick={() => router.push(`/e/${event.slug}/participar?mode=anonymous`)}
-            className="text-left bg-white border border-[#c9d4e2] rounded-lg p-4 min-h-16 hover:border-[#0b3a6e] hover:bg-[#f7f9fc]"
+            style={{ textAlign: "left", padding: "14px 16px", border: "1px solid #c9d4e2", borderRadius: "10px", background: "#fff", cursor: "pointer", minHeight: "64px" }}
+            onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }}
+            onMouseOut={(e) => { e.currentTarget.style.borderColor = "#c9d4e2"; e.currentTarget.style.background = "#fff"; }}
           >
-            <span className="block text-base font-semibold text-[#1a1a1a]">
+            <span style={{ display: "block", fontSize: "14.5px", fontWeight: 600, color: "#11243c" }}>
               Responder anonimamente
             </span>
-            <span className="block text-[13px] text-[#5b6b7f] mt-1">
+            <span style={{ display: "block", marginTop: "3px", fontSize: "12.5px", color: "#5b6b7f" }}>
               Meu nome não será coletado
             </span>
           </button>
         </div>
 
-        <p className="mt-auto mb-0 pt-6 text-xs text-[#8a97a8] leading-relaxed">
+        <p style={{ margin: "auto 0 0", paddingTop: "24px", fontSize: "11.5px", lineHeight: 1.6, color: "#8a97a8" }}>
           Você entrou pelo QR Code do evento — não é preciso código nem cadastro. As respostas só
           são enviadas quando você confirmar.
         </p>

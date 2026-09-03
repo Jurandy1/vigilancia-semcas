@@ -64,6 +64,8 @@ export function useDashboardRealtime(eventId: string | null) {
     }>
   >([]);
   const [loading, setLoading] = useState(true);
+  const [connectionIssue, setConnectionIssue] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -96,6 +98,12 @@ export function useDashboardRealtime(eventId: string | null) {
       ]);
       if (eventRow) setEvent(mapEventRow(eventRow));
       if (roundRows) setRoundsRaw(roundRows.map(mapRoundRow));
+      if (eventRow || roundRows) {
+        setConnectionIssue(false);
+        setLastSyncedAt(new Date());
+      } else {
+        setConnectionIssue(true);
+      }
       setLoading(false);
     }
 
@@ -108,7 +116,10 @@ export function useDashboardRealtime(eventId: string | null) {
         { event: "*", schema: "public", table: "events", filter: `id=eq.${eventId}` },
         (payload) => setEvent(mapEventRow(payload.new as Record<string, unknown>))
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setConnectionIssue(false);
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setConnectionIssue(true);
+      });
 
     const roundsChannel = supabase
       .channel(`rounds:${eventId}`)
@@ -126,11 +137,22 @@ export function useDashboardRealtime(eventId: string | null) {
             });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setConnectionIssue(false);
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setConnectionIssue(true);
+          void bootstrap();
+        }
+      });
+
+    const fallbackPoll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void bootstrap();
+    }, 15_000);
 
     return () => {
       supabase.removeChannel(eventChannel);
       supabase.removeChannel(roundsChannel);
+      window.clearInterval(fallbackPoll);
     };
   }, [eventId]);
 
@@ -149,5 +171,5 @@ export function useDashboardRealtime(eventId: string | null) {
     ? { registered: openRound.registered, answering: openRound.answering, completed: openRound.completed }
     : EMPTY_STATS;
 
-  return { event, rounds, stats, loading };
+  return { event, rounds, stats, loading, connectionIssue, lastSyncedAt };
 }

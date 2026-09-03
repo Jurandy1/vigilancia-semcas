@@ -6,111 +6,82 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { useParticipantStore } from "@/stores/participant-store";
 
 interface PublicEventRow {
-  event_id: string;
-  slug: string;
-  title: string;
-  description: string | null;
-  projector_title: string | null;
-  status: string;
-  require_live_code: boolean;
-  participant_count: number;
-  current_open_round_id: string | null;
-  current_round_title: string | null;
-  current_round_status: string | null;
-  access_challenge: { code: string; expiresAt: string; rotationSeconds: number } | null;
-  updated_at: string;
+  event_id: string; slug: string; title: string; description: string | null; projector_title: string | null;
+  status: string; require_live_code: boolean; participant_count: number; current_open_round_id: string | null;
+  current_round_title: string | null; current_round_status: string | null;
+  access_challenge: { code: string; expiresAt: string; rotationSeconds: number } | null; updated_at: string;
 }
 
-const PUBLIC_EVENT_FIELDS =
-  "event_id,slug,title,description,projector_title,status,require_live_code,participant_count,current_open_round_id,current_round_title,current_round_status,access_challenge,updated_at";
+const FIELDS = "event_id,slug,title,description,projector_title,status,require_live_code,participant_count,current_open_round_id,current_round_title,current_round_status,access_challenge,updated_at";
+const CACHE_PREFIX = "semcas-public-event:";
 
 function mapRow(row: PublicEventRow): PublicEvent {
   return {
-    id: row.event_id,
-    slug: row.slug,
-    title: row.title,
-    description: row.description ?? null,
-    projectorTitle: row.projector_title ?? null,
-    status: row.status as PublicEvent["status"],
-    requireLiveCode: row.require_live_code,
-    participantCount: row.participant_count ?? 0,
-    currentOpenRoundId: row.current_open_round_id ?? null,
-    currentRoundTitle: row.current_round_title ?? null,
+    id: row.event_id, slug: row.slug, title: row.title, description: row.description ?? null,
+    projectorTitle: row.projector_title ?? null, status: row.status as PublicEvent["status"],
+    requireLiveCode: row.require_live_code, participantCount: row.participant_count ?? 0,
+    currentOpenRoundId: row.current_open_round_id ?? null, currentRoundTitle: row.current_round_title ?? null,
     currentRoundStatus: (row.current_round_status as PublicEvent["currentRoundStatus"]) ?? null,
-    accessChallenge: row.access_challenge,
-    updatedAt: row.updated_at,
+    accessChallenge: row.access_challenge, updatedAt: row.updated_at,
   };
 }
 
 export function usePublicEvent(eventId: string | null, eventSlug?: string | null) {
   const [publicEvent, setPublicEvent] = useState<PublicEvent | null>(null);
   const [loading, setLoading] = useState(true);
-  const setConnectionState = useParticipantStore((s) => s.setConnectionState);
+  const [connectionIssue, setConnectionIssue] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const setConnectionState = useParticipantStore((state) => state.setConnectionState);
 
   useEffect(() => {
-    if (!eventId && !eventSlug) {
-      setLoading(false);
-      return;
-    }
-
+    if (!eventId && !eventSlug) { setLoading(false); return; }
     const supabase = getSupabaseClient();
-    setConnectionState("connecting");
+    const cacheKey = `${CACHE_PREFIX}${eventId ?? eventSlug}`;
+    let resolvedId = eventId;
+    let disposed = false;
 
-    let resolvedEventId = eventId;
+    try {
+      const cached = window.localStorage.getItem(cacheKey);
+      if (cached) setPublicEvent(JSON.parse(cached) as PublicEvent);
+    } catch { /* cache is best-effort */ }
 
-    async function bootstrap() {
-      if (!resolvedEventId && eventSlug) {
-        const { data } = await supabase
-          .from("public_events")
-          .select(PUBLIC_EVENT_FIELDS)
-          .eq("slug", eventSlug)
-          .maybeSingle();
-        if (data) {
-          resolvedEventId = data.event_id;
-          setPublicEvent(mapRow(data as PublicEventRow));
-        }
-      } else if (resolvedEventId) {
-        const { data } = await supabase
-          .from("public_events")
-          .select(PUBLIC_EVENT_FIELDS)
-          .eq("event_id", resolvedEventId)
-          .maybeSingle();
-        if (data) setPublicEvent(mapRow(data as PublicEventRow));
-      }
-      setLoading(false);
-
-      if (!resolvedEventId) {
-        setConnectionState("error");
-        return;
-      }
-
-      const channel = supabase
-        .channel(`public_events:${resolvedEventId}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "public_events", filter: `event_id=eq.${resolvedEventId}` },
-          (payload) => {
-            setPublicEvent(mapRow(payload.new as PublicEventRow));
-            setConnectionState("connected");
-          }
-        )
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") setConnectionState("connected");
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setConnectionState("error");
-        });
-
-      return channel;
+    function apply(row: PublicEventRow) {
+      if (disposed) return;
+      const mapped = mapRow(row);
+      resolvedId = mapped.id;
+      setPublicEvent(mapped);
+      setLastSyncedAt(new Date());
+      setConnectionIssue(false);
+      setConnectionState("connected");
+      try { window.localStorage.setItem(cacheKey, JSON.stringify(mapped)); } catch { /* ignore */ }
     }
 
-    let channelRef: Awaited<ReturnType<typeof bootstrap>> | undefined;
-    bootstrap().then((channel) => {
-      channelRef = channel;
-    });
+    async function refresh() {
+      try {
+        let query = supabase.from("public_events").select(FIELDS);
+        query = resolvedId ? query.eq("event_id", resolvedId) : query.eq("slug", eventSlug!);
+        const { data, error } = await query.maybeSingle();
+        if (error) throw error;
+        if (data) apply(data as PublicEventRow);
+      } catch {
+        if (!disposed) { setConnectionIssue(true); setConnectionState("error"); }
+      } finally {
+        if (!disposed) setLoading(false);
+      }
+    }
 
-    return () => {
-      if (channelRef) supabase.removeChannel(channelRef);
-    };
+    setConnectionState("connecting");
+    void refresh();
+    const poll = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 15_000);
+    const channel = supabase.channel(`public_events:${eventId ?? eventSlug}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "public_events", filter: eventId ? `event_id=eq.${eventId}` : `slug=eq.${eventSlug}` }, (payload) => apply(payload.new as PublicEventRow))
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") { setConnectionIssue(false); setConnectionState("connected"); }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") { setConnectionIssue(true); setConnectionState("error"); void refresh(); }
+      });
+
+    return () => { disposed = true; window.clearInterval(poll); void supabase.removeChannel(channel); };
   }, [eventId, eventSlug, setConnectionState]);
 
-  return { publicEvent, loading };
+  return { publicEvent, loading, connectionIssue, lastSyncedAt };
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SemcasBrand } from "@/components/branding/SemcasBrand";
 
 export default function HomePage() {
   return (
@@ -9,14 +9,7 @@ export default function HomePage() {
       <div className="absolute inset-x-0 top-0 h-2 bg-[linear-gradient(90deg,#0b3a6e_0_62%,#18754a_62%)]" />
       <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-[1080px] flex-col">
         <header className="flex items-center justify-between gap-4 py-4">
-          <Image
-            src="/images/logo-prefeitura-saoluis.jpg"
-            alt="Prefeitura de São Luís"
-            width={152}
-            height={48}
-            priority
-            className="h-auto w-[132px] sm:w-[152px]"
-          />
+          <SemcasBrand variant="header" />
           <Button variant="outline" asChild className="rounded-xl border-[#cbd7e4] bg-white text-[#0b4a83]">
             <Link href="/admin/login">Área administrativa</Link>
           </Button>
@@ -25,7 +18,7 @@ export default function HomePage() {
         <section className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.1fr_.9fr] lg:py-16">
           <div>
             <p className="mb-4 mt-0 text-xs font-bold uppercase tracking-[0.14em] text-[#18754a]">
-              SEMCAS · São Luís
+              SEMCAS
             </p>
             <h1 className="m-0 max-w-[14ch] text-[clamp(2.2rem,6vw,4.5rem)] font-bold leading-[1.02] tracking-[-0.045em] text-[#0c2947]">
               Sua participação transforma o evento.

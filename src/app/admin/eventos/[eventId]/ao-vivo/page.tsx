@@ -31,6 +31,14 @@ interface QuestionSummary {
   answers?: Array<{ displayName: string; value: string }>;
 }
 
+interface ReadinessSnapshot {
+  stats: { registered: number; answering: number; completed: number; notStarted: number };
+  round: { id: string; title: string; status: string; questionCount: number } | null;
+  nextRound: { id: string; title: string; questionCount: number } | null;
+  nextEvent: { id: string; title: string | null } | null;
+  checkedAt: string;
+}
+
 export default function AoVivoPage() {
   const params = useParams();
   const router = useRouter();
@@ -38,11 +46,14 @@ export default function AoVivoPage() {
   const [authReady, setAuthReady] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmNextRound, setConfirmNextRound] = useState(false);
+  const [confirmNextEvent, setConfirmNextEvent] = useState(false);
+  const [readiness, setReadiness] = useState<ReadinessSnapshot | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
 
-  const { event, rounds, stats, loading } = useDashboardRealtime(authReady ? eventId : null);
+  const { event, rounds, stats, loading, connectionIssue, lastSyncedAt } = useDashboardRealtime(authReady ? eventId : null);
   const dashboardState = resolveDashboardState(event?.status ?? "draft", rounds);
   const currentRound = dashboardState.currentRound;
   const currentRoundId = currentRound?.id ?? null;
@@ -112,13 +123,36 @@ export default function AoVivoPage() {
     ? new Date(event.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     : "—";
 
-  async function runAction(path: string) {
+  async function prepareAction(kind: "close" | "round" | "event") {
     setActionLoading(true);
     setActionError(null);
     try {
       const token = await getAdminIdToken();
       if (!token) return;
-      const res = await adminFetch(`/api/admin/events/${eventId}${path}`, token, { method: "POST" });
+      const res = await adminFetch(`/api/admin/events/${eventId}/readiness`, token, { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setReadiness(json);
+      if (kind === "close") setConfirmClose(true);
+      if (kind === "round") setConfirmNextRound(true);
+      if (kind === "event") setConfirmNextEvent(true);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Não foi possível conferir o estado atual.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function runAction(path: string, body?: Record<string, unknown>) {
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch(`/api/admin/events/${eventId}${path}`, token, {
+        method: "POST",
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
       const json = await res.json();
       if (!res.ok) {
         setActionError(json.error ?? "Não foi possível concluir esta operação.");
@@ -166,6 +200,11 @@ export default function AoVivoPage() {
           {actionError}
         </div>
       )}
+      {connectionIssue && (
+        <div role="status" className="mb-4 max-w-2xl rounded-lg border border-[#ead69c] bg-[#fff8e5] px-4 py-3 text-sm text-[#7a5600]">
+          Conexão instável. Mantendo os últimos dados recebidos{lastSyncedAt ? ` às ${lastSyncedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""} e tentando reconectar automaticamente. Ações críticas serão conferidas no servidor antes de executar.
+        </div>
+      )}
 
       <section aria-label="Central da sessão" className="max-w-[1280px]">
         <div className="bg-[#0a2d55] text-white rounded-[10px] overflow-hidden">
@@ -209,7 +248,7 @@ export default function AoVivoPage() {
               {currentRound ? (
                 <button
                   type="button"
-                  onClick={() => setConfirmClose(true)}
+                  onClick={() => void prepareAction("close")}
                   disabled={actionLoading}
                   className="h-10 px-4 text-sm font-semibold text-[#ffc9c2] border border-[rgba(255,201,194,.5)] rounded-md hover:bg-[rgba(180,35,24,.28)] hover:text-white disabled:opacity-50"
                 >
@@ -227,7 +266,7 @@ export default function AoVivoPage() {
               ) : nextRound ? (
                 <button
                   type="button"
-                  onClick={() => runAction("/rounds/next/open")}
+                  onClick={() => void prepareAction("round")}
                   disabled={actionLoading}
                   className="h-10 px-4 text-sm font-semibold bg-white text-[#0a2d55] border border-white rounded-md hover:bg-[#e6edf6] disabled:opacity-50"
                 >
@@ -236,7 +275,7 @@ export default function AoVivoPage() {
               ) : event.nextEventId && (event.status === "open" || event.status === "closed") ? (
                 <button
                   type="button"
-                  onClick={() => runAction("/next")}
+                  onClick={() => void prepareAction("event")}
                   disabled={actionLoading}
                   className="h-10 px-4 text-sm font-semibold bg-[#5ecf92] text-[#082f57] border border-[#5ecf92] rounded-md hover:bg-[#7bdda7] disabled:opacity-50"
                 >
@@ -502,9 +541,11 @@ export default function AoVivoPage() {
       <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Encerrar rodada?</AlertDialogTitle>
+            <AlertDialogTitle>{readiness?.stats.answering ? "Pessoas ainda estão respondendo" : "Encerrar rodada?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              Após o encerramento, novas respostas não serão aceitas nesta rodada.
+              {readiness?.stats.answering
+                ? `${readiness.stats.answering} participante(s) ainda estão respondendo e ${readiness.stats.notStarted} ainda não iniciaram. Ao encerrar, novas respostas serão bloqueadas.`
+                : `Foram recebidas ${readiness?.stats.completed ?? completed} respostas. Após o encerramento, novas respostas não serão aceitas nesta rodada.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -514,11 +555,51 @@ export default function AoVivoPage() {
               onClick={() => {
                 if (!currentRound) return;
                 setConfirmClose(false);
-                void runAction(`/rounds/${currentRound.id}/close`);
+                void runAction(`/rounds/${currentRound.id}/close`, { force: Boolean(readiness?.stats.answering) });
               }}
+              className={readiness?.stats.answering ? "bg-[#b42318] hover:bg-[#8f1c13]" : undefined}
             >
-              Encerrar rodada
+              {readiness?.stats.answering ? "Encerrar mesmo assim" : "Encerrar rodada"}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmNextRound} onOpenChange={setConfirmNextRound}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Iniciar a próxima rodada?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{readiness?.nextRound?.title ?? nextRound?.title}” será aberta para todos os participantes
+              {readiness?.nextRound ? ` com ${readiness.nextRound.questionCount} pergunta(s).` : "."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-lg border border-[#dbe4ef] bg-[#f7f9fc] px-4 py-3 text-sm text-[#33415c]">
+            Rodada anterior: <strong>{readiness?.stats.completed ?? 0} concluíram</strong>
+            {readiness?.stats.notStarted ? ` · ${readiness.stats.notStarted} não iniciaram` : ""}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Continuar aguardando</AlertDialogCancel>
+            <AlertDialogAction disabled={actionLoading} onClick={() => { setConfirmNextRound(false); void runAction("/rounds/next/open"); }}>Iniciar próxima rodada</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmNextEvent} onOpenChange={setConfirmNextEvent}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Avançar para o próximo evento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O mesmo QR Code passará a direcionar os participantes para “{readiness?.nextEvent?.title ?? event.nextEventTitle}”. Esta ação não deve ser feita enquanto pessoas ainda estiverem concluindo o evento atual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-[#dbe4ef] bg-[#f7f9fc] p-3 text-center text-xs text-[#64748b]">
+            <div><strong className="block text-lg text-[#18754a]">{readiness?.stats.completed ?? 0}</strong>concluíram</div>
+            <div><strong className="block text-lg text-[#9a6700]">{(readiness?.stats.answering ?? 0) + (readiness?.stats.notStarted ?? 0)}</strong>ainda pendentes</div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={actionLoading} onClick={() => { setConfirmNextEvent(false); void runAction("/next"); }} className={readiness?.stats.answering ? "bg-[#b42318] hover:bg-[#8f1c13]" : "bg-[#18754a] hover:bg-[#12633e]"}>{readiness?.stats.answering ? "Avançar mesmo assim" : "Confirmar próximo evento"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

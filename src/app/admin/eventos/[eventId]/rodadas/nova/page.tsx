@@ -88,39 +88,42 @@ export default function NovaRodadaPage() {
       eventSlug={event?.slug}
       screenLabel="Rodadas"
     >
-      <form onSubmit={handleSubmit} className="max-w-[1320px]">
-        <div className="flex items-start justify-between gap-5 flex-wrap mb-5">
-          <div className="min-w-0">
+      <form onSubmit={handleSubmit} style={{ maxWidth: "1320px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-start", justifyContent: "space-between", paddingBottom: "16px", borderBottom: "1px solid #dbe4ef", marginBottom: "24px" }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ margin: "0 0 6px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Nova rodada de perguntas</p>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="m-0 w-full max-w-xl text-2xl font-bold tracking-[-0.01em] text-[#1a1a1a] bg-transparent border-0 border-b border-transparent focus:border-[#c9d4e2] outline-none"
+              style={{ margin: 0, width: "100%", maxWidth: "600px", fontSize: "26px", fontWeight: 700, letterSpacing: "-.02em", color: "#11243c", background: "transparent", border: "none", borderBottom: "1px solid transparent", outline: "none" }}
               placeholder="Título da rodada"
+              onFocus={(e) => e.target.style.borderBottom = "1px solid #c9d4e2"}
+              onBlur={(e) => e.target.style.borderBottom = "1px solid transparent"}
             />
-            <p className="mt-1.5 mb-0 text-[13.5px] text-[#5b6b7f]">
+            <p style={{ margin: "6px 0 0", fontSize: "13.5px", color: "#5b6b7f" }}>
               {questions.length} perguntas · alterações são salvas ao clicar em Salvar rodada
             </p>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descrição opcional"
-              className="mt-2 w-full max-w-xl text-sm text-[#5b6b7f] bg-transparent border-0 outline-none"
+              style={{ marginTop: "8px", width: "100%", maxWidth: "600px", fontSize: "14px", color: "#5b6b7f", background: "transparent", border: "none", outline: "none" }}
             />
           </div>
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <div style={{ display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={() => setQuestions([blankQuestion()])}
               disabled={questions.length > 0}
-              className="h-10 px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9]"
+              style={{ height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, color: "#0B3A6E", background: "transparent", border: "1px solid #c9d4e2", borderRadius: "8px", cursor: questions.length > 0 ? "not-allowed" : "pointer", opacity: questions.length > 0 ? 0.5 : 1 }}
             >
               + Primeira pergunta
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="h-10 px-[18px] text-sm font-semibold bg-[#0b3a6e] text-white rounded-md hover:bg-[#0d4a8a] disabled:opacity-60"
+              style={{ height: "38px", padding: "0 16px", fontSize: "13.5px", fontWeight: 600, color: "#fff", background: "#0B3A6E", border: "1px solid #0B3A6E", borderRadius: "8px", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}
             >
               {loading ? "Salvando..." : "Salvar rodada"}
             </button>
@@ -128,7 +131,7 @@ export default function NovaRodadaPage() {
         </div>
 
         {error && (
-          <div className="mb-4 text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2">
+          <div style={{ marginBottom: "16px", fontSize: "14px", color: "#b42318", background: "#fdf2f1", border: "1px solid #e3b3ad", borderRadius: "6px", padding: "8px 12px" }}>
             {error}
           </div>
         )}

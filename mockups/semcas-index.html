@@ -1,0 +1,1068 @@
+<meta charset="utf-8" />
+<title>Índice SEMCAS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          border: 'hsl(var(--border))',
+          input: 'hsl(var(--input))',
+          ring: 'hsl(var(--ring))',
+          background: 'hsl(var(--background))',
+          foreground: 'hsl(var(--foreground))',
+          primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
+          secondary: { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },
+          destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
+          muted: { DEFAULT: 'hsl(var(--muted))', foreground: 'hsl(var(--muted-foreground))' },
+          accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
+          card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+        },
+        borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
+      }
+    }
+  };
+</script>
+<style>
+  /* Tokens copiados de src/app/globals.css do projeto — fonte da verdade do design real */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 210 82% 24%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 152 58% 27%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 210 82% 24%;
+    --radius: 0.375rem;
+  }
+  body {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+  }
+  input, textarea, select { font-size: 16px; }
+  .icon { display: inline-block; width: 1em; height: 1em; }
+  .icon svg { width: 100%; height: 100%; }
+  /* Visibilidade real é controlada via style.display inline no JS (mais forte que
+     qualquer classe utilitária do Tailwind, ex. "flex", que teria a mesma
+     especificidade de um seletor de atributo e venceria por ordem de cascata). */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d5dae1; border-radius: 8px; }
+  .proto-btn {
+    font-size: 11px; padding: 5px 10px; border-radius: 6px; border: 1px dashed rgba(255,255,255,0.35);
+    color: #cfd8e3; background: transparent; cursor: pointer; white-space: nowrap;
+  }
+  .proto-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .proto-btn.on { background: #2b3f56; color: #fff; border-style: solid; border-color: #4a6padding; }
+  .qr-fake {
+    display: grid; grid-template-columns: repeat(11, 1fr); gap: 2px; width: 100%; aspect-ratio: 1/1;
+    background: #fff; padding: 10px; border-radius: 4px;
+  }
+  .qr-fake div { background: #0b0b0b; }
+  .qr-fake div.off { background: transparent; }
+</style>
+
+<!-- ============================================================ -->
+<!-- BARRA DE PROTÓTIPO (não faz parte do sistema real — navegação entre as telas deste arquivo único) -->
+<!-- ============================================================ -->
+<div style="position:sticky; top:0; z-index:100; background:#0a1622; border-bottom:1px solid #1c2b3d;">
+  <div style="max-width:1600px; margin:0 auto; padding:8px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <span style="color:#5b7089; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-right:4px;">Protótipo · telas</span>
+    <button class="proto-btn on" data-screen-switch="admin">Área administrativa</button>
+    <button class="proto-btn" data-screen-switch="login">Login</button>
+    <button class="proto-btn" data-screen-switch="projetor">Projetor</button>
+    <button class="proto-btn" data-screen-switch="participante">Participante (celular)</button>
+    <span style="margin-left:auto; color:#43566c; font-size:11px;">2 eventos fake: Oficina de Planejamento 2027 (em andamento) · Semana de Vacinação 2026 (aguardando)</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TELA: ÁREA ADMINISTRATIVA (AdminShell + páginas) -->
+<!-- ============================================================ -->
+<div data-screen="admin" class="active">
+  <div class="min-h-screen flex bg-[#f4f6f9]">
+
+    <!-- Sidebar -->
+    <aside class="w-56 bg-[#0b3a6e] text-white flex flex-col shrink-0">
+      <div class="px-5 py-5 border-b border-white/10">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
+            <span class="icon text-white" data-icon="users"></span>
+          </div>
+          <span class="font-bold tracking-wide">SEMCAS</span>
+        </div>
+      </div>
+
+      <nav class="flex-1 px-3 py-4 space-y-1">
+        <div class="pb-1 px-3">
+          <p class="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Menu</p>
+        </div>
+        <a href="#" data-nav="dashboard" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors bg-[#1a5a9e] text-white font-medium">
+          <span class="icon" data-icon="dashboard"></span> Dashboard
+        </a>
+        <a href="#" data-nav="participantes" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors text-white/70 hover:bg-white/10 hover:text-white">
+          <span class="icon" data-icon="users"></span> Participantes
+        </a>
+        <a href="#" data-nav="rodadas" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors text-white/70 hover:bg-white/10 hover:text-white">
+          <span class="icon" data-icon="file-text"></span> Rodadas
+        </a>
+        <a href="#" data-nav="relatorios" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors text-white/70 hover:bg-white/10 hover:text-white">
+          <span class="icon" data-icon="bar-chart"></span> Relatórios
+        </a>
+        <a href="#" data-nav="exportacoes" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors text-white/70 hover:bg-white/10 hover:text-white">
+          <span class="icon" data-icon="download"></span> Exportações
+        </a>
+        <a href="#" data-nav="configuracoes" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors text-white/70 hover:bg-white/10 hover:text-white">
+          <span class="icon" data-icon="settings"></span> Configurações
+        </a>
+
+        <div class="pt-4 pb-1 px-3">
+          <p class="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Eventos</p>
+        </div>
+        <a href="#" data-nav="meus-eventos" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-white/70 hover:bg-white/10">
+          <span class="icon" data-icon="calendar"></span> Meus eventos
+        </a>
+
+        <div class="pt-4 pb-1 px-3">
+          <p class="text-[10px] uppercase tracking-wider text-white/40 font-semibold">Suporte</p>
+        </div>
+        <button class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-white/70 hover:bg-white/10 w-full text-left">
+          <span class="icon" data-icon="help-circle"></span> Ajuda
+        </button>
+        <button class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-white/70 hover:bg-white/10 w-full text-left">
+          <span class="icon" data-icon="log-out"></span> Sair
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Top bar -->
+      <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-sm text-gray-500 min-w-0">
+          <span class="icon shrink-0" data-icon="home"></span>
+          <span>/</span>
+          <span id="hdr-event" class="truncate max-w-[220px]">Oficina de Planejamento 2027</span>
+          <span>/</span>
+          <span id="hdr-page" class="text-gray-800 font-medium shrink-0">Dashboard</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="#" data-screen-switch="projetor" class="flex items-center gap-2 text-sm text-[#0b3a6e] border border-[#0b3a6e]/30 rounded-md px-3 py-1.5 hover:bg-[#0b3a6e]/5 transition-colors">
+            <span class="icon" data-icon="monitor"></span> Abrir tela do projetor
+          </a>
+          <div id="hdr-status" class="flex items-center gap-1.5 text-sm">
+            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            <span class="text-green-600 font-medium">Em andamento</span>
+          </div>
+          <div class="flex items-center gap-2 pl-4 border-l border-gray-200">
+            <div class="w-8 h-8 rounded-full bg-[#0b3a6e] text-white text-xs font-bold flex items-center justify-center">AD</div>
+            <span class="text-sm font-medium text-gray-700">Administrador</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+
+        <!-- ===================== PÁGINA: DASHBOARD ===================== -->
+        <section data-page="dashboard" class="active">
+          <div class="mb-6">
+            <h1 class="text-xl font-bold text-gray-900 mb-2">Oficina de Planejamento 2027</h1>
+            <div class="flex flex-wrap items-center gap-2 text-sm">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Em andamento</span>
+              <span class="text-gray-500">Iniciado às 09:14</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white border border-gray-200 rounded-lg p-5 text-center">
+              <div class="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-2">
+                <span class="icon" data-icon="users"></span> Participantes
+              </div>
+              <p class="text-4xl font-bold text-[#0b3a6e] tabular-nums">42</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-5 text-center">
+              <div class="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-2">
+                <span class="icon" data-icon="check-circle"></span> Responderam
+              </div>
+              <p class="text-4xl font-bold text-green-600 tabular-nums">18</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-5 text-center">
+              <div class="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-2">
+                <span class="icon" data-icon="refresh-cw"></span> Respondendo
+              </div>
+              <p class="text-4xl font-bold text-orange-500 tabular-nums">6</p>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+            <h2 class="text-sm font-semibold text-gray-800 mb-4">Respostas recebidas ao longo do tempo</h2>
+            <svg viewBox="0 0 320 140" class="w-full" style="height:140px">
+              <line x1="8" y1="132" x2="312" y2="132" stroke="#f0f0f0" stroke-width="1"/>
+              <path d="M8,128 L46,124 L84,118 L122,104 L160,86 L198,70 L236,48 L274,30 L312,18 L312,132 L8,132 Z" fill="#0b3a6e" opacity="0.06"/>
+              <path d="M8,128 L46,124 L84,118 L122,104 L160,86 L198,70 L236,48 L274,30 L312,18" fill="none" stroke="#0b3a6e" stroke-width="2"/>
+              <circle cx="312" cy="18" r="3" fill="#0b3a6e"/>
+            </svg>
+            <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+              <span>09:14</span><span>11:52</span>
+            </div>
+          </div>
+
+          <div class="bg-white border border-gray-200 rounded-lg p-5 mb-6">
+            <h2 class="text-sm font-semibold text-gray-800 mb-1">Rodada atual</h2>
+            <p class="text-base font-medium text-gray-900 mb-1">Percepção sobre o Evento</p>
+            <p class="text-xs text-gray-500 mb-4">18 de 42 responderam</p>
+            <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-destructive text-destructive-foreground hover:bg-destructive/90 h-11 px-5 py-2">Encerrar rodada</button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
+              <span class="icon text-[#0b3a6e]" style="width:2rem;height:2rem" data-icon="monitor"></span>
+              <div class="flex-1">
+                <p class="text-xs font-medium text-gray-700">Tela do projetor</p>
+                <p class="text-[10px] text-gray-400">Exibir no telão do evento</p>
+              </div>
+              <a href="#" data-screen-switch="projetor" class="text-xs bg-[#0b3a6e] text-white px-3 py-1.5 rounded-md hover:bg-[#0b3a6e]/90">Abrir</a>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
+              <span class="icon text-[#0b3a6e]" style="width:2rem;height:2rem" data-icon="qr-code"></span>
+              <div class="flex-1">
+                <p class="text-xs font-medium text-gray-700">Acesso dos participantes</p>
+                <p class="text-[10px] text-gray-400">/e/oficina-de-planejamento-2027</p>
+              </div>
+              <button data-open-dialog="qr" class="text-xs bg-[#0b3a6e] text-white px-3 py-1.5 rounded-md hover:bg-[#0b3a6e]/90">Ver QR</button>
+            </div>
+          </div>
+
+          <details class="max-w-2xl">
+            <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 select-none">Outro exemplo de estado — evento aguardando início (Semana de Vacinação 2026)</summary>
+            <div class="mt-3 bg-white border border-gray-200 rounded-lg p-5 opacity-90">
+              <div class="mb-4">
+                <h1 class="text-lg font-bold text-gray-900 mb-2">Semana Municipal de Vacinação 2026</h1>
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Aguardando início</span>
+              </div>
+              <div class="text-center py-6 border-t border-gray-100">
+                <p class="text-sm text-gray-500 mb-4">Este evento ainda não foi iniciado.</p>
+                <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-5 py-2">Iniciar evento</button>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <!-- ===================== PÁGINA: PARTICIPANTES ===================== -->
+        <section data-page="participantes">
+          <div class="mb-6">
+            <h1 class="text-xl font-bold text-gray-900">Participantes</h1>
+            <p class="text-sm text-gray-500 mt-1">Oficina de Planejamento 2027 · 42 participantes</p>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-lg p-5">
+            <div class="flex flex-wrap gap-2 mb-3">
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground">Todos</button>
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Respondendo</button>
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Concluídos</button>
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Identificados</button>
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Anônimos</button>
+            </div>
+            <input placeholder="Buscar por nome..." class="flex h-12 w-full max-w-xs rounded-md border border-input bg-background px-4 py-2 text-base placeholder:text-muted-foreground mb-3" />
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-border text-left text-muted-foreground">
+                    <th class="py-2 pr-4 font-medium">Participante</th>
+                    <th class="py-2 pr-4 font-medium">Situação</th>
+                    <th class="py-2 font-medium">Progresso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-b border-border/50"><td class="py-2.5 pr-4">Maria Silva</td><td class="py-2.5 pr-4">Concluído</td><td class="py-2.5 tabular-nums">3/3</td></tr>
+                  <tr class="border-b border-border/50"><td class="py-2.5 pr-4">Anônimo</td><td class="py-2.5 pr-4">Concluído</td><td class="py-2.5 tabular-nums">3/3</td></tr>
+                  <tr class="border-b border-border/50"><td class="py-2.5 pr-4">João Pedro</td><td class="py-2.5 pr-4">Respondendo</td><td class="py-2.5 tabular-nums">2/3</td></tr>
+                  <tr class="border-b border-border/50"><td class="py-2.5 pr-4">Anônimo</td><td class="py-2.5 pr-4">Cadastrado</td><td class="py-2.5 tabular-nums">—</td></tr>
+                  <tr class="border-b border-border/50"><td class="py-2.5 pr-4">Ana Costa</td><td class="py-2.5 pr-4">Concluído</td><td class="py-2.5 tabular-nums">3/3</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PÁGINA: RODADAS ===================== -->
+        <section data-page="rodadas">
+          <div class="mb-6 flex items-center justify-between">
+            <div>
+              <h1 class="text-xl font-bold text-gray-900">Rodadas</h1>
+              <p class="text-sm text-gray-500 mt-1">Oficina de Planejamento 2027</p>
+            </div>
+            <button data-nav="nova-rodada" class="nav-link inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">+ Nova rodada</button>
+          </div>
+
+          <div class="max-w-2xl space-y-6">
+            <section>
+              <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Rodada atual</h2>
+              <div class="bg-white border border-gray-200 rounded-lg p-5">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="font-medium text-gray-900 truncate">Percepção sobre o Evento</p>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Em andamento</span>
+                      <span class="text-xs text-gray-500">18 de 42 respostas</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <a href="#" data-nav="resultados" class="nav-link text-sm text-[#0b3a6e] hover:underline px-2">Resultados</a>
+                    <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90">Encerrar rodada</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Próximas / rascunhos</h2>
+              <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+                <div class="flex items-center justify-between py-4 px-5 gap-4">
+                  <div class="min-w-0">
+                    <p class="font-medium text-gray-800 truncate">Encerramento e Encaminhamentos</p>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">Rascunho</span>
+                      <span class="text-xs text-gray-500">2 perguntas</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <a href="#" data-nav="nova-rodada" class="nav-link text-sm text-[#0b3a6e] hover:underline px-2">Editar</a>
+                    <button disabled title="Encerre a rodada aberta antes de abrir outra." class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background opacity-50 cursor-not-allowed">Abrir rodada</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Encerradas</h2>
+              <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+                <div class="flex items-center justify-between py-4 px-5 gap-4">
+                  <div class="min-w-0">
+                    <p class="font-medium text-gray-800 truncate">Perfil dos Participantes</p>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Encerrada</span>
+                      <span class="text-xs text-gray-500">40 respostas</span>
+                    </div>
+                  </div>
+                  <a href="#" data-nav="resultados" class="nav-link text-sm text-[#0b3a6e] hover:underline px-2 shrink-0">Ver resultados</a>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ===================== PÁGINA: NOVA RODADA ===================== -->
+        <section data-page="nova-rodada">
+          <div class="mb-6 flex items-center justify-between">
+            <h1 class="text-xl font-bold text-gray-900">Nova rodada</h1>
+            <button data-open-dialog="preview" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Visualizar como participante</button>
+          </div>
+          <div class="max-w-2xl space-y-6">
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Título</label>
+              <input value="Encerramento e Encaminhamentos" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Descrição</label>
+              <textarea class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-4 py-2 text-base" rows="2"></textarea>
+            </div>
+            <div class="flex gap-2">
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Usar perguntas padrão</button>
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Começar do zero</button>
+            </div>
+
+            <div class="space-y-4">
+              <div class="border border-border rounded-md p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <p class="text-xs font-semibold text-muted-foreground">Pergunta 1</p>
+                  <div class="flex items-center gap-1 text-gray-500">
+                    <span class="icon p-1.5" data-icon="chevron-up"></span>
+                    <span class="icon p-1.5" data-icon="chevron-down"></span>
+                    <span class="icon p-1.5" data-icon="copy"></span>
+                    <span class="icon p-1.5 text-destructive" data-icon="trash-2"></span>
+                  </div>
+                </div>
+                <input value="Quais recursos você usou no evento?" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" />
+                <select class="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option>Escolha única</option>
+                  <option selected>Múltipla escolha</option>
+                  <option>Resposta aberta</option>
+                </select>
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2"><input value="Slides" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" /><span class="icon text-gray-400 shrink-0 p-2" data-icon="x"></span></div>
+                  <div class="flex items-center gap-2"><input value="Material impresso" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" /><span class="icon text-gray-400 shrink-0 p-2" data-icon="x"></span></div>
+                  <div class="flex items-center gap-2"><input value="Coffee break" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" /><span class="icon text-gray-400 shrink-0 p-2" data-icon="x"></span></div>
+                  <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted"><span class="icon" data-icon="plus"></span> Adicionar alternativa</button>
+                </div>
+                <div class="space-y-1">
+                  <label class="text-xs">Máximo de seleções (opcional)</label>
+                  <input value="2" type="number" class="flex h-12 rounded-md border border-input bg-background px-4 py-2 text-base max-w-[140px]" />
+                </div>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" checked class="accent-[#0b3a6e]" /> Resposta obrigatória</label>
+              </div>
+
+              <div class="border border-border rounded-md p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <p class="text-xs font-semibold text-muted-foreground">Pergunta 2</p>
+                  <div class="flex items-center gap-1 text-gray-500">
+                    <span class="icon p-1.5" data-icon="chevron-up"></span>
+                    <span class="icon p-1.5" data-icon="chevron-down"></span>
+                    <span class="icon p-1.5" data-icon="copy"></span>
+                    <span class="icon p-1.5 text-destructive" data-icon="trash-2"></span>
+                  </div>
+                </div>
+                <input value="Comentários adicionais" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" />
+                <select class="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option>Escolha única</option>
+                  <option>Múltipla escolha</option>
+                  <option selected>Resposta aberta</option>
+                </select>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" checked class="accent-[#0b3a6e]" /> Resposta obrigatória</label>
+              </div>
+            </div>
+
+            <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background hover:bg-muted"><span class="icon" data-icon="plus"></span> Adicionar pergunta</button>
+            <div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90">Salvar como rascunho</button></div>
+          </div>
+        </section>
+
+        <!-- ===================== PÁGINA: RELATÓRIOS (evento) ===================== -->
+        <section data-page="relatorios">
+          <div class="mb-6">
+            <h1 class="text-xl font-bold text-gray-900">Relatório do evento</h1>
+            <p class="text-sm text-gray-500 mt-1">Oficina de Planejamento 2027</p>
+          </div>
+          <div class="max-w-2xl space-y-4">
+            <div class="bg-white border border-gray-200 rounded-lg p-5">
+              <p class="text-2xl font-bold text-gray-900 tabular-nums">42</p>
+              <p class="text-xs text-gray-500 uppercase">Participantes únicos</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+              <a href="#" data-nav="resultados" class="nav-link flex items-center justify-between py-4 px-5 hover:bg-gray-50">
+                <div>
+                  <p class="font-medium text-gray-800">Rodada 1: Perfil dos Participantes</p>
+                  <p class="text-sm text-gray-500">Encerrada · 40 respostas</p>
+                </div>
+                <span class="text-gray-400">→</span>
+              </a>
+              <a href="#" data-nav="resultados" class="nav-link flex items-center justify-between py-4 px-5 hover:bg-gray-50">
+                <div>
+                  <p class="font-medium text-gray-800">Rodada 2: Percepção sobre o Evento</p>
+                  <p class="text-sm text-gray-500">Em andamento · 18 respostas</p>
+                </div>
+                <span class="text-gray-400">→</span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PÁGINA: RESULTADOS DE RODADA ===================== -->
+        <section data-page="resultados">
+          <h1 class="text-xl font-bold text-gray-900">Relatório — Percepção sobre o Evento</h1>
+          <p class="text-sm text-gray-500 mt-1 mb-6">18 respostas de 42 participantes (42,9%)</p>
+
+          <div class="max-w-3xl space-y-6">
+            <section class="bg-white border border-gray-200 rounded-lg p-5">
+              <h2 class="font-semibold text-gray-800 mb-3">1. Como você avalia a organização geral do evento?</h2>
+              <table class="w-full text-sm border border-gray-200">
+                <thead><tr class="border-b border-gray-200 bg-gray-50"><th class="text-left p-2">Opção</th><th class="text-right p-2">Qtd</th><th class="text-right p-2">%</th></tr></thead>
+                <tbody>
+                  <tr class="border-b border-gray-100"><td class="p-2">Excelente</td><td class="p-2 text-right tabular-nums">9</td><td class="p-2 text-right tabular-nums">50,0%</td></tr>
+                  <tr class="border-b border-gray-100"><td class="p-2">Bom</td><td class="p-2 text-right tabular-nums">6</td><td class="p-2 text-right tabular-nums">33,3%</td></tr>
+                  <tr class="border-b border-gray-100"><td class="p-2">Regular</td><td class="p-2 text-right tabular-nums">2</td><td class="p-2 text-right tabular-nums">11,1%</td></tr>
+                  <tr class="border-b border-gray-100"><td class="p-2">Ruim</td><td class="p-2 text-right tabular-nums">1</td><td class="p-2 text-right tabular-nums">5,6%</td></tr>
+                  <tr class="border-b border-gray-100"><td class="p-2">Péssimo</td><td class="p-2 text-right tabular-nums">0</td><td class="p-2 text-right tabular-nums">0,0%</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="bg-white border border-gray-200 rounded-lg p-5">
+              <h2 class="font-semibold text-gray-800 mb-3">2. Quais recursos você usou no evento?</h2>
+              <p class="text-xs text-gray-500 mb-2">Múltipla escolha — percentual de respondentes que selecionaram cada opção. A soma pode ultrapassar 100%.</p>
+              <table class="w-full text-sm border border-gray-200">
+                <thead><tr class="border-b border-gray-200 bg-gray-50"><th class="text-left p-2">Opção</th><th class="text-right p-2">Qtd</th><th class="text-right p-2">%</th></tr></thead>
+                <tbody>
+                  <tr class="border-b border-gray-100"><td class="p-2">Slides</td><td class="p-2 text-right tabular-nums">14</td><td class="p-2 text-right tabular-nums">77,8%</td></tr>
+                  <tr class="border-b border-gray-100"><td class="p-2">Coffee break</td><td class="p-2 text-right tabular-nums">11</td><td class="p-2 text-right tabular-nums">61,1%</td></tr>
+                  <tr class="border-b border-gray-100"><td class="p-2">Material impresso</td><td class="p-2 text-right tabular-nums">9</td><td class="p-2 text-right tabular-nums">50,0%</td></tr>
+                  <tr class="border-b border-gray-100"><td class="p-2">Nenhum</td><td class="p-2 text-right tabular-nums">1</td><td class="p-2 text-right tabular-nums">5,6%</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="bg-white border border-gray-200 rounded-lg p-5">
+              <h2 class="font-semibold text-gray-800 mb-3">3. Comentários adicionais</h2>
+              <div class="space-y-3">
+                <div class="border-b border-gray-100 pb-3">
+                  <p class="text-sm font-medium text-gray-800">Maria Silva</p>
+                  <p class="text-sm text-gray-500 mt-1">&ldquo;Gostei muito da dinâmica em grupo, ajudou a alinhar expectativas entre os setores.&rdquo;</p>
+                </div>
+                <div class="border-b border-gray-100 pb-3">
+                  <p class="text-sm font-medium text-gray-800">Anônimo</p>
+                  <p class="text-sm text-gray-500 mt-1">&ldquo;Poderia ter mais tempo para perguntas ao final.&rdquo;</p>
+                </div>
+              </div>
+            </section>
+
+            <div class="flex gap-2">
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90">Exportar CSV</button>
+              <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background hover:bg-muted">Exportar Excel</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PÁGINA: EXPORTAÇÕES (relatório consolidado / impressão) ===================== -->
+        <section data-page="exportacoes">
+          <div class="mb-6">
+            <h1 class="text-xl font-bold text-gray-900">Exportações</h1>
+            <p class="text-sm text-gray-500 mt-1">Relatório consolidado do evento, pronto para impressão / PDF</p>
+          </div>
+          <div class="bg-white shadow-sm border border-gray-200 rounded-lg max-w-2xl p-10 mx-auto">
+            <header class="text-center mb-8">
+              <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:180px;margin:0 auto 12px;display:block;" />
+              <h1 class="text-lg font-bold">Oficina de Planejamento 2027</h1>
+              <p class="text-xs text-gray-500 mt-1">Relatório consolidado do evento</p>
+            </header>
+            <section class="mb-6">
+              <h2 class="text-sm font-semibold border-b border-gray-300 pb-2 mb-3">Rodada 1: Perfil dos Participantes</h2>
+              <p class="text-[11px] text-gray-500 mb-3">40 respostas de 42 participantes (95,2%)</p>
+              <p class="text-xs text-gray-400 italic">— tabelas de cada pergunta, no mesmo formato da tela de Resultados —</p>
+            </section>
+            <section>
+              <h2 class="text-sm font-semibold border-b border-gray-300 pb-2 mb-3">Rodada 2: Percepção sobre o Evento</h2>
+              <p class="text-[11px] text-gray-500 mb-3">18 respostas de 42 participantes (42,9%)</p>
+              <p class="text-xs text-gray-400 italic">— tabelas de cada pergunta, no mesmo formato da tela de Resultados —</p>
+            </section>
+            <div class="text-center mt-8">
+              <button class="px-6 py-2 border border-gray-300 rounded-md text-sm">Imprimir / Salvar como PDF</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PÁGINA: CONFIGURAÇÕES ===================== -->
+        <section data-page="configuracoes">
+          <div class="mb-6">
+            <h1 class="text-xl font-bold text-gray-900">Configurações do evento</h1>
+            <p class="text-sm text-gray-500 mt-1">Oficina de Planejamento 2027</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="bg-white border border-gray-200 rounded-lg p-5">
+              <h2 class="text-sm font-semibold text-gray-800 mb-4">Geral</h2>
+              <div class="space-y-4">
+                <div class="space-y-1.5">
+                  <label class="text-xs">Título</label>
+                  <input value="Oficina de Planejamento 2027" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" />
+                </div>
+                <div class="space-y-1.5">
+                  <label class="text-xs">Descrição</label>
+                  <textarea rows="3" class="flex w-full rounded-md border border-input bg-background px-4 py-2 text-base">Coleta de percepções dos servidores da SEMCAS sobre o planejamento estratégico 2027.</textarea>
+                </div>
+                <div class="space-y-1.5">
+                  <label class="text-xs">Título para o projetor</label>
+                  <input value="Planejamento 2027 — SEMCAS" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" />
+                </div>
+                <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">Salvar</button>
+              </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-5">
+              <h2 class="text-sm font-semibold text-gray-800 mb-4">Acesso ao evento</h2>
+              <p class="text-xs text-gray-500 mb-1">Link público</p>
+              <div class="flex items-center gap-2 mb-4">
+                <code class="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 truncate">https://vigilancia-semcas.vercel.app/e/oficina-de-planejamento-2027</code>
+                <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted"><span class="icon" data-icon="copy"></span></button>
+              </div>
+              <div class="qr-fake mx-auto" style="max-width:160px" id="qr-fake-1"></div>
+              <a href="#" class="block text-center text-sm text-[#0b3a6e] mt-4 hover:underline">Abrir cartaz A4 para impressão</a>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-5">
+              <h2 class="text-sm font-semibold text-gray-800 mb-4">Controle de entrada</h2>
+              <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p class="text-sm font-medium text-gray-800">Exigir código temporário</p>
+                  <p class="text-xs text-gray-500 mt-0.5">O participante precisa digitar um código exibido no projetor antes de entrar.</p>
+                </div>
+                <button role="switch" aria-checked="true" class="shrink-0 w-11 h-6 rounded-full relative bg-[#0b3a6e]">
+                  <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow translate-x-5"></span>
+                </button>
+              </div>
+              <div class="pt-4 border-t border-gray-100">
+                <p class="text-xs text-gray-500 mb-2">O código atual é exibido na <a href="#" data-screen-switch="projetor" class="text-[#0b3a6e] hover:underline">tela do projetor</a> e gira automaticamente a cada 60 segundos.</p>
+                <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted"><span class="icon" data-icon="refresh-cw"></span> Gerar novo código agora</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== PÁGINA: MEUS EVENTOS ===================== -->
+        <section data-page="meus-eventos">
+          <div class="mb-6 flex items-center justify-between">
+            <h1 class="text-xl font-bold text-gray-900">Eventos</h1>
+            <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">+ Novo evento</button>
+          </div>
+          <div class="max-w-3xl">
+            <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+              <div class="flex items-center justify-between py-4 px-5 gap-4">
+                <a href="#" data-nav="dashboard" class="nav-link min-w-0 flex-1 hover:opacity-80">
+                  <p class="font-medium text-gray-800 truncate">Oficina de Planejamento 2027</p>
+                  <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Em andamento</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">Teste</span>
+                    <span class="text-xs text-gray-500">Rodada: Percepção sobre o Evento</span>
+                    <span class="text-xs text-gray-500">42 participantes · 58 respostas</span>
+                  </div>
+                </a>
+                <div class="flex items-center gap-1 shrink-0">
+                  <a href="#" data-nav="dashboard" class="nav-link inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Abrir</a>
+                  <button class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md" aria-label="Mais ações"><span class="icon" data-icon="more-vertical"></span></button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between py-4 px-5 gap-4">
+                <div class="min-w-0 flex-1">
+                  <p class="font-medium text-gray-800 truncate">Semana Municipal de Vacinação 2026</p>
+                  <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-600">Aguardando</span>
+                    <span class="text-xs text-gray-500">0 participantes · 0 respostas</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted">Abrir</button>
+                  <button class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md" aria-label="Mais ações"><span class="icon" data-icon="more-vertical"></span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- DIALOG: QR CODE (sobreposto à área administrativa) -->
+<!-- ============================================================ -->
+<div id="dialog-qr" class="fixed inset-0 z-50 hidden">
+  <div class="fixed inset-0 bg-black/50" data-close-dialog></div>
+  <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white p-6 shadow-lg rounded-lg border border-gray-200 space-y-4">
+    <div>
+      <h3 class="text-base font-semibold text-gray-900">Acesso ao evento</h3>
+      <p class="text-sm text-gray-500">Oficina de Planejamento 2027</p>
+    </div>
+    <div class="qr-fake mx-auto" style="max-width:208px" id="qr-fake-2"></div>
+    <div class="flex items-center gap-2">
+      <code class="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 truncate">https://vigilancia-semcas.vercel.app/e/oficina-de-planejamento-2027</code>
+      <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-muted"><span class="icon" data-icon="copy"></span></button>
+    </div>
+    <div class="flex gap-2">
+      <button class="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background hover:bg-muted"><span class="icon" data-icon="download"></span> Baixar QR</button>
+      <button class="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background hover:bg-muted"><span class="icon" data-icon="printer"></span> Imprimir A4</button>
+    </div>
+    <button class="absolute right-4 top-4 text-gray-400 hover:text-gray-600" data-close-dialog><span class="icon" data-icon="x"></span></button>
+  </div>
+</div>
+
+<!-- DIALOG: Preview do editor de perguntas -->
+<div id="dialog-preview" class="fixed inset-0 z-50 hidden">
+  <div class="fixed inset-0 bg-black/50" data-close-dialog></div>
+  <div class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white p-6 shadow-lg rounded-lg border border-gray-200 space-y-4 max-h-[85vh] overflow-y-auto">
+    <h3 class="text-base font-semibold text-gray-900">Prévia — como o participante vê</h3>
+    <div class="border-b border-gray-100 pb-4">
+      <p class="text-xs text-muted-foreground mb-2">Pergunta 1 de 2</p>
+      <h4 class="text-sm font-semibold mb-3">Quais recursos você usou no evento?</h4>
+      <div class="space-y-2">
+        <label class="flex items-center space-x-3 border border-border rounded-md px-3 py-2"><input type="checkbox" checked class="accent-[#0b3a6e]" /><span class="flex-1 text-sm">Slides</span></label>
+        <label class="flex items-center space-x-3 border border-border rounded-md px-3 py-2"><input type="checkbox" class="accent-[#0b3a6e]" /><span class="flex-1 text-sm">Material impresso</span></label>
+        <label class="flex items-center space-x-3 border border-border rounded-md px-3 py-2"><input type="checkbox" checked class="accent-[#0b3a6e]" /><span class="flex-1 text-sm">Coffee break</span></label>
+      </div>
+    </div>
+    <div>
+      <p class="text-xs text-muted-foreground mb-2">Pergunta 2 de 2</p>
+      <h4 class="text-sm font-semibold mb-3">Comentários adicionais</h4>
+      <textarea disabled placeholder="Digite sua resposta..." rows="3" class="flex w-full rounded-md border border-input bg-background px-4 py-2 text-base"></textarea>
+    </div>
+    <button class="absolute right-4 top-4 text-gray-400 hover:text-gray-600" data-close-dialog><span class="icon" data-icon="x"></span></button>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- TELA: LOGIN -->
+<!-- ============================================================ -->
+<div data-screen="login">
+  <main class="min-h-screen flex items-center justify-center p-6 bg-white">
+    <div class="w-full max-w-sm">
+      <header class="text-center space-y-3 mb-8">
+        <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:170px;margin:0 auto;display:block;" />
+        <h1 class="text-lg font-semibold leading-snug">Acesso administrativo</h1>
+        <p class="text-sm text-muted-foreground">SEMCAS</p>
+      </header>
+      <form class="space-y-4" onsubmit="return false">
+        <div class="space-y-2">
+          <label class="text-sm font-medium">E-mail</label>
+          <input type="email" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" />
+        </div>
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Senha</label>
+          <input type="password" class="flex h-12 w-full rounded-md border border-input bg-background px-4 py-2 text-base" />
+        </div>
+        <button class="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90">ENTRAR</button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- ============================================================ -->
+<!-- TELA: PROJETOR (3 estados) -->
+<!-- ============================================================ -->
+<div data-screen="projetor">
+  <div style="background:#0a1622; padding:10px 16px; display:flex; gap:8px; align-items:center;">
+    <span style="color:#5b7089; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;">Prévia · estado do projetor</span>
+    <button class="proto-btn" data-projector-state="entrada">Entrada (nenhuma rodada aberta ainda)</button>
+    <button class="proto-btn on" data-projector-state="ativo">Rodada ativa</button>
+    <button class="proto-btn" data-projector-state="intermissao">Intervalo entre rodadas</button>
+  </div>
+
+  <!-- estado: entrada -->
+  <div data-proj="entrada" class="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb] p-12 text-center">
+    <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:360px;margin-bottom:24px;" />
+    <h1 class="text-2xl font-semibold text-gray-700 mb-12">PARTICIPE DA AVALIAÇÃO</h1>
+    <div class="qr-fake mb-10 border-4 border-white shadow-lg rounded-xl" style="width:288px" id="qr-fake-3"></div>
+    <div class="mb-10">
+      <p class="text-xl text-gray-500 mb-3">Código para participar</p>
+      <p class="text-6xl font-mono font-bold tracking-[0.3em] text-[#0b3a6e] tabular-nums">482 917</p>
+      <p class="text-lg text-gray-400 mt-4">Atualiza em: 00:47</p>
+    </div>
+    <p class="text-xl text-gray-500">Participantes conectados: <span class="font-bold text-[#0b3a6e]">0</span></p>
+  </div>
+
+  <!-- estado: ativo -->
+  <div data-proj="ativo" class="active min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb] p-8">
+    <div class="w-full max-w-3xl mx-auto text-center space-y-8">
+      <div>
+        <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:300px;margin:0 auto 12px;display:block;" />
+        <p class="text-lg text-gray-600 max-w-xl mx-auto leading-snug">Planejamento 2027 — SEMCAS</p>
+        <p class="text-base font-medium text-[#0b3a6e] mt-1">Percepção sobre o Evento</p>
+        <div class="flex items-center justify-center gap-2 mt-4">
+          <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+          <span class="text-sm text-green-600 font-medium">Atualização em tempo real</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-5">
+        <div class="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+          <div class="flex items-center justify-center gap-2 mb-3"><span class="icon text-[#0b3a6e]" style="width:1.5rem;height:1.5rem" data-icon="users"></span><span class="text-base font-semibold text-[#0b3a6e]">Participantes</span></div>
+          <p class="text-7xl font-bold text-[#0b3a6e] leading-none tabular-nums">42</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">
+          <div class="flex items-center justify-center gap-2 mb-3"><span class="icon text-green-600" style="width:1.5rem;height:1.5rem" data-icon="check-circle"></span><span class="text-base font-semibold text-green-600">Responderam</span></div>
+          <p class="text-7xl font-bold text-green-600 leading-none tabular-nums">18</p>
+        </div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl px-6 py-4 flex items-center justify-center gap-3 shadow-sm">
+        <span class="icon text-green-500" data-icon="refresh-cw"></span>
+        <span class="text-lg text-gray-700">Ainda respondendo: <strong class="text-green-600 text-xl tabular-nums">6</strong></span>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl px-6 py-5 shadow-sm">
+        <div class="flex items-center gap-4">
+          <div class="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-[#0b3a6e] rounded-full" style="width:43%"></div></div>
+          <span class="text-2xl font-bold text-[#0b3a6e] whitespace-nowrap tabular-nums">43% concluído</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-center gap-2 text-sm text-gray-400"><span class="icon" data-icon="clock"></span> Última atualização: 11:52</div>
+    </div>
+  </div>
+
+  <!-- estado: intermissão -->
+  <div data-proj="intermissao" class="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fb] p-12 text-center">
+    <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:280px;margin-bottom:32px;" />
+    <p class="text-lg text-gray-600 max-w-xl mx-auto leading-snug mb-1">Planejamento 2027 — SEMCAS</p>
+    <h1 class="text-3xl font-semibold text-[#0b3a6e] mb-4">Aguardando próxima atividade</h1>
+    <p class="text-lg text-gray-500 mb-10">Perfil dos Participantes encerrada — 40 respostas recebidas</p>
+    <div class="flex items-center gap-2">
+      <span class="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse"></span>
+      <span class="text-sm text-blue-500 font-medium">A tela atualiza automaticamente quando a próxima rodada começar</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TELA: PARTICIPANTE (celular) -->
+<!-- ============================================================ -->
+<div data-screen="participante">
+  <div style="background:#0a1622; padding:10px 16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <span style="color:#5b7089; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;">Prévia · etapa do participante</span>
+    <button class="proto-btn on" data-part-state="entrada">Entrada</button>
+    <button class="proto-btn" data-part-state="modo">Identificação/anônimo</button>
+    <button class="proto-btn" data-part-state="q1">Pergunta única</button>
+    <button class="proto-btn" data-part-state="q2">Pergunta múltipla</button>
+    <button class="proto-btn" data-part-state="q3">Pergunta aberta</button>
+    <button class="proto-btn" data-part-state="revisar">Revisar e enviar</button>
+    <button class="proto-btn" data-part-state="concluido">Concluído</button>
+  </div>
+  <div class="min-h-screen flex items-start justify-center py-10" style="background:#eef1f5">
+    <div style="width:375px; min-height:720px; background:#fff; border-radius:28px; box-shadow:0 20px 60px rgba(0,0,0,0.18); border:8px solid #1a1a1a; overflow:hidden;">
+      <div style="height:28px; background:#1a1a1a;"></div>
+
+      <div data-part="entrada" class="active p-6">
+        <div class="text-center mb-6">
+          <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:150px;margin:0 auto 10px;display:block;" />
+          <h1 class="text-lg font-semibold">Oficina de Planejamento 2027</h1>
+        </div>
+        <p class="text-center text-sm text-muted-foreground mb-6">Como deseja participar?</p>
+        <div class="space-y-3">
+          <button data-part-state="modo" class="w-full text-left border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50">
+            <p class="font-medium text-sm">Responder com identificação</p>
+            <p class="text-xs text-gray-400">Informarei meu nome completo</p>
+          </button>
+          <button data-part-state="modo" class="w-full text-left border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50">
+            <p class="font-medium text-sm">Responder anonimamente</p>
+            <p class="text-xs text-gray-400">Meu nome não será coletado</p>
+          </button>
+        </div>
+      </div>
+
+      <div data-part="modo" class="p-6">
+        <div class="text-center mb-6">
+          <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:150px;margin:0 auto 10px;display:block;" />
+          <h1 class="text-base font-semibold">Participação anônima</h1>
+        </div>
+        <p class="text-center text-sm text-gray-500 mb-8">Sua participação será anônima.<br/>Seu nome não será solicitado.</p>
+        <button data-part-state="q1" class="w-full inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground">CONTINUAR</button>
+        <p class="text-center text-xs text-gray-400 mt-3">← Voltar</p>
+      </div>
+
+      <div data-part="q1" class="p-6 flex flex-col" style="min-height:660px">
+        <div class="mb-6">
+          <p class="text-[11px] font-semibold text-primary uppercase tracking-wide mb-4">SEMCAS</p>
+          <p class="text-sm text-muted-foreground mb-2">Pergunta 1 de 3</p>
+          <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-6"><div class="h-full bg-[#0b3a6e]" style="width:33%"></div></div>
+          <h2 class="text-lg font-semibold leading-snug">Como você avalia a organização geral do evento?</h2>
+        </div>
+        <div class="flex-1">
+          <div class="space-y-0">
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3 mb-2"><input type="radio" name="q1" class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Excelente</span></label>
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3 mb-2"><input type="radio" name="q1" checked class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Bom</span></label>
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3 mb-2"><input type="radio" name="q1" class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Regular</span></label>
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3 mb-2"><input type="radio" name="q1" class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Ruim</span></label>
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3"><input type="radio" name="q1" class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Péssimo</span></label>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-auto pt-4">
+          <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background">VOLTAR</button>
+          <button data-part-state="q2" class="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground">CONTINUAR</button>
+        </div>
+      </div>
+
+      <div data-part="q2" class="p-6 flex flex-col" style="min-height:660px">
+        <div class="mb-6">
+          <p class="text-[11px] font-semibold text-primary uppercase tracking-wide mb-4">SEMCAS</p>
+          <p class="text-sm text-muted-foreground mb-2">Pergunta 2 de 3</p>
+          <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-6"><div class="h-full bg-[#0b3a6e]" style="width:66%"></div></div>
+          <h2 class="text-lg font-semibold leading-snug">Quais recursos você usou no evento?</h2>
+        </div>
+        <div class="flex-1">
+          <div class="space-y-2">
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3"><input type="checkbox" checked class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Slides</span></label>
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3"><input type="checkbox" class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Material impresso</span></label>
+            <label class="flex items-center space-x-3 border border-border rounded-md px-4 py-3"><input type="checkbox" checked class="accent-[#0b3a6e] h-4 w-4" /><span class="flex-1 text-sm">Coffee break</span></label>
+          </div>
+          <p class="text-xs text-muted-foreground mt-2">Selecione até 2 opções.</p>
+        </div>
+        <div class="mb-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">Selecione no máximo 2 opções.</div>
+        <div class="flex gap-3">
+          <button data-part-state="q1" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background">VOLTAR</button>
+          <button data-part-state="q3" class="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground">CONTINUAR</button>
+        </div>
+      </div>
+
+      <div data-part="q3" class="p-6 flex flex-col" style="min-height:660px">
+        <div class="mb-6">
+          <p class="text-[11px] font-semibold text-primary uppercase tracking-wide mb-4">SEMCAS</p>
+          <p class="text-sm text-muted-foreground mb-2">Pergunta 3 de 3</p>
+          <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-6"><div class="h-full bg-[#0b3a6e]" style="width:100%"></div></div>
+          <h2 class="text-lg font-semibold leading-snug">Comentários adicionais</h2>
+        </div>
+        <div class="flex-1 mb-8">
+          <textarea placeholder="Digite sua resposta..." maxlength="2000" rows="5" class="flex w-full rounded-md border border-input bg-background px-4 py-2 text-base">Gostei muito da dinâmica em grupo.</textarea>
+        </div>
+        <div class="flex gap-3 mt-auto">
+          <button data-part-state="q2" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background">VOLTAR</button>
+          <button data-part-state="revisar" class="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground">CONTINUAR</button>
+        </div>
+      </div>
+
+      <div data-part="revisar" class="p-6">
+        <div class="text-center mb-8">
+          <div class="text-3xl text-accent mb-3">✓</div>
+          <h2 class="text-lg font-semibold">Revisar e enviar</h2>
+          <p class="text-sm text-muted-foreground mt-2">Você respondeu 3 perguntas. Após o envio, não será possível alterar.</p>
+        </div>
+        <div class="flex gap-3">
+          <button data-part-state="q3" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 border border-input bg-background">VOLTAR</button>
+          <button data-part-state="concluido" class="flex-1 inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-11 px-5 py-2 bg-primary text-primary-foreground">ENVIAR</button>
+        </div>
+      </div>
+
+      <div data-part="concluido" class="p-6 flex flex-col items-center justify-center text-center" style="min-height:660px">
+        <img src="data:image/jpeg;base64,LOGO_BASE64" alt="Prefeitura de São Luís" style="width:150px;margin-bottom:24px;" />
+        <div class="text-3xl text-green-600 mb-4">✓</div>
+        <h2 class="text-lg font-semibold mb-1">Resposta enviada</h2>
+        <p class="text-sm text-muted-foreground">Obrigado pela sua participação.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var LOGO = "/9j/4QAYRXhpZgAASUkqAAgAAAAAAAAAAAAAAP/sABFEdWNreQABAAQAAAA8AAD/4QMraHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLwA8P3hwYWNrZXQgYmVnaW49Iu+7vyIgaWQ9Ilc1TTBNcENlaGlIenJlU3pOVGN6a2M5ZCI/PiA8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJBZG9iZSBYTVAgQ29yZSA1LjAtYzA2MSA2NC4xNDA5NDksIDIwMTAvMTIvMDctMTA6NTc6MDEgICAgICAgICI+IDxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+IDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiIHhtbG5zOnhtcD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bXA6Q3JlYXRvclRvb2w9IkFkb2JlIFBob3Rvc2hvcCBDUzUuMSBXaW5kb3dzIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOkJCNURBQUI2NEI5QzExRTI5NUIxQ0Q2RTY5MzJEODQyIiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOkJCNURBQUI3NEI5QzExRTI5NUIxQ0Q2RTY5MzJEODQyIj4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6QkI1REFBQjQ0QjlDMTFFMjk1QjFDRDZFNjkzMkQ4NDIiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6QkI1REFBQjU0QjlDMTFFMjk1QjFDRDZFNjkzMkQ4NDIiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz7/7gAOQWRvYmUAZMAAAAAB/9sAhAAGBAQEBQQGBQUGCQYFBgkLCAYG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";
+  document.querySelectorAll('img[src="data:image/jpeg;base64,LOGO_BASE64"]').forEach(function (img) {
+    img.src = "data:image/jpeg;base64," + LOGO;
+  });
+
+  // ---- ícones ----
+  var ICONS = {
+    dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
+    users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    "file-text": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    "bar-chart": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+    "help-circle": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    "log-out": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+    monitor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    "check-circle": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    "refresh-cw": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+    "qr-code": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="14.01"/><line x1="18" y1="14" x2="18" y2="14.01"/><line x1="14" y1="18" x2="14" y2="18.01"/><line x1="18" y1="18" x2="21" y2="18"/><line x1="21" y1="14" x2="21" y2="21"/></svg>',
+    "more-vertical": '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    printer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    "chevron-up": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+    "chevron-down": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+    "trash-2": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+  };
+  document.querySelectorAll(".icon[data-icon]").forEach(function (el) {
+    el.innerHTML = ICONS[el.getAttribute("data-icon")] || "";
+  });
+
+  // ---- QR fake (padrão pseudo-aleatório determinístico, só decorativo) ----
+  function paintQr(id, seed) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var n = 121, s = seed;
+    function rnd() { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; }
+    var html = "";
+    for (var i = 0; i < n; i++) {
+      var edge = i < 11 || i > 109 || i % 11 === 0 || i % 11 === 10;
+      var on = edge ? (i % 3 !== 0) : rnd() > 0.52;
+      html += '<div class="' + (on ? "" : "off") + '"></div>';
+    }
+    el.innerHTML = html;
+  }
+  paintQr("qr-fake-1", 7); paintQr("qr-fake-2", 7); paintQr("qr-fake-3", 42);
+
+  // Mostra só o elemento cujo atributo `attr` bate com `value` dentro do grupo `selector`.
+  // Usa style.display inline — vence qualquer classe utilitária do Tailwind (ex. "flex"),
+  // que teria a mesma especificidade de um seletor de atributo e venceria por ordem de cascata.
+  function showOnly(selector, attr, value) {
+    document.querySelectorAll(selector).forEach(function (el) {
+      el.style.display = el.getAttribute(attr) === value ? "" : "none";
+    });
+  }
+
+  showOnly("[data-screen]", "data-screen", "admin");
+  showOnly("[data-page]", "data-page", "dashboard");
+  showOnly("[data-proj]", "data-proj", "ativo");
+  showOnly("[data-part]", "data-part", "entrada");
+
+  // ---- troca de telas do protótipo ----
+  document.querySelectorAll("[data-screen-switch]").forEach(function (btn) {
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      var target = btn.getAttribute("data-screen-switch");
+      showOnly("[data-screen]", "data-screen", target);
+      document.querySelectorAll(".proto-btn[data-screen-switch]").forEach(function (b) { b.classList.toggle("on", b === btn); });
+      window.scrollTo(0, 0);
+    });
+  });
+
+  // ---- navegação dentro da área administrativa ----
+  var pageLabels = {
+    dashboard: "Dashboard", participantes: "Participantes", rodadas: "Rodadas", "nova-rodada": "Nova rodada",
+    relatorios: "Relatórios", resultados: "Resultados da rodada", exportacoes: "Exportações",
+    configuracoes: "Configurações", "meus-eventos": "Meus eventos"
+  };
+  document.querySelectorAll("[data-nav]").forEach(function (link) {
+    link.addEventListener("click", function (e) {
+      e.preventDefault();
+      var target = link.getAttribute("data-nav");
+      showOnly("[data-page]", "data-page", target);
+      document.querySelectorAll(".nav-link").forEach(function (n) {
+        var isActive = n.getAttribute("data-nav") === target;
+        if (n.closest("aside")) {
+          n.classList.toggle("bg-[#1a5a9e]", isActive);
+          n.classList.toggle("text-white", isActive);
+          n.classList.toggle("font-medium", isActive);
+          n.classList.toggle("text-white/70", !isActive);
+        }
+      });
+      document.getElementById("hdr-page").textContent = pageLabels[target] || target;
+      var main = document.querySelector("main.overflow-auto");
+      if (main) main.scrollTop = 0;
+    });
+  });
+
+  // ---- diálogos ----
+  document.querySelectorAll("[data-open-dialog]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = "dialog-" + btn.getAttribute("data-open-dialog");
+      var d = document.getElementById(id);
+      if (d) d.classList.remove("hidden");
+    });
+  });
+  document.querySelectorAll("[data-close-dialog]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      btn.closest(".fixed.inset-0.z-50").classList.add("hidden");
+    });
+  });
+
+  // ---- estados do projetor ----
+  document.querySelectorAll("[data-projector-state]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var target = btn.getAttribute("data-projector-state");
+      showOnly("[data-proj]", "data-proj", target);
+      btn.parentElement.querySelectorAll(".proto-btn").forEach(function (b) { b.classList.toggle("on", b === btn); });
+    });
+  });
+
+  // ---- estados do fluxo do participante ----
+  document.querySelectorAll("[data-part-state]").forEach(function (btn) {
+    btn.addEventListener("click", function (e) {
+      if (btn.tagName === "A") e.preventDefault();
+      var target = btn.getAttribute("data-part-state");
+      showOnly("[data-part]", "data-part", target);
+      document.querySelectorAll('[data-screen="participante"] .proto-btn').forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-part-state") === target); });
+    });
+  });
+})();
+</script>

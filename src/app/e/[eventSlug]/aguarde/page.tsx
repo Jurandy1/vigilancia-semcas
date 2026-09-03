@@ -58,7 +58,7 @@ export default function AguardePage() {
   if (loading) {
     return (
       <ParticipantShell eventTitle={publicEvent?.title}>
-        <div className="p-6 space-y-4">
+        <div style={{ padding: "26px", display: "flex", flexDirection: "column", gap: "16px" }}>
           <Skeleton className="h-6 w-48 mx-auto" />
           <Skeleton className="h-20 w-full" />
         </div>
@@ -71,21 +71,17 @@ export default function AguardePage() {
       <ParticipantShell eventTitle={publicEvent?.title}>
         <section
           aria-label="Aguardando início do evento"
-          className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8"
+          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "26px" }}
         >
-          <span
-            aria-hidden
-            className="w-14 h-14 rounded-full bg-[#eef3f9] border border-[#d6e0ec] text-[#0b3a6e] text-[26px] flex items-center justify-center"
-          >
+          <span aria-hidden="true" style={{ width: "56px", height: "56px", borderRadius: "99px", background: "#eef3f9", border: "1px solid #d6e0ec", color: "#0B3A6E", fontSize: "24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
             ⏳
           </span>
-          <h2 className="mt-5 mb-0 text-xl font-bold text-[#1a1a1a]">Você entrou no evento</h2>
-          <p className="mt-2.5 mb-0 text-[15px] text-[#5b6b7f]">
+          <h2 style={{ margin: "18px 0 0", fontSize: "19px", fontWeight: 700, color: "#11243c" }}>Você entrou no evento</h2>
+          <p style={{ margin: "9px 0 0", fontSize: "14.5px", color: "#5b6b7f" }}>
             Aguarde o organizador iniciar a primeira atividade.
           </p>
-          <p className="mt-[26px] mb-0 inline-flex items-center gap-2 text-[13px] text-[#8a97a8]">
-            <span className="w-2 h-2 rounded-full bg-[#8a97a8] animate-pulse" />
-            Esta tela atualiza sozinha quando a atividade abrir
+          <p style={{ margin: "22px 0 0", fontSize: "11.5px", color: "#8a97a8", display: "inline-flex", alignItems: "center", gap: "7px" }}>
+            <span style={{ width: "7px", height: "7px", borderRadius: "99px", background: "#8a97a8" }}></span>Atualiza sozinha quando a atividade abrir
           </p>
         </section>
       </ParticipantShell>
@@ -95,9 +91,9 @@ export default function AguardePage() {
   if (newRoundAvailable && newRoundId) {
     return (
       <ParticipantShell eventTitle={publicEvent?.title}>
-        <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8">
-          <h2 className="m-0 text-xl font-bold text-[#1a1a1a]">Nova etapa disponível</h2>
-          <p className="mt-2.5 mb-0 text-[15px] text-[#5b6b7f]">
+        <section style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "26px" }}>
+          <h2 style={{ margin: 0, fontSize: "19px", fontWeight: 700, color: "#11243c" }}>Nova etapa disponível</h2>
+          <p style={{ margin: "9px 0 0", fontSize: "14.5px", color: "#5b6b7f" }}>
             {publicEvent?.currentRoundTitle
               ? `Uma nova atividade foi aberta: ${publicEvent.currentRoundTitle}`
               : "Uma nova atividade foi aberta."}
@@ -105,7 +101,7 @@ export default function AguardePage() {
           <button
             type="button"
             onClick={() => router.push(`/e/${eventSlug}/rodada/${newRoundId}`)}
-            className="mt-8 h-[52px] px-6 bg-[#0b3a6e] text-white rounded-lg text-base font-semibold hover:bg-[#0d4a8a]"
+            style={{ marginTop: "32px", height: "52px", padding: "0 24px", background: "#0B3A6E", color: "#fff", borderRadius: "8px", fontSize: "14.5px", fontWeight: 600, border: "none", cursor: "pointer" }}
           >
             Responder agora
           </button>
@@ -118,20 +114,16 @@ export default function AguardePage() {
     <ParticipantShell eventTitle={publicEvent?.title}>
       <section
         aria-label="Aguardando próxima atividade"
-        className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8"
+        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "26px" }}
       >
-        <span
-          aria-hidden
-          className="w-14 h-14 rounded-full bg-[#eef3f9] border border-[#d6e0ec] text-[#0b3a6e] text-[26px] flex items-center justify-center"
-        >
+        <span aria-hidden="true" style={{ width: "56px", height: "56px", borderRadius: "99px", background: "#eef3f9", border: "1px solid #d6e0ec", color: "#0B3A6E", fontSize: "24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
           ✓
         </span>
-        <h2 className="mt-5 mb-0 text-xl font-bold text-[#1a1a1a]">Resposta enviada</h2>
-        <p className="mt-2.5 mb-0 text-[15px] text-[#5b6b7f]">Obrigado pela sua participação.</p>
-        <p className="mt-1.5 mb-0 text-[15px] text-[#5b6b7f]">Aguarde novas atividades.</p>
-        <p className="mt-[26px] mb-0 inline-flex items-center gap-2 text-[13px] text-[#8a97a8]">
-          <span className="w-2 h-2 rounded-full bg-[#8a97a8] animate-pulse" />
-          Esta tela atualiza sozinha quando a próxima rodada abrir
+        <h2 style={{ margin: "18px 0 0", fontSize: "19px", fontWeight: 700, color: "#11243c" }}>Resposta enviada</h2>
+        <p style={{ margin: "9px 0 0", fontSize: "14.5px", color: "#5b6b7f" }}>Obrigado pela sua participação.</p>
+        <p style={{ margin: "4px 0 0", fontSize: "14.5px", color: "#5b6b7f" }}>Aguarde novas atividades.</p>
+        <p style={{ margin: "22px 0 0", fontSize: "11.5px", color: "#8a97a8", display: "inline-flex", alignItems: "center", gap: "7px" }}>
+          <span style={{ width: "7px", height: "7px", borderRadius: "99px", background: "#8a97a8" }}></span>Atualiza sozinha quando abrir
         </p>
       </section>
     </ParticipantShell>

@@ -9,6 +9,7 @@ interface DonutChartProps {
   size?: number;
   centerLabel?: string;
   centerValue?: string | number;
+  showLegend?: boolean;
 }
 
 export function DonutChart({
@@ -16,6 +17,7 @@ export function DonutChart({
   size = 140,
   centerLabel,
   centerValue,
+  showLegend = true,
 }: DonutChartProps) {
   const total = segments.reduce((s, seg) => s + seg.value, 0) || 1;
   const radius = 40;
@@ -53,7 +55,7 @@ export function DonutChart({
         {(centerLabel || centerValue !== undefined) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {centerValue !== undefined && (
-              <span className="text-2xl font-bold text-gray-800">{centerValue}</span>
+              <span className="text-2xl font-bold text-[#11243c]">{centerValue}</span>
             )}
             {centerLabel && (
               <span className="text-[10px] text-gray-500 uppercase">{centerLabel}</span>
@@ -61,7 +63,7 @@ export function DonutChart({
           </div>
         )}
       </div>
-      <div className="flex flex-wrap gap-3 justify-center">
+      {showLegend && <div className="flex flex-wrap gap-3 justify-center">
         {segments.map((seg) => (
           <div key={seg.label} className="flex items-center gap-1.5 text-xs text-gray-600">
             <span className="w-2.5 h-2.5 rounded-full" style={{ background: seg.color }} />
@@ -71,7 +73,7 @@ export function DonutChart({
             </span>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

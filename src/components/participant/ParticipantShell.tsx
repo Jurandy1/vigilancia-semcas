@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { SemcasBrand } from "@/components/branding/SemcasBrand";
 
 interface ParticipantShellProps {
   eventTitle?: string;
@@ -17,28 +17,16 @@ export function ParticipantShell({
   return (
     <main
       className={cn(
-        "min-h-[100dvh] bg-[radial-gradient(circle_at_top,#eef6fb_0,#e8eef5_44%,#e3e9f0_100%)] flex flex-col items-center sm:px-5 sm:py-8",
+        "min-h-[100dvh] bg-[#eef2f7] flex flex-col items-center p-4",
         className
       )}
     >
-      <div className="flex min-h-[100dvh] w-full max-w-[460px] flex-col overflow-hidden bg-white shadow-none sm:min-h-[min(760px,calc(100dvh-4rem))] sm:rounded-[24px] sm:border sm:border-[#d6e0eb] sm:shadow-[0_18px_50px_rgba(18,43,70,.10)]">
-        <header className="shrink-0 border-b border-[#edf1f5] px-5 py-4 flex items-center gap-3 sm:px-6 sm:py-5">
-          <Image
-            src="/images/logo-prefeitura-saoluis.jpg"
-            alt="Prefeitura de São Luís"
-            width={92}
-            height={30}
-            priority
-            className="block w-[96px] h-auto"
-          />
-          <div className="border-l border-[#e2e8f0] pl-3 min-w-0">
-            <p className="m-0 text-[12.5px] font-bold tracking-[0.1em] text-[#0b3a6e]">SEMCAS</p>
-            {eventTitle && (
-              <p className="mt-0.5 mb-0 text-[11px] text-[#8a97a8] leading-snug truncate">
-                {eventTitle}
-              </p>
-            )}
-          </div>
+      <div style={{ border: "1px solid #dbe4ef", borderRadius: "14px", background: "#fff", overflow: "hidden", minHeight: "600px", width: "100%", maxWidth: "460px", display: "flex", flexDirection: "column", boxShadow: "0 10px 30px rgba(18,43,70,0.05)" }}>
+        <header style={{ padding: "14px 18px", borderBottom: "1px solid #eef1f5", display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* Logo prefeitura */}
+          <img src="/logo-prefeitura-saoluis.jpg" alt="Prefeitura de São Luís" style={{ height: "26px", width: "auto", display: "block" }} />
+          <span aria-hidden="true" style={{ width: "1px", height: "22px", background: "#e6ecf4" }}></span>
+          <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: ".12em", color: "#0B3A6E" }}>SEMCAS</span>
         </header>
         <div className={cn("flex-1 flex flex-col min-h-0", contentClassName)}>{children}</div>
       </div>
@@ -65,27 +53,44 @@ export function ParticipantOptionButton({
       role={role}
       aria-checked={selected}
       onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-3.5 text-left min-h-[56px] rounded-xl border px-4 py-3.5 transition-all active:scale-[.99]",
-        selected
-          ? "border-[#0b4a83] bg-[#edf5fc] shadow-[0_0_0_1px_#0b4a83]"
-          : "border-[#cbd7e4] bg-white hover:border-[#6f98bd] hover:bg-[#f8fbfd]"
-      )}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "14px 14px",
+        border: `1px solid ${selected ? "#0B3A6E" : "#c9d4e2"}`,
+        background: selected ? "#f4f8fc" : "#fff",
+        borderRadius: "10px",
+        fontSize: "14.5px",
+        color: "#11243c",
+        cursor: "pointer",
+        minHeight: "52px",
+        fontWeight: selected ? "600" : "400",
+        textAlign: "left",
+      }}
     >
       <span
         aria-hidden
-        className={cn(
-          "w-5 h-5 shrink-0 border-2 flex items-center justify-center text-[11px] font-bold",
-          multi ? "rounded-[4px]" : "rounded-full",
-          selected
-            ? "border-[#0b3a6e] bg-[#0b3a6e] text-white"
-            : "border-[#c9d4e2] bg-white text-transparent"
-        )}
+        style={{
+          width: "18px",
+          height: "18px",
+          borderRadius: multi ? "4px" : "99px",
+          border: `1px solid ${selected ? "#0B3A6E" : "#c9d4e2"}`,
+          background: selected && multi ? "#0B3A6E" : "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          color: "#fff",
+          fontSize: "12px",
+        }}
       >
         {selected && multi ? "✓" : null}
-        {selected && !multi ? <span className="w-2 h-2 rounded-full bg-white" /> : null}
+        {selected && !multi ? (
+          <span style={{ width: "8px", height: "8px", borderRadius: "99px", background: "#0B3A6E" }}></span>
+        ) : null}
       </span>
-      <span className={cn("flex-1 text-base", selected ? "font-semibold" : "font-normal")}>
+      <span style={{ lineHeight: 1.4 }}>
         {label}
       </span>
     </button>

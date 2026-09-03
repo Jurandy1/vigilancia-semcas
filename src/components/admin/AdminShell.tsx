@@ -6,10 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
-  ChevronRight,
   CircleHelp,
   LayoutDashboard,
   Layers3,
+  ListChecks,
   LogOut,
   Menu,
   Radio,
@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adminLogout } from "@/lib/supabase/auth-client";
+import { SemcasBrand } from "@/components/branding/SemcasBrand";
+import { ORG_TAGLINE } from "@/lib/branding";
 
 interface AdminShellProps {
   children: React.ReactNode;
@@ -145,6 +147,7 @@ export function AdminShell({
               { href: `${base}/ao-vivo`, label: "Ao vivo", icon: Radio },
               { href: "/admin/eventos/sequencia", label: "Sequência de eventos", icon: Layers3 },
               { href: `${base}/participantes`, label: "Participantes", icon: UsersRound },
+              { href: `${base}/perguntas`, label: "Perguntas do evento", icon: ListChecks },
               { href: `${base}/relatorios`, label: "Resultados e relatórios", icon: BarChart3 },
               { href: `${base}/configuracoes`, label: "Configurações", icon: Settings2 },
             ],
@@ -175,34 +178,44 @@ export function AdminShell({
 
   const aside = (
     <>
-      <div className="px-5 py-5 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <span className="h-9 w-1 rounded-full bg-[#65d49b]" />
-          <div>
-            <div className="text-xl font-bold tracking-[0.15em] text-white">SEMCAS</div>
-            <div className="mt-0.5 text-xs text-white/55">Participação e avaliação</div>
-          </div>
-        </div>
+      <div style={{ padding: "18px 18px 16px", borderBottom: "1px solid rgba(255,255,255,.12)" }}>
+        <p style={{ margin: 0, fontSize: "9.5px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.55)" }}>Prefeitura de São Luís</p>
+        <p style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: ".14em", lineHeight: 1 }}>SEMCAS</p>
+        <p style={{ margin: "7px 0 0", fontSize: "10.5px", lineHeight: 1.45, color: "rgba(255,255,255,.6)" }}>Secretaria Municipal da Criança e Assistência Social</p>
       </div>
 
       {selectedEventId && selectedEvent?.title && (
-        <div className="mx-3 mt-4 rounded-xl border border-white/10 bg-white/[0.07] p-3.5">
-          <p className="m-0 text-[10px] font-bold uppercase tracking-[0.12em] text-[#77d6a7]">
-            Evento selecionado
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,.10)", background: "rgba(255,255,255,.04)" }}>
+          <p style={{ margin: "0 0 6px", fontSize: "9.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.45)" }}>
+            Evento atual
           </p>
-          <p className="mt-1.5 mb-0 line-clamp-2 text-[13px] font-semibold leading-snug text-white">
+          <p
+            title={selectedEvent.title}
+            style={{ margin: 0, fontSize: "12.5px", fontWeight: 600, lineHeight: 1.35, color: "#fff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+          >
             {selectedEvent.title}
           </p>
+          {selectedEvent.status && eventStatusIndicator[selectedEvent.status] && (
+            <p
+              style={{ margin: "8px 0 0", display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: selectedEvent.status === "open" ? "#7fdcaa" : "rgba(255,255,255,.55)" }}
+            >
+              <span
+                style={{ width: "6px", height: "6px", borderRadius: "99px", background: selectedEvent.status === "open" ? "#65d49b" : "rgba(255,255,255,.40)" }}
+                className={selectedEvent.status === "open" ? "animate-pulse" : ""}
+              />
+              {eventStatusIndicator[selectedEvent.status]!.label}
+            </p>
+          )}
         </div>
       )}
 
-      <nav aria-label="Navegação principal" className="flex-1 px-3 py-4 overflow-y-auto">
+      <nav aria-label="Navegação principal" style={{ flex: 1, overflowY: "auto", padding: "14px 10px" }}>
         {navGroups.map((group) => (
-          <div key={group.label} className="mb-[18px]">
-            <p className="m-0 mb-1.5 px-2.5 text-[10px] font-bold tracking-[0.1em] uppercase text-white/40">
+          <div key={group.label} style={{ marginBottom: "16px" }}>
+            <p style={{ margin: "0 0 6px", padding: "0 8px", fontSize: "9.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.38)" }}>
               {group.label}
             </p>
-            <div className="flex flex-col gap-0.5">
+            <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
               {group.items.map((item) => {
                 const active = isActive(item);
                 return (
@@ -211,16 +224,43 @@ export function AdminShell({
                     href={item.href}
                     onClick={() => setDrawerOpen(false)}
                     aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] transition-all",
-                      active
-                        ? "bg-white text-[#0b3a6e] font-semibold shadow-sm"
-                        : "text-white/70 hover:bg-white/10 hover:text-white"
-                    )}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      minHeight: "38px",
+                      padding: "0 10px",
+                      borderRadius: "7px",
+                      fontSize: "13px",
+                      background: active ? "rgba(255,255,255,.13)" : "transparent",
+                      color: active ? "#fff" : "rgba(255,255,255,.72)",
+                      fontWeight: active ? 600 : 400,
+                      textDecoration: "none"
+                    }}
+                    onMouseOver={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.background = "rgba(255,255,255,.09)";
+                        e.currentTarget.style.color = "#fff";
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "rgba(255,255,255,.72)";
+                      }
+                    }}
                   >
-                    <item.icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-[#18754a]")} />
-                    <span className="min-w-0 flex-1">{item.label}</span>
-                    {active && <ChevronRight className="h-4 w-4 shrink-0 text-[#8aa0b8]" />}
+                    <span
+                      style={{
+                        width: "2px",
+                        height: "16px",
+                        borderRadius: "2px",
+                        background: active ? "#65d49b" : "transparent",
+                        flexShrink: 0
+                      }}
+                    />
+                    <item.icon style={{ width: "16px", height: "16px", flexShrink: 0, opacity: 0.9 }} />
+                    <span style={{ minWidth: 0, flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
                   </Link>
                 );
               })}
@@ -228,135 +268,138 @@ export function AdminShell({
           </div>
         ))}
 
-        <div className="mb-[18px]">
-          <p className="m-0 mb-1.5 px-2.5 text-[10px] font-bold tracking-[0.1em] uppercase text-white/40">
+        <div style={{ marginBottom: "16px" }}>
+          <p style={{ margin: "0 0 6px", padding: "0 8px", fontSize: "9.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(255,255,255,.38)" }}>
             Sistema
           </p>
-          <div className="flex flex-col gap-0.5">
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
             <button
               type="button"
-              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13.5px] text-white/70 hover:bg-white/10 hover:text-white"
+              style={{ display: "flex", alignItems: "center", gap: "10px", minHeight: "38px", padding: "0 12px 0 22px", borderRadius: "7px", fontSize: "13px", color: "rgba(255,255,255,.72)", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,.09)"; e.currentTarget.style.color = "#fff"; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.72)"; }}
             >
-              <CircleHelp className="h-[18px] w-[18px]" />
+              <CircleHelp style={{ width: "16px", height: "16px", opacity: 0.9 }} />
               Ajuda
             </button>
             <button
               type="button"
               onClick={handleLogout}
-              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13.5px] text-white/70 hover:bg-white/10 hover:text-white"
+              style={{ display: "flex", alignItems: "center", gap: "10px", minHeight: "38px", padding: "0 12px 0 22px", borderRadius: "7px", fontSize: "13px", color: "rgba(255,255,255,.72)", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,.09)"; e.currentTarget.style.color = "#fff"; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,.72)"; }}
             >
-              <LogOut className="h-[18px] w-[18px]" />
+              <LogOut style={{ width: "16px", height: "16px", opacity: 0.9 }} />
               Sair
             </button>
           </div>
         </div>
       </nav>
 
-      <div className="px-5 py-3.5 border-t border-white/14 text-[11px] text-white/45 leading-relaxed">
-        Prefeitura de São Luís
-        <br />
-        Plataforma de participação
+      <div style={{ padding: "12px 18px", borderTop: "1px solid rgba(255,255,255,.12)", fontSize: "10px", lineHeight: 1.6, color: "rgba(255,255,255,.42)" }}>
+        {ORG_TAGLINE.split(" · ").map((line, i) => (
+          <span key={i}>
+            {line}
+            <br />
+          </span>
+        ))}
       </div>
     </>
   );
 
   return (
-    <div className="min-h-screen flex bg-[#f4f7fb] text-[#11243c]">
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f4f7fb" }}>
       {drawerOpen && (
         <button
           type="button"
           aria-label="Fechar menu"
-          className="fixed inset-0 z-40 bg-[rgba(11,26,42,.5)] lg:hidden"
+          className="lg:hidden"
+          style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(11,26,42,.5)", border: "none", cursor: "pointer", width: "100%", height: "100%" }}
           onClick={() => setDrawerOpen(false)}
         />
       )}
 
       <aside
         className={cn(
-          "w-[272px] bg-[linear-gradient(180deg,#0a3b6d_0%,#082f57_65%,#072847_100%)] text-white flex flex-col shrink-0 z-50 shadow-[8px_0_30px_rgba(9,42,75,.08)]",
           "fixed inset-y-0 left-0 transition-transform lg:static lg:translate-x-0",
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        style={{ width: "244px", flexShrink: 0, background: "#082F57", color: "#fff", display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh", zIndex: 50 }}
       >
         <div className="lg:hidden flex justify-end p-3">
           <button
             type="button"
             aria-label="Fechar menu"
             onClick={() => setDrawerOpen(false)}
-            className="w-9 h-9 rounded-md border border-white/20 flex items-center justify-center"
+            style={{ width: "36px", height: "36px", borderRadius: "6px", border: "1px solid rgba(255,255,255,.2)", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", color: "#fff", cursor: "pointer" }}
           >
-            <X className="w-4 h-4" />
+            <X style={{ width: "16px", height: "16px" }} />
           </button>
         </div>
         {aside}
       </aside>
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        <header className="bg-white/95 backdrop-blur border-b border-[#dfe7f0] px-4 sm:px-6 lg:px-8 h-[68px] flex items-center justify-between gap-4 sticky top-0 z-20">
-          <div className="flex items-center gap-3 min-w-0">
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <header style={{ background: "#fff", borderBottom: "1px solid #dbe4ef", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", padding: "0 18px", position: "sticky", top: 0, zIndex: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
             <button
               type="button"
               aria-label="Abrir menu"
               aria-expanded={drawerOpen}
               onClick={() => setDrawerOpen(true)}
-              className="lg:hidden shrink-0 w-[38px] h-[38px] border border-[#dde4ee] bg-white rounded-md text-[#0b3a6e] flex items-center justify-center hover:bg-[#f4f6f9]"
+              className="lg:hidden"
+              style={{ width: "38px", height: "38px", border: "1px solid #dde4ee", background: "#fff", borderRadius: "6px", color: "#0B3A6E", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
-              <Menu className="w-4 h-4" />
+              <Menu style={{ width: "16px", height: "16px" }} />
             </button>
-            <nav
-              aria-label="Trilha de navegação"
-              className="flex items-center gap-2 text-[13px] text-[#64748b] min-w-0"
-            >
-              <Link href="/admin/eventos" className="hover:text-[#0b3a6e] hover:underline shrink-0">
+            <img src="/logo-prefeitura-saoluis.jpg" alt="Prefeitura de São Luís" className="hidden sm:block" style={{ height: "30px", width: "auto" }} />
+            <span aria-hidden="true" className="hidden sm:block" style={{ width: "1px", height: "26px", background: "#e2e8f0" }}></span>
+            <nav aria-label="Trilha de navegação" style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#5b6b7f", minWidth: 0 }}>
+              <Link href="/admin/eventos" style={{ color: "#5b6b7f", textDecoration: "none", flexShrink: 0 }} onMouseOver={(e) => e.currentTarget.style.color = "#0B3A6E"} onMouseOut={(e) => e.currentTarget.style.color = "#5b6b7f"}>
                 Eventos
               </Link>
               {eventId && (
                 <>
-                  <span aria-hidden className="text-[#c3ccd8]">
-                    /
-                  </span>
-                  <span className="hidden md:inline max-w-[220px] xl:max-w-[340px] truncate">
+                  <span aria-hidden="true" style={{ color: "#c3ccd8" }}>/</span>
+                  <span title={eventTitle ?? "Evento"} className="hidden md:inline" style={{ maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {eventTitle ?? "Evento"}
                   </span>
-                  <span aria-hidden className="hidden md:inline text-[#c3ccd8]">
-                    /
-                  </span>
-                  <span className="text-[#11243c] font-semibold whitespace-nowrap">{label}</span>
+                  <span aria-hidden="true" className="hidden md:inline" style={{ color: "#c3ccd8" }}>/</span>
+                  <span style={{ fontWeight: 600, color: "#11243c", whiteSpace: "nowrap" }}>{label}</span>
                 </>
               )}
             </nav>
           </div>
 
-          <div className="flex items-center gap-[18px] shrink-0">
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
             {eventStatus && eventStatusIndicator[eventStatus] && (
               <span
-                className={cn(
-                  "hidden sm:inline-flex items-center gap-1.5 text-[13px] font-semibold",
-                  eventStatusIndicator[eventStatus]!.textClassName
-                )}
+                className="hidden sm:inline-flex"
+                style={{ alignItems: "center", gap: "7px", fontSize: "12.5px", fontWeight: 600, color: eventStatus === "open" ? "#18754A" : "#5b6b7f" }}
               >
                 <span
-                  className={cn(
-                    "w-2 h-2 rounded-full",
-                    eventStatusIndicator[eventStatus]!.dotClassName
-                  )}
+                  style={{ width: "7px", height: "7px", borderRadius: "99px", background: eventStatus === "open" ? "#1a7f4b" : "#8a97a8" }}
+                  className={eventStatus === "open" ? "animate-pulse" : ""}
                 />
                 {eventStatusIndicator[eventStatus]!.label}
               </span>
             )}
-            <div className="flex items-center gap-2 pl-[18px] border-l border-[#e2e8f0]">
-              <span className="w-[30px] h-[30px] rounded-full bg-[#0b3a6e] text-white text-[11px] font-bold flex items-center justify-center">
+            <span aria-hidden="true" className="hidden sm:block" style={{ width: "1px", height: "26px", background: "#e2e8f0" }}></span>
+            <span style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+              <span aria-hidden="true" style={{ width: "28px", height: "28px", borderRadius: "99px", background: "#0B3A6E", color: "#fff", fontSize: "10.5px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 AD
               </span>
-              <span className="hidden sm:inline text-[13px] font-semibold text-[#33415c]">
+              <span className="hidden sm:inline" style={{ fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>
                 Administrador
               </span>
-            </div>
+            </span>
           </div>
         </header>
 
-        <main className="flex-1 overflow-x-hidden px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-9">
-          <div className="mx-auto w-full max-w-[1320px] [&>*]:mx-auto">{children}</div>
+        <main style={{ flex: 1, padding: "26px 22px 44px" }}>
+          <div style={{ maxWidth: "1320px", margin: "0 auto" }}>
+            {children}
+          </div>
         </main>
       </div>
     </div>

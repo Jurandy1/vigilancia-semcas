@@ -105,111 +105,101 @@ export default function RelatoriosPage() {
       eventTitle={eventTitle}
       eventSlug={eventSlug}
       eventStatus={eventStatus}
-      screenLabel="Relatório"
+      screenLabel="Resultados e relatórios"
     >
-      <section aria-label="Relatório consolidado" className="w-full max-w-[1080px]">
+      <section data-screen-label="Resultados e relatórios" style={{ width: "100%", maxWidth: "1080px" }}>
         {error && (
-          <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div style={{ marginBottom: "20px", borderRadius: "12px", border: "1px solid #fecaca", background: "#fef2f2", padding: "12px 16px", fontSize: "14px", color: "#b91c1c" }}>
             {error}
           </div>
         )}
-        <div className="flex items-start justify-between gap-5 flex-wrap mb-6">
-          <div>
-            <p className="mb-2 mt-0 text-xs font-bold uppercase tracking-[0.12em] text-[#18754a]">Análise do evento</p>
-            <h1 className="admin-page-title m-0">
-              Relatório consolidado
-            </h1>
-            <p className="mt-2 mb-0 text-sm text-[#64748b] max-w-[56ch]">{eventTitle}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "18px", alignItems: "flex-end", justifyContent: "space-between", paddingBottom: "18px", borderBottom: "1px solid #dbe4ef" }}>
+          <div style={{ minWidth: "300px", flex: 1 }}>
+            <p style={{ margin: "0 0 8px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Análise do evento</p>
+            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700, letterSpacing: "-.02em", color: "#11243c" }}>Relatório consolidado</h1>
+            <p style={{ margin: "8px 0 0", fontSize: "14px", lineHeight: 1.45, color: "#5b6b7f", maxWidth: "46ch" }}>{eventTitle}</p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={exportSummaryExcel}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#b9c9d9] bg-white px-4 text-sm font-semibold text-[#0b4a83] hover:bg-[#f5f8fb]"
+              style={{ height: "38px", padding: "0 15px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px" }}
+              onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }}
+              onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}
             >
               <Download className="h-4 w-4" /> Exportar Excel
             </button>
             <Link
               href={`/admin/eventos/${eventId}/relatorios/imprimir`}
-              className="inline-flex items-center h-10 px-4 text-sm font-semibold bg-[#0b3a6e] text-white rounded-md hover:bg-[#0d4a8a] no-underline"
+              style={{ height: "38px", padding: "0 16px", border: "1px solid #0B3A6E", background: "#0B3A6E", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+              onMouseOver={(e) => { e.currentTarget.style.background = "#082F57"; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = "#0B3A6E"; }}
             >
               <FileText className="mr-2 h-4 w-4" /> Imprimir / PDF
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-          <div className="admin-card p-5">
-            <UsersRound className="mb-4 h-5 w-5 text-[#0b4a83]" />
-            <p className="m-0 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-              Participantes
-            </p>
-            <p className="mt-2 mb-0 text-[32px] font-bold text-[#0b3a6e] leading-none">
-              {participantCount}
-            </p>
+        <div role="group" aria-label="Resumo do relatório" style={{ marginTop: "20px", border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", overflow: "hidden" }}>
+          <div style={{ background: "#fff", padding: "16px 18px", boxShadow: "1px 0 0 0 #dbe4ef" }}>
+            <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Participantes</p>
+            <p style={{ margin: "10px 0 0", fontSize: "30px", fontWeight: 700, lineHeight: 1, letterSpacing: "-.02em", color: "#0b4a83" }}>{participantCount}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "#8a97a8" }}>Pessoas na base</p>
           </div>
-          <div className="admin-card p-5">
-            <BarChart3 className="mb-4 h-5 w-5 text-[#18754a]" />
-            <p className="m-0 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-              Respostas
-            </p>
-            <p className="mt-2 mb-0 text-[32px] font-bold text-[#0b3a6e] leading-none">
-              {totalResponses}
-            </p>
+          <div style={{ background: "#fff", padding: "16px 18px", boxShadow: "1px 0 0 0 #dbe4ef" }}>
+            <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Respostas</p>
+            <p style={{ margin: "10px 0 0", fontSize: "30px", fontWeight: 700, lineHeight: 1, letterSpacing: "-.02em", color: "#0b3a6e" }}>{totalResponses}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "#8a97a8" }}>Em todas as rodadas</p>
           </div>
-          <div className="admin-card p-5">
-            <p className="m-0 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-              Rodadas
-            </p>
-            <p className="mt-2 mb-0 text-[32px] font-bold text-[#0b3a6e] leading-none">
-              {rounds.length}
-            </p>
+          <div style={{ background: "#fff", padding: "16px 18px", boxShadow: "1px 0 0 0 #dbe4ef" }}>
+            <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Rodadas</p>
+            <p style={{ margin: "10px 0 0", fontSize: "30px", fontWeight: 700, lineHeight: 1, letterSpacing: "-.02em", color: "#11243c" }}>{rounds.length}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "#8a97a8" }}>Criadas no evento</p>
           </div>
-          <div className="admin-card p-5">
-            <p className="m-0 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">Participação média</p>
-            <p className="mt-2 mb-0 text-[32px] font-bold text-[#18754a] leading-none">{participationRate}%</p>
-            <p className="mb-0 mt-2 text-xs text-[#718198]">{roundsWithResponses} rodada(s) com respostas</p>
+          <div style={{ background: "#fff", padding: "16px 18px" }}>
+            <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Participação média</p>
+            <p style={{ margin: "10px 0 0", fontSize: "30px", fontWeight: 700, lineHeight: 1, letterSpacing: "-.02em", color: "#18754a" }}>{participationRate}%</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "#8a97a8" }}>{roundsWithResponses} rodada(s) com respostas</p>
           </div>
         </div>
 
-        <div className="admin-card overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#eef1f5]">
-            <h2 className="m-0 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-              Por rodada
-            </h2>
-          </div>
+        <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", padding: "18px 20px", marginTop: "18px" }}>
+          <h2 style={{ margin: "0 0 16px", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Participação por rodada</h2>
           {rounds.length === 0 ? (
-            <p className="text-sm text-[#8a97a8] p-5">Nenhuma rodada criada ainda.</p>
+            <p style={{ margin: 0, fontSize: "13px", color: "#8a97a8" }}>Nenhuma rodada criada ainda.</p>
           ) : (
-            <div className="divide-y divide-[#eef1f5]">
-              {rounds.map((round, i) => (
-                <Link
-                  key={round.id}
-                  href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
-                  className="flex flex-col gap-3 py-4 px-5 hover:bg-[#f7f9fc] no-underline sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="m-0 font-semibold text-[#1a1a1a]">
-                      {String(i + 1).padStart(2, "0")} · {round.title}
-                    </p>
-                    <p className="mt-1 mb-0 text-[13px] text-[#5b6b7f]">
-                      {statusLabel[round.status] ?? round.status} · {round.submissionCount ?? 0}{" "}
-                      respostas
-                    </p>
-                    <div className="mt-3 h-1.5 max-w-md overflow-hidden rounded-full bg-[#e8eef5]">
-                      <div className="h-full rounded-full bg-[linear-gradient(90deg,#0b4a83,#18754a)]" style={{ width: `${participantCount > 0 ? Math.min(100, Math.round(((round.submissionCount ?? 0) / participantCount) * 100)) : 0}%` }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {rounds.map((round, i) => {
+                const pct = participantCount > 0 ? Math.min(100, Math.round(((round.submissionCount ?? 0) / participantCount) * 100)) : 0;
+                return (
+                  <Link
+                    key={round.id}
+                    href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
+                    style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: "6px" }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: "14px", fontSize: "13px" }}>
+                      <span style={{ minWidth: 0, color: "#33415c" }}>
+                        <span style={{ fontFamily: "ui-monospace,Consolas,monospace", color: "#8a97a8", marginRight: "8px" }}>
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        {round.title}
+                      </span>
+                      <span style={{ flexShrink: 0, color: "#5b6b7f" }}>
+                        <strong style={{ color: "#11243c" }}>{round.submissionCount ?? 0}</strong> respostas · {pct}%
+                      </span>
                     </div>
-                  </div>
-                  <span className="text-[#0b3a6e] text-sm font-semibold">Ver resultados →</span>
-                </Link>
-              ))}
+                    <div style={{ height: "16px", background: "#f2f5f9", borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #0b4a83, #18754a)", borderRadius: "4px", transition: "width 400ms ease" }} />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
 
-        <p className="mt-4 mb-0 text-[12.5px] text-[#8a97a8] leading-relaxed">
-          O documento oficial com cabeçalho institucional fica em Imprimir / PDF. Exportações CSV e
-          Excel estão disponíveis na tela de Resultados de cada rodada.
+        <p style={{ margin: "16px 0 0", fontSize: "12px", lineHeight: 1.6, color: "#8a97a8" }}>
+          O documento oficial com cabeçalho institucional fica em Imprimir / PDF. Exportações CSV e Excel estão disponíveis na tela de resultados de cada rodada.
         </p>
       </section>
     </AdminShell>

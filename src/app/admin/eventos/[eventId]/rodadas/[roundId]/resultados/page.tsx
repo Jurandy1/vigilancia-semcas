@@ -19,6 +19,7 @@ export default function RoundReportPage() {
   );
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [answerLimits, setAnswerLimits] = useState<Record<string, number>>({});
 
   useEffect(() => {
     async function load() {
@@ -110,41 +111,59 @@ export default function RoundReportPage() {
       eventStatus={event?.status}
       screenLabel="Resultados"
     >
-      <section aria-label="Resultados" className="max-w-[840px]">
-        <h1 className="m-0 text-[26px] font-bold tracking-[-0.01em] text-[#1a1a1a]">Resultados</h1>
-        <p className="mt-2 mb-0 text-sm text-[#5b6b7f]">
-          Rodada: {round.title as string} — {summary.totalSubmissions as number} de{" "}
-          {summary.totalParticipants as number} responderam · {summary.participationRate as string}{" "}
-          de participação
-        </p>
-        <p className="mt-2 mb-0 text-[12.5px] text-[#8a97a8]">
-          Visão analítica para consulta em tela. Para o documento oficial, use o{" "}
-          <Link href={`/admin/eventos/${eventId}/relatorios`} className="text-[#0b3a6e] hover:underline">
-            Relatório
-          </Link>
-          .
-        </p>
+      <section data-screen-label="Resultados da rodada" style={{ width: "100%", maxWidth: "1080px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "18px", alignItems: "flex-end", justifyContent: "space-between", paddingBottom: "18px", borderBottom: "1px solid #dbe4ef", marginBottom: "20px" }}>
+          <div style={{ minWidth: "300px", flex: 1 }}>
+            <p style={{ margin: "0 0 8px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Resultados da rodada</p>
+            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700, letterSpacing: "-.02em", color: "#11243c" }}>{round.title as string}</h1>
+            <p style={{ margin: "8px 0 0", fontSize: "14px", lineHeight: 1.45, color: "#5b6b7f", maxWidth: "46ch" }}>
+              {(summary.totalSubmissions as number) ?? 0} de {(summary.totalParticipants as number) ?? 0} responderam · {summary.participationRate as string} de participação
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={exportCsv}
+              style={{ height: "38px", padding: "0 15px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px" }}
+            >
+              Exportar CSV
+            </button>
+            <button
+              type="button"
+              onClick={exportExcel}
+              style={{ height: "38px", padding: "0 15px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px" }}
+            >
+              Exportar Excel
+            </button>
+            <Link
+              href={`/admin/eventos/${eventId}/relatorios/imprimir`}
+              style={{ height: "38px", padding: "0 16px", border: "1px solid #0B3A6E", background: "#0B3A6E", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+            >
+              Documento oficial
+            </Link>
+          </div>
+        </div>
 
-        <div className="flex flex-col gap-5 mt-6">
+        <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", padding: "20px" }}>
           {questions.map((q, i) => {
             const id = q.id as string;
-            const options =
-              (q.options as Array<{ option: string; count: number; percent: string }> | undefined) ??
-              [];
-            const answers =
-              (q.answers as Array<{ displayName: string; value: string }> | undefined) ?? [];
-            const otherAnswers =
-              (q.otherAnswers as Array<{ displayName: string; value: string }> | undefined) ?? [];
+            const options = (q.options as Array<{ option: string; count: number; percent: string }> | undefined) ?? [];
+            const answers = (q.answers as Array<{ displayName: string; value: string }> | undefined) ?? [];
+            const otherAnswers = (q.otherAnswers as Array<{ displayName: string; value: string }> | undefined) ?? [];
             const open = expanded[id];
+            const answerLimit = answerLimits[id] ?? 20;
 
             return (
-              <div key={id} className="bg-white border border-[#dde4ee] rounded-lg p-5">
-                <h2 className="m-0 mb-4 text-[15px] font-semibold leading-snug text-pretty text-[#1a1a1a]">
-                  {i + 1}. {q.title as string}
-                </h2>
+              <div key={id} style={{ padding: "18px 0", borderBottom: i < questions.length - 1 ? "1px solid #f2f5f8" : "none" }}>
+                <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#8a97a8" }}>
+                  Pergunta {i + 1} · {q.type === "multi_choice" ? "Múltipla Escolha" : q.type === "single_choice" ? "Escolha Única" : "Resposta Aberta"}
+                </p>
+                <p style={{ margin: "8px 0 0", fontSize: "15.5px", fontWeight: 600, lineHeight: 1.4, color: "#11243c", maxWidth: "64ch", textWrap: "pretty" }}>
+                  {q.title as string}
+                </p>
 
                 {(q.type === "single_choice" || q.type === "multi_choice") && (
-                  <>
+                  <div style={{ marginTop: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
                     <HorizontalBarChart
                       items={options.map((o) => ({
                         label: o.option,
@@ -152,113 +171,89 @@ export default function RoundReportPage() {
                         percent: o.percent.includes("%") ? o.percent : `${o.percent}%`,
                       }))}
                     />
+                    
                     {otherAnswers.length > 0 && (
-                      <div className="mt-4 rounded-lg border border-[#cfe0ef] bg-[#f7fbfe] p-4">
-                        <p className="m-0 text-[12.5px] font-bold uppercase tracking-[0.07em] text-[#0b4a83]">
+                      <div style={{ marginTop: "16px", borderRadius: "8px", border: "1px solid #cfe0ef", background: "#f7fbfe", padding: "16px" }}>
+                        <p style={{ margin: 0, fontSize: "12.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "#0b4a83" }}>
                           Respostas informadas em “Outro”
                         </p>
-                        <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {otherAnswers.map((answer, index) => (
-                            <div key={index} className="rounded-md border border-[#dde7f0] bg-white px-3 py-2.5">
-                              <p className="m-0 text-[11.5px] text-[#8a97a8]">{answer.displayName}</p>
-                              <p className="mb-0 mt-1 text-sm text-[#33415c]">{answer.value}</p>
+                        <div style={{ marginTop: "10px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "8px" }}>
+                          {otherAnswers.slice(0, answerLimit).map((answer, index) => (
+                            <div key={index} style={{ borderRadius: "6px", border: "1px solid #dde7f0", background: "#fff", padding: "10px 12px" }}>
+                              <p style={{ margin: 0, fontSize: "11.5px", color: "#8a97a8" }}>{answer.displayName}</p>
+                              <p style={{ margin: "4px 0 0", maxHeight: "128px", overflowY: "auto", wordBreak: "break-word", fontSize: "14px", color: "#33415c" }}>{answer.value}</p>
                             </div>
                           ))}
                         </div>
+                        {otherAnswers.length > answerLimit && (
+                          <button type="button" onClick={() => setAnswerLimits((state) => ({ ...state, [id]: answerLimit + 20 }))} style={{ marginTop: "12px", height: "36px", borderRadius: "8px", border: "1px solid #b9c9d9", background: "transparent", padding: "0 12px", fontSize: "12px", fontWeight: 600, color: "#0b3a6e", cursor: "pointer" }}>Carregar mais respostas</button>
+                        )}
                       </div>
                     )}
-                    <div className="flex items-center justify-between gap-3 mt-4 pt-3.5 border-t border-[#eef1f5]">
-                      <span className="text-[12.5px] text-[#8a97a8]">
-                        {(summary.totalSubmissions as number) ?? 0} respostas ·{" "}
-                        {q.type === "multi_choice" ? "múltipla escolha" : "resposta única"}
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #eef1f5" }}>
+                      <span style={{ fontSize: "12.5px", color: "#8a97a8" }}>
+                        {(summary.totalSubmissions as number) ?? 0} respostas
                       </span>
                       <button
                         type="button"
                         aria-expanded={open}
                         onClick={() => setExpanded((s) => ({ ...s, [id]: !open }))}
-                        className="h-[34px] px-3 text-[13px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9] hover:border-[#0b3a6e]"
+                        style={{ height: "34px", padding: "0 12px", fontSize: "13px", fontWeight: 600, color: "#0b3a6e", background: "transparent", border: "1px solid #c9d4e2", borderRadius: "6px", cursor: "pointer" }}
                       >
-                        {open ? "Ocultar dados" : "Ver dados"}
+                        {open ? "Ocultar dados" : "Ver dados em tabela"}
                       </button>
                     </div>
+
                     {open && (
-                      <table className="w-full border-collapse text-[13px] mt-3.5 border border-[#dde4ee]">
-                        <thead>
-                          <tr className="bg-[#f7f9fc]">
-                            <th className="text-left px-2.5 py-2 font-semibold text-[#5b6b7f] border-b border-[#dde4ee]">
-                              Opção
-                            </th>
-                            <th className="text-right px-2.5 py-2 font-semibold text-[#5b6b7f] border-b border-[#dde4ee]">
-                              Qtd
-                            </th>
-                            <th className="text-right px-2.5 py-2 font-semibold text-[#5b6b7f] border-b border-[#dde4ee]">
-                              %
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {options.map((opt) => (
-                            <tr key={opt.option}>
-                              <td className="px-2.5 py-2 border-b border-[#f2f5f8]">{opt.option}</td>
-                              <td className="px-2.5 py-2 text-right border-b border-[#f2f5f8] tabular-nums">
-                                {opt.count}
-                              </td>
-                              <td className="px-2.5 py-2 text-right border-b border-[#f2f5f8] tabular-nums">
-                                {opt.percent}
-                              </td>
+                      <div style={{ marginTop: "14px", overflowX: "auto" }}>
+                        <table style={{ width: "100%", minWidth: "480px", borderCollapse: "collapse", border: "1px solid #dde4ee", fontSize: "13px" }}>
+                          <thead>
+                            <tr style={{ background: "#f7f9fc" }}>
+                              <th style={{ textAlign: "left", padding: "8px 10px", fontWeight: 600, color: "#5b6b7f", borderBottom: "1px solid #dde4ee" }}>Opção</th>
+                              <th style={{ textAlign: "right", padding: "8px 10px", fontWeight: 600, color: "#5b6b7f", borderBottom: "1px solid #dde4ee" }}>Qtd</th>
+                              <th style={{ textAlign: "right", padding: "8px 10px", fontWeight: 600, color: "#5b6b7f", borderBottom: "1px solid #dde4ee" }}>%</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {options.map((opt) => (
+                              <tr key={opt.option}>
+                                <td style={{ padding: "8px 10px", borderBottom: "1px solid #f2f5f8" }}>{opt.option}</td>
+                                <td style={{ padding: "8px 10px", textAlign: "right", borderBottom: "1px solid #f2f5f8", fontVariantNumeric: "tabular-nums" }}>{opt.count}</td>
+                                <td style={{ padding: "8px 10px", textAlign: "right", borderBottom: "1px solid #f2f5f8", fontVariantNumeric: "tabular-nums" }}>{opt.percent}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
-                  </>
+                  </div>
                 )}
 
                 {q.type === "text" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div style={{ marginTop: "14px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "10px" }}>
                     {answers.length === 0 ? (
-                      <p className="text-sm text-[#8a97a8]">Nenhuma resposta aberta.</p>
+                      <p style={{ margin: 0, fontSize: "14px", color: "#8a97a8" }}>Nenhuma resposta aberta.</p>
                     ) : (
-                      answers.map((a, j) => (
-                        <div
-                          key={j}
-                          className="border border-[#dde4ee] border-l-[3px] border-l-[#0b3a6e] rounded-md px-3.5 py-3 bg-[#fbfcfd]"
-                        >
-                          <p className="m-0 text-[11.5px] text-[#8a97a8]">{a.displayName}</p>
-                          <p className="mt-1 mb-0 text-sm text-[#33415c] leading-relaxed">
+                      answers.slice(0, answerLimit).map((a, j) => (
+                        <div key={j} style={{ border: "1px solid #dde4ee", borderLeft: "3px solid #0b3a6e", borderRadius: "6px", padding: "12px 14px", background: "#fbfcfd" }}>
+                          <p style={{ margin: 0, fontSize: "11.5px", color: "#8a97a8" }}>{a.displayName}</p>
+                          <p style={{ marginTop: "4px", marginBottom: 0, maxHeight: "160px", overflowY: "auto", wordBreak: "break-word", fontSize: "14px", color: "#33415c", lineHeight: 1.6 }}>
                             {a.value || "—"}
                           </p>
                         </div>
                       ))
+                    )}
+                    {answers.length > answerLimit && (
+                      <button type="button" onClick={() => setAnswerLimits((state) => ({ ...state, [id]: answerLimit + 20 }))} style={{ gridColumn: "1 / -1", height: "40px", borderRadius: "8px", border: "1px solid #b9c9d9", background: "transparent", padding: "0 16px", fontSize: "14px", fontWeight: 600, color: "#0b3a6e", cursor: "pointer" }}>
+                        Exibir mais 20 respostas ({answers.length - answerLimit} restantes)
+                      </button>
                     )}
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
-
-        <div className="flex gap-2 mt-6 flex-wrap">
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="h-10 px-4 text-sm font-semibold bg-[#0b3a6e] text-white rounded-md hover:bg-[#0d4a8a]"
-          >
-            Exportar CSV
-          </button>
-          <button
-            type="button"
-            onClick={exportExcel}
-            className="h-10 px-4 text-sm font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9]"
-          >
-            Exportar Excel
-          </button>
-          <Link
-            href={`/admin/eventos/${eventId}/relatorios/imprimir`}
-            className="inline-flex items-center h-10 px-4 text-sm font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9] no-underline"
-          >
-            Documento oficial / PDF
-          </Link>
         </div>
       </section>
     </AdminShell>

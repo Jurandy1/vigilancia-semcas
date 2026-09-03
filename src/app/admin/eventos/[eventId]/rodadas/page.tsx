@@ -41,24 +41,31 @@ function RoundCard({
   const num = String(round.order).padStart(2, "0");
   const isOpen = round.status === "open";
   return (
-    <div className="bg-white border border-[#dde4ee] rounded-lg px-5 py-[18px] flex items-center justify-between gap-4 flex-wrap">
-      <div className="min-w-0">
-        <p className="m-0 text-base font-semibold text-[#1a1a1a]">
+    <div style={{ background: "#fff", border: "1px solid #dde4ee", borderRadius: "10px", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#1a1a1a" }}>
           {num} · {round.title}
         </p>
-        <div className="flex items-center gap-2.5 mt-2 flex-wrap">
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px", flexWrap: "wrap" }}>
           <span
-            className={
-              isOpen
-                ? "inline-flex items-center gap-1.5 text-xs font-semibold text-[#1a7f4b] bg-[#e8f5ee] border border-[#c3e4d1] rounded px-2 py-0.5"
+            style={{
+              display: isOpen ? "inline-flex" : "inline-flex",
+              alignItems: "center",
+              gap: isOpen ? "6px" : undefined,
+              fontSize: "12px",
+              fontWeight: 600,
+              padding: "2px 6px",
+              borderRadius: "4px",
+              ...(isOpen
+                ? { color: "#1a7f4b", background: "#e8f5ee", border: "1px solid #c3e4d1" }
                 : round.status === "closed"
-                  ? "inline-flex text-xs font-semibold text-[#5b6b7f] bg-[#f4f6f9] border border-[#dde4ee] rounded px-2 py-0.5"
-                  : "inline-flex text-xs font-semibold text-[#8a5a00] bg-[#fdf5e3] border border-[#f0dfae] rounded px-2 py-0.5"
-            }
+                  ? { color: "#5b6b7f", background: "#f4f6f9", border: "1px solid #dde4ee" }
+                  : { color: "#8a5a00", background: "#fdf5e3", border: "1px solid #f0dfae" })
+            }}
           >
             {isOpen ? "Aberta" : round.status === "closed" ? "Encerrada" : "Rascunho"}
           </span>
-          <span className="text-[13px] text-[#5b6b7f]">
+          <span style={{ fontSize: "13px", color: "#5b6b7f" }}>
             {isOpen || round.status === "closed"
               ? `${round.submissionCount} de ${participantCount} respostas`
               : `${round.questionCount ?? 0} perguntas`}
@@ -66,7 +73,7 @@ function RoundCard({
           </span>
         </div>
       </div>
-      <div className="flex gap-2 shrink-0 flex-wrap">{actions}</div>
+      <div style={{ display: "flex", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>{actions}</div>
     </div>
   );
 }
@@ -163,47 +170,46 @@ export default function RodadasPage() {
       eventStatus={event?.status}
       screenLabel="Perguntas do evento"
     >
-      <section aria-label="Rodadas" className="max-w-[900px]">
-        <div className="flex items-start justify-between gap-5 flex-wrap mb-6">
+      <section data-screen-label="Perguntas do evento">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-end", justifyContent: "space-between", paddingBottom: "16px", borderBottom: "1px solid #dbe4ef", marginBottom: "24px" }}>
           <div>
-            <h1 className="m-0 text-[26px] font-bold tracking-[-0.01em] text-[#1a1a1a]">Perguntas do evento</h1>
-            <p className="mt-1.5 mb-0 text-sm text-[#5b6b7f]">
-              Revise os enunciados, explicações, alternativas e campos de resposta deste evento.
-            </p>
+            <p style={{ margin: "0 0 6px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Evento atual</p>
+            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700, letterSpacing: "-.02em", color: "#11243c" }}>Perguntas do evento</h1>
+            <p style={{ margin: "6px 0 0", fontSize: "13.5px", color: "#5b6b7f" }}>Enunciados, explicações, alternativas e campos de resposta deste evento.</p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {draftRounds.length === 1 && (
               <Link
                 href={`/admin/eventos/${eventId}/rodadas/${draftRounds[0]!.id}/editar`}
-                className="inline-flex items-center justify-center h-10 px-[18px] text-sm font-semibold text-[#0b3a6e] bg-white border border-[#b9c9d9] rounded-md hover:bg-[#f4f7fb] no-underline"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: "38px", padding: "0 16px", fontSize: "13px", fontWeight: 600, color: "#0B3A6E", background: "#fff", border: "1px solid #c9d4e2", borderRadius: "8px", textDecoration: "none" }}
               >
                 Editar perguntas
               </Link>
             )}
             <Link
               href={`/admin/eventos/${eventId}/rodadas/nova`}
-              className="inline-flex items-center justify-center h-10 px-[18px] text-sm font-semibold bg-[#0b3a6e] text-white rounded-md hover:bg-[#0d4a8a] no-underline"
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: "38px", padding: "0 16px", fontSize: "13px", fontWeight: 600, color: "#fff", background: "#0B3A6E", border: "1px solid #0B3A6E", borderRadius: "8px", textDecoration: "none" }}
             >
-              + Novo bloco de perguntas
+              Novo bloco de perguntas
             </Link>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2">
+          <div style={{ marginBottom: "16px", fontSize: "14px", color: "#b42318", background: "#fdf2f1", border: "1px solid #e3b3ad", borderRadius: "6px", padding: "8px 12px" }}>
             {error}
           </div>
         )}
 
-        <h2 className="m-0 mb-2.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+        <h2 style={{ margin: "0 0 10px 0", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>
           Em andamento
         </h2>
         {openRounds.length === 0 ? (
-          <div className="bg-white border border-[#dde4ee] rounded-lg p-[22px] text-center mb-0">
-            <p className="m-0 text-sm text-[#8a97a8]">Nenhuma rodada aberta no momento.</p>
+          <div style={{ background: "#fff", border: "1px solid #dde4ee", borderRadius: "10px", padding: "22px", textAlign: "center", marginBottom: "0" }}>
+            <p style={{ margin: 0, fontSize: "14px", color: "#8a97a8" }}>Nenhuma rodada aberta no momento.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {openRounds.map((round) => (
               <RoundCard
                 key={round.id}
@@ -214,18 +220,21 @@ export default function RodadasPage() {
                     <Link
                       href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
                       className={outlineBtn}
+                      style={{ height: "36px", borderRadius: "8px" }}
                     >
                       Resultados
                     </Link>
                     <Link
                       href={`/admin/eventos/${eventId}/ao-vivo`}
                       className={outlineBtn}
+                      style={{ height: "36px", borderRadius: "8px" }}
                     >
                       Gerenciar
                     </Link>
                     <button
                       type="button"
                       className={dangerBtn}
+                      style={{ height: "36px", borderRadius: "8px" }}
                       onClick={() => setPending({ type: "close", round })}
                     >
                       Encerrar
@@ -237,21 +246,23 @@ export default function RodadasPage() {
           </div>
         )}
 
-        <h2 className="mt-[26px] mb-2.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+        <h2 style={{ margin: "26px 0 10px 0", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>
           Próximas / rascunhos
         </h2>
         {draftRounds.length === 0 ? (
-          <div className="bg-white border border-dashed border-[#c9d4e2] rounded-lg p-[22px] text-center">
-            <p className="m-0 text-sm text-[#5b6b7f]">Nenhuma rodada em rascunho.</p>
-            <Link
-              href={`/admin/eventos/${eventId}/rodadas/nova`}
-              className={`${outlineBtn} mt-3`}
-            >
-              Criar próxima rodada
-            </Link>
+          <div style={{ background: "#fafcfe", border: "1px dashed #d6dfea", borderRadius: "10px", padding: "26px", textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: "13.5px", fontWeight: 600, color: "#33415c" }}>Nenhuma rodada em rascunho.</p>
+            <p style={{ margin: "6px 0 0", fontSize: "12.5px", color: "#8a97a8" }}>
+              <Link
+                href={`/admin/eventos/${eventId}/rodadas/nova`}
+                style={{ color: "#0b3a6e", textDecoration: "underline" }}
+              >
+                Criar próxima rodada
+              </Link>
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {draftRounds.map((round) => (
               <RoundCard
                 key={round.id}
@@ -263,6 +274,7 @@ export default function RodadasPage() {
                       <Link
                         href={`/admin/eventos/${eventId}/rodadas/${round.id}/editar`}
                         className={outlineBtn}
+                        style={{ height: "36px", borderRadius: "8px" }}
                       >
                         Editar perguntas
                       </Link>
@@ -270,6 +282,7 @@ export default function RodadasPage() {
                     <button
                       type="button"
                       className={outlineBtn}
+                      style={{ height: "36px", borderRadius: "8px" }}
                       disabled={hasOpenRound}
                       title={
                         hasOpenRound ? "Encerre a rodada aberta antes de abrir outra." : undefined
@@ -285,15 +298,15 @@ export default function RodadasPage() {
           </div>
         )}
 
-        <h2 className="mt-[26px] mb-2.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+        <h2 style={{ margin: "26px 0 10px 0", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>
           Concluídas
         </h2>
         {closedRounds.length === 0 ? (
-          <div className="bg-white border border-[#dde4ee] rounded-lg p-[22px] text-center">
-            <p className="m-0 text-sm text-[#8a97a8]">Nenhuma rodada encerrada até agora.</p>
+          <div style={{ background: "#fff", border: "1px solid #dde4ee", borderRadius: "10px", padding: "22px", textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: "14px", color: "#8a97a8" }}>Nenhuma rodada encerrada até agora.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {closedRounds.map((round) => (
               <RoundCard
                 key={round.id}
@@ -303,6 +316,7 @@ export default function RodadasPage() {
                   <Link
                     href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}
                     className={outlineBtn}
+                    style={{ height: "36px", borderRadius: "8px" }}
                   >
                     Ver resultados
                   </Link>

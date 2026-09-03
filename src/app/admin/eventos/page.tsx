@@ -258,228 +258,222 @@ export default function AdminEventosPage() {
 
   return (
     <AdminShell screenLabel="Eventos">
-      <section aria-label="Eventos" className="w-full max-w-[1180px]">
-        <div className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-2 mt-0 text-xs font-bold uppercase tracking-[0.12em] text-[#18754a]">
-              Painel administrativo
-            </p>
-            <h1 className="admin-page-title m-0">Eventos</h1>
-            <p className="mt-2 mb-0 text-sm text-[#64748b] max-w-[56ch]">
-              Gerencie avaliações, consultas e atividades participativas da SEMCAS.
-            </p>
+      <section aria-label="Eventos" data-screen-label="Eventos">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "flex-end", justifyContent: "space-between", paddingBottom: "16px", borderBottom: "1px solid #dbe4ef", marginBottom: "20px" }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: "0 0 6px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Painel administrativo</p>
+            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700, letterSpacing: "-.02em", color: "#11243c" }}>Eventos</h1>
+            <p style={{ margin: "6px 0 0", fontSize: "13.5px", color: "#5b6b7f" }}>Avaliações, consultas e atividades participativas da SEMCAS.</p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button asChild variant="outline" className="h-11 gap-2 rounded-xl border-[#b9c9d9] bg-white px-4 text-sm font-semibold text-[#0b4a83]">
-              <Link href="/admin/eventos/sequencia"><ListOrdered className="h-4 w-4" /> Organizar sequência</Link>
-            </Button>
-            <Button asChild className="h-11 gap-2 rounded-xl px-5 text-sm font-semibold shadow-sm">
-              <Link href="/admin/eventos/novo"><Plus className="h-4 w-4" /> Criar evento</Link>
-            </Button>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button type="button" onClick={() => router.push("/admin/eventos/sequencia")} style={{ height: "38px", padding: "0 14px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}>
+              Organizar sequência
+            </button>
+            <button type="button" onClick={() => router.push("/admin/eventos/novo")} style={{ height: "38px", padding: "0 16px", border: "1px solid #0B3A6E", background: "#0B3A6E", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#fff", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.background = "#082F57"; }} onMouseOut={(e) => { e.currentTarget.style.background = "#0B3A6E"; }}>
+              Criar evento
+            </button>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 max-w-3xl text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2">
+          <div style={{ marginBottom: "16px", maxWidth: "768px", fontSize: "14px", color: "#b42318", background: "#fdf2f1", border: "1px solid #e3b3ad", borderRadius: "6px", padding: "8px 12px" }}>
             {error}
           </div>
         )}
 
-        <div
-          role="tablist"
-          aria-label="Filtrar eventos"
-          className="mb-5 flex gap-1.5 overflow-x-auto rounded-xl border border-[#dbe4ef] bg-white p-1.5 shadow-sm"
-        >
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
           {filters.map((f) => {
             const selected = filter === f.key;
             return (
               <button
                 key={f.key}
                 type="button"
-                role="tab"
-                aria-selected={selected}
                 onClick={() => setFilter(f.key)}
-                className={cn(
-                  "shrink-0 rounded-lg px-3.5 py-2 text-[13.5px] transition-colors",
-                  selected
-                    ? "bg-[#eaf2fa] text-[#0b4a83] font-semibold"
-                    : "text-[#64748b] hover:bg-[#f4f7fb] hover:text-[#0b4a83]"
-                )}
+                style={{
+                  height: "34px",
+                  padding: "0 12px",
+                  border: selected ? "1px solid #0B3A6E" : "1px solid #c9d4e2",
+                  background: selected ? "#0B3A6E" : "#fff",
+                  borderRadius: "8px",
+                  fontSize: "12.5px",
+                  fontWeight: selected ? 600 : 500,
+                  color: selected ? "#fff" : "#5b6b7f",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+                onMouseOver={(e) => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = "#a8b8cc";
+                    e.currentTarget.style.background = "#f8fafd";
+                    e.currentTarget.style.color = "#33415c";
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!selected) {
+                    e.currentTarget.style.borderColor = "#c9d4e2";
+                    e.currentTarget.style.background = "#fff";
+                    e.currentTarget.style.color = "#5b6b7f";
+                  }
+                }}
               >
-                {f.label}
-                <span className="text-[#8a97a8] font-medium"> {counts[f.key]}</span>
+                {f.label} <span style={{ opacity: selected ? 0.8 : 0.65 }}>{counts[f.key]}</span>
               </button>
             );
           })}
         </div>
 
         {loading ? (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-24 w-full" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="admin-card flex min-h-52 flex-col items-center justify-center px-5 text-center">
-            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#edf3f8] text-[#6c8199]">
-              <QrCode className="h-5 w-5" />
+          <div style={{ display: "flex", minHeight: "208px", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px", textAlign: "center", border: "1px dashed #c9d4e2", borderRadius: "10px", background: "#f8fafc" }}>
+            <span style={{ marginBottom: "12px", display: "flex", height: "44px", width: "44px", alignItems: "center", justifyContent: "center", borderRadius: "99px", background: "#edf3f8", color: "#6c8199" }}>
+              <QrCode style={{ height: "20px", width: "20px" }} />
             </span>
-            <p className="m-0 text-sm font-semibold text-[#33415c]">Nenhum evento neste filtro</p>
-            <p className="mb-0 mt-1 text-sm text-[#7b8ba0]">Escolha outro filtro ou crie um novo evento.</p>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#33415c" }}>Nenhum evento neste filtro</p>
+            <p style={{ margin: "4px 0 0", fontSize: "14px", color: "#7b8ba0" }}>Escolha outro filtro ou crie um novo evento.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {filtered.map((event) => (
-              <div
-                key={event.id}
-                className="admin-card group flex min-w-0 flex-col p-5 transition duration-200 hover:-translate-y-0.5 hover:border-[#b8cadc] hover:shadow-[0_10px_30px_rgba(15,35,59,.08)] sm:p-6"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="m-0 text-lg font-semibold leading-snug text-[#11243c]">{event.title}</h2>
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1.5 text-xs font-semibold rounded px-2 py-0.5 border",
-                        event.status === "open"
-                          ? "text-[#1a7f4b] bg-[#e8f5ee] border-[#c3e4d1]"
-                          : "text-[#5b6b7f] bg-[#f4f6f9] border-[#dde4ee]"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          event.status === "open" ? "bg-[#1a7f4b]" : "bg-[#8a97a8]"
-                        )}
-                      />
-                      {statusLabel[event.status] ?? event.status}
-                    </span>
-                    {event.isTest && (
-                      <span className="text-[11.5px] font-semibold tracking-wide uppercase text-[#8a5a00] bg-[#fdf5e3] border border-[#f0dfae] rounded px-1.5 py-0.5">
-                        Evento de teste
-                      </span>
-                    )}
-                    {event.sequenceId && event.sequenceOrder !== null && (
-                      <span className="rounded-full border border-[#b9d5ed] bg-[#edf6fd] px-2.5 py-1 text-xs font-semibold text-[#0b4a83]">
-                        Sequência {event.sequenceOrder + 1} de {event.sequenceSize}
-                      </span>
-                    )}
-                  </div>
-                  {event.currentRoundTitle && (
-                    <p className="mb-0 mt-3 truncate text-[13px] text-[#64748b]">
-                      Rodada atual: <strong className="font-semibold text-[#33415c]">{event.currentRoundTitle}</strong>
-                    </p>
-                  )}
-                  <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-[#f7f9fc] p-3">
-                    <div className="flex items-center gap-2.5 text-[13px] text-[#5b6b7f]">
-                      <UsersRound className="h-4 w-4 text-[#0b4a83]" />
-                      <span><strong className="text-[#11243c]">{event.participantCount}</strong> participantes</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-[13px] text-[#5b6b7f]">
-                      <MessageSquareText className="h-4 w-4 text-[#18754a]" />
-                      <span><strong className="text-[#11243c]">{event.submissionCount}</strong> respostas</span>
-                    </div>
-                  </div>
-                  <div className="hidden flex-wrap gap-x-5 gap-y-1.5 mt-2 text-[13px] text-[#5b6b7f]">
-                    {event.currentRoundTitle && (
-                      <span>
-                        Rodada atual:{" "}
-                        <strong className="text-[#33415c] font-semibold">
-                          {event.currentRoundTitle}
-                        </strong>
-                      </span>
-                    )}
-                    <span>{event.participantCount} participantes</span>
-                    <span>{event.submissionCount} respostas</span>
-                  </div>
-                  <p className="mt-3 mb-0 truncate text-xs text-[#8a97a8] font-mono">
-                    /e/{event.sequenceRootSlug ?? event.slug}
-                    {event.sequenceId ? " · QR compartilhado" : ""}
-                  </p>
-                </div>
+          <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#e6ecf4", display: "flex", flexDirection: "column", gap: "1px", overflow: "hidden" }}>
+            {filtered.map((event) => {
+              const statusStyle = event.status === "open"
+                ? { badgeStyle: "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#1a7f4b;background:#e8f5ee;border:1px solid #c3e4d1;border-radius:4px;padding:2px 6px;", dotColor: "#1a7f4b" }
+                : { badgeStyle: "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#5b6b7f;background:#f4f6f9;border:1px solid #dde4ee;border-radius:4px;padding:2px 6px;", dotColor: "#8a97a8" };
 
-                <div className="mt-5 flex items-center gap-2 border-t border-[#e8eef5] pt-4">
-                  <Button asChild variant="outline" className="h-10 flex-1 gap-2 rounded-lg border-[#b9c9d9] px-3 text-[13.5px] font-semibold text-[#0b4a83]">
-                    <Link href={`/admin/eventos/${event.id}/perguntas`}>
-                      <MessageSquareText className="h-4 w-4" /> Editar perguntas
-                    </Link>
-                  </Button>
-                  <Button asChild className="h-10 flex-1 gap-2 rounded-lg px-4 text-[13.5px] font-semibold">
-                    <Link href={`/admin/eventos/${event.id}`}>Abrir evento <ArrowRight className="h-4 w-4" /></Link>
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="w-[38px] h-[38px] border border-[#dde4ee] bg-white rounded-md text-[#5b6b7f] hover:bg-[#f4f6f9] hover:text-[#0b3a6e]"
-                        aria-label="Mais ações do evento"
-                      >
-                        <MoreVertical className="w-4 h-4 mx-auto" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link href={`/admin/eventos/${event.id}/ao-vivo`}>Ir para sessão ao vivo</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/admin/eventos/${event.id}/perguntas`}>
-                          <MessageSquareText className="w-4 h-4" />
-                          Editar perguntas
-                        </Link>
-                      </DropdownMenuItem>
-                      <EventQrDialog
-                        eventSlug={event.sequenceRootSlug ?? event.slug}
-                        eventTitle={event.title}
-                        trigger={
-                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                            <QrCode className="w-4 h-4" />
-                            Ver QR Code
-                          </DropdownMenuItem>
-                        }
-                      />
-                      <DropdownMenuItem onClick={() => copyLink(event.sequenceRootSlug ?? event.slug)}>
-                        <Copy className="w-4 h-4" />
-                        Copiar link
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <a href={`/print/${event.sequenceRootSlug ?? event.slug}`} target="_blank" rel="noreferrer">
-                          <Printer className="w-4 h-4" />
-                          Imprimir A4
-                        </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/admin/eventos/${event.id}/configuracoes`}>
-                          <Settings className="w-4 h-4" />
-                          Configurar
-                        </Link>
-                      </DropdownMenuItem>
-                      {event.status === "open" && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => setClosingEvent(event)}
-                            className="text-red-600 hover:bg-red-50 focus:bg-red-50"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            Encerrar evento
-                          </DropdownMenuItem>
-                        </>
+              return (
+                <article key={event.id} style={{ background: "#fff", padding: "18px 20px", display: "flex", flexWrap: "wrap", gap: "18px", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <div style={{ minWidth: "260px", flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <h2 style={{ margin: 0, fontSize: "15.5px", fontWeight: 600, lineHeight: 1.35, color: "#11243c", maxWidth: "52ch" }}>
+                        {event.title}
+                      </h2>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 600, color: event.status === "open" ? "#1a7f4b" : "#5b6b7f", background: event.status === "open" ? "#e8f5ee" : "#f4f6f9", border: event.status === "open" ? "1px solid #c3e4d1" : "1px solid #dde4ee", borderRadius: "4px", padding: "2px 6px" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "99px", background: statusStyle.dotColor }} />
+                        {statusLabel[event.status] ?? event.status}
+                      </span>
+                      {event.isTest && (
+                        <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.02em", textTransform: "uppercase", color: "#8a5a00", background: "#fdf5e3", border: "1px solid #f0dfae", borderRadius: "4px", padding: "2px 6px" }}>
+                          Teste
+                        </span>
                       )}
-                      {event.status !== "open" && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => setDeletingEvent(event)}
-                            className="text-red-600 hover:bg-red-50 focus:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Excluir evento
-                          </DropdownMenuItem>
-                        </>
+                      {event.sequenceId && event.sequenceOrder !== null && (
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "#0b4a83", background: "#edf6fd", border: "1px solid #b9d5ed", borderRadius: "99px", padding: "2px 8px" }}>
+                          Sequência {event.sequenceOrder + 1} de {event.sequenceSize}
+                        </span>
                       )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            ))}
+                    </div>
+                    
+                    {event.currentRoundTitle ? (
+                      <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#5b6b7f" }}>
+                        Rodada atual: <strong style={{ color: "#33415c", fontWeight: 600 }}>{event.currentRoundTitle}</strong>
+                      </p>
+                    ) : (
+                      <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#8a97a8" }}>Nenhuma rodada ativa</p>
+                    )}
+
+                    <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", marginTop: "10px", fontSize: "13px", color: "#5b6b7f" }}>
+                      <span><strong style={{ color: "#11243c" }}>{event.participantCount}</strong> participantes</span>
+                      <span><strong style={{ color: "#11243c" }}>{event.submissionCount}</strong> respostas</span>
+                      <span style={{ fontFamily: "ui-monospace,Consolas,monospace", fontSize: "12px", color: "#8a97a8" }}>
+                        {event.sequenceRootSlug ?? event.slug}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => router.push(`/admin/eventos/${event.id}/perguntas`)} style={{ height: "36px", padding: "0 13px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}>
+                      Editar perguntas
+                    </button>
+                    <button type="button" onClick={() => router.push(`/admin/eventos/${event.id}`)} style={{ height: "36px", padding: "0 15px", border: "1px solid #0B3A6E", background: "#0B3A6E", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#fff", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.background = "#082F57"; }} onMouseOut={(e) => { e.currentTarget.style.background = "#0B3A6E"; }}>
+                      Abrir evento
+                    </button>
+                    
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Mais ações"
+                          title="Mais ações"
+                          style={{ width: "36px", height: "36px", border: "1px solid #dbe4ef", background: "#fff", borderRadius: "8px", color: "#5b6b7f", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          onMouseOver={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.color = "#0B3A6E"; }}
+                          onMouseOut={(e) => { e.currentTarget.style.borderColor = "#dbe4ef"; e.currentTarget.style.color = "#5b6b7f"; }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ width: "16px", height: "16px" }}>
+                            <circle cx="12" cy="5" r="1"></circle>
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="12" cy="19" r="1"></circle>
+                          </svg>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/eventos/${event.id}/ao-vivo`}>Ir para sessão ao vivo</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/eventos/${event.id}/perguntas`}>
+                            <MessageSquareText className="w-4 h-4" />
+                            Editar perguntas
+                          </Link>
+                        </DropdownMenuItem>
+                        <EventQrDialog
+                          eventSlug={event.sequenceRootSlug ?? event.slug}
+                          eventTitle={event.title}
+                          trigger={
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <QrCode className="w-4 h-4" />
+                              Ver QR Code
+                            </DropdownMenuItem>
+                          }
+                        />
+                        <DropdownMenuItem onClick={() => copyLink(event.sequenceRootSlug ?? event.slug)}>
+                          <Copy className="w-4 h-4" />
+                          Copiar link
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <a href={`/print/${event.sequenceRootSlug ?? event.slug}`} target="_blank" rel="noreferrer">
+                            <Printer className="w-4 h-4" />
+                            Imprimir A4
+                          </a>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/eventos/${event.id}/configuracoes`}>
+                            <Settings className="w-4 h-4" />
+                            Configurar
+                          </Link>
+                        </DropdownMenuItem>
+                        {event.status === "open" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setClosingEvent(event)}
+                              className="text-red-600 hover:bg-red-50 focus:bg-red-50"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Encerrar evento
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {event.status !== "open" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeletingEvent(event)}
+                              className="text-red-600 hover:bg-red-50 focus:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Excluir evento
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>

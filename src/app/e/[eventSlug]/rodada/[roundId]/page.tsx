@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ParticipantOptionButton,
   ParticipantShell,
 } from "@/components/participant/ParticipantShell";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, reliableApiFetch } from "@/lib/api-client";
 import {
   useParticipantStore,
   buildAnswersFromDraft,
@@ -35,6 +35,8 @@ export default function RoundPage() {
   const [error, setError] = useState("");
   const [showReview, setShowReview] = useState(false);
   const [offline, setOffline] = useState(false);
+  const lastProgressAt = useRef(0);
+  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const draft = getDraftAnswers(roundId);
   const currentQuestion = questions[currentIndex];
@@ -56,7 +58,7 @@ export default function RoundPage() {
   useEffect(() => {
     async function loadRound() {
       try {
-        const res = await apiFetch(`/api/events/${eventSlug}/rounds/${roundId}`);
+        const res = await reliableApiFetch(`/api/events/${eventSlug}/rounds/${roundId}`, {}, { retries: 2, timeoutMs: 12_000 });
         const data = await res.json();
         if (!res.ok) {
           setError(data.error ?? "Não foi possível carregar esta etapa.");
@@ -90,9 +92,18 @@ export default function RoundPage() {
   );
 
   useEffect(() => {
-    if (currentQuestion) {
-      reportProgress(currentIndex + 1);
+    if (!currentQuestion) return;
+    const elapsed = Date.now() - lastProgressAt.current;
+    const send = () => {
+      lastProgressAt.current = Date.now();
+      void reportProgress(currentIndex + 1);
+    };
+    if (elapsed >= 5_000) send();
+    else {
+      if (progressTimer.current) clearTimeout(progressTimer.current);
+      progressTimer.current = setTimeout(send, 5_000 - elapsed);
     }
+    return () => { if (progressTimer.current) clearTimeout(progressTimer.current); };
   }, [currentIndex, currentQuestion, reportProgress]);
 
   function handleAnswer(value: string) {
@@ -184,10 +195,11 @@ export default function RoundPage() {
     const answers = buildAnswersFromDraft(questions, draft);
 
     try {
-      const res = await apiFetch(`/api/events/${eventSlug}/rounds/${roundId}/submit`, {
-        method: "POST",
-        body: JSON.stringify({ answers }),
-      });
+      const res = await reliableApiFetch(
+        `/api/events/${eventSlug}/rounds/${roundId}/submit`,
+        { method: "POST", body: JSON.stringify({ answers }) },
+        { retries: 2, timeoutMs: 15_000 }
+      );
 
       const data = await res.json();
 
@@ -232,7 +244,7 @@ export default function RoundPage() {
   if (loading) {
     return (
       <ParticipantShell>
-        <div className="p-6 space-y-4">
+        <div style={{ padding: "24px 18px", display: "flex", flexDirection: "column", gap: "16px" }}>
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-2 w-full" />
           <Skeleton className="h-24 w-full" />
@@ -244,17 +256,17 @@ export default function RoundPage() {
   if (error && !currentQuestion) {
     return (
       <ParticipantShell>
-        <div className="p-6 text-center">
+        <div style={{ padding: "24px 18px", textAlign: "center" }}>
           <div
             role="alert"
-            className="mb-4 border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+            style={{ marginBottom: "16px", border: "1px solid #e3b3ad", background: "#fdf2f1", borderRadius: "8px", padding: "12px 14px", fontSize: "13.5px", color: "#b42318" }}
           >
             {error}
           </div>
           <button
             type="button"
             onClick={() => router.push(`/e/${eventSlug}/aguarde`)}
-            className="h-12 px-5 bg-[#0b3a6e] text-white rounded-lg font-semibold"
+            style={{ height: "46px", padding: "0 20px", background: "#0b3a6e", color: "#fff", borderRadius: "8px", fontWeight: 600, border: "none" }}
           >
             Voltar
           </button>
@@ -266,49 +278,44 @@ export default function RoundPage() {
   if (showReview) {
     return (
       <ParticipantShell>
-        <section aria-label="Revisão" className="flex-1 flex flex-col min-h-0">
-          <div className="px-5 pt-[22px]">
-            <h2 className="m-0 text-xl font-bold text-[#1a1a1a]">Revisar e enviar</h2>
-            <p className="mt-2.5 mb-0 text-sm text-[#5b6b7f] leading-relaxed">
+        <section aria-label="Revisão" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div style={{ padding: "20px 18px 0" }}>
+            <h2 style={{ margin: 0, fontSize: "19px", fontWeight: 700, color: "#11243c" }}>Revisar e enviar</h2>
+            <p style={{ margin: "9px 0 0", fontSize: "13px", lineHeight: 1.55, color: "#5b6b7f" }}>
               Você respondeu {totalQuestions} perguntas. Após o envio, não será possível alterar.
             </p>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 py-[18px]">
+          <div style={{ padding: "14px 18px", overflowY: "auto", flex: 1 }}>
             {questions.map((q, idx) => (
-              <div key={q.id} className="py-3 border-b border-[#f2f5f8]">
-                <p className="m-0 text-[12.5px] text-[#8a97a8]">
-                  {idx + 1} ·{" "}
-                  {q.type === "text"
-                    ? "Aberta"
-                    : q.type === "multi_choice"
-                      ? "Múltipla"
-                      : "Única"}
+              <div key={q.id} style={{ padding: "12px 0", borderBottom: "1px solid #f2f5f8" }}>
+                <p style={{ margin: 0, fontSize: "11.5px", color: "#8a97a8" }}>
+                  {idx + 1} · {q.type === "text" ? "Aberta" : q.type === "multi_choice" ? "Múltipla" : "Única"}
                 </p>
-                <p className="mt-1 mb-0 text-sm text-[#33415c] leading-snug text-pretty">
+                <p style={{ margin: "3px 0 0", fontSize: "13px", lineHeight: 1.45, color: "#33415c" }}>
                   {q.title}
                 </p>
-                <p className="mt-1.5 mb-0 text-[15px] font-semibold text-[#0b3a6e] leading-snug">
+                <p style={{ margin: "5px 0 0", fontSize: "14px", fontWeight: 600, lineHeight: 1.45, color: "#0B3A6E" }}>
                   {formatAnswer(q)}
                 </p>
               </div>
             ))}
           </div>
           {(error || offline) && (
-            <div className="px-5 pb-2">
+            <div style={{ padding: "0 18px 12px" }}>
               <div
                 role="alert"
-                className="border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+                style={{ border: "1px solid #e3b3ad", background: "#fdf2f1", borderRadius: "8px", padding: "12px 14px", fontSize: "13.5px", color: "#b42318" }}
               >
                 {error || "Sem conexão. Suas respostas continuam salvas neste aparelho."}
               </div>
             </div>
           )}
-          <div className="shrink-0 border-t border-[#eef1f5] px-5 py-3.5 flex gap-2.5 bg-white">
+          <div style={{ padding: "12px 18px", borderTop: "1px solid #eef1f5", display: "flex", gap: "10px" }}>
             <button
               type="button"
               onClick={handleBack}
               disabled={submissionState === "submitting"}
-              className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9] disabled:opacity-60"
+              style={{ flex: 1, height: "46px", border: "1px solid #c9d4e2", background: "#fff", borderRadius: "8px", fontSize: "14.5px", fontWeight: 600, color: "#33415c", cursor: submissionState === "submitting" ? "not-allowed" : "pointer", opacity: submissionState === "submitting" ? 0.6 : 1 }}
             >
               Voltar
             </button>
@@ -316,7 +323,7 @@ export default function RoundPage() {
               type="button"
               onClick={handleSubmit}
               disabled={submissionState === "submitting"}
-              className="flex-1 h-[52px] bg-[#0b3a6e] text-white border border-[#0b3a6e] rounded-lg text-base font-semibold hover:bg-[#0d4a8a] disabled:opacity-60"
+              style={{ flex: 2, height: "46px", border: "1px solid #18754A", background: "#18754A", borderRadius: "8px", fontSize: "14.5px", fontWeight: 600, color: "#fff", cursor: submissionState === "submitting" ? "not-allowed" : "pointer", opacity: submissionState === "submitting" ? 0.6 : 1 }}
             >
               {submissionState === "submitting" ? "Enviando..." : "Enviar respostas"}
             </button>
@@ -343,39 +350,41 @@ export default function RoundPage() {
 
   return (
     <ParticipantShell>
-      <section aria-label="Pergunta" className="flex-1 flex flex-col min-h-0">
-        <div className="px-5 pt-[18px]">
-          <div className="flex items-center justify-between gap-2.5">
-            <p className="m-0 text-[13px] font-semibold text-[#5b6b7f]">
-              Pergunta {currentIndex + 1} de {totalQuestions}
-            </p>
-          </div>
+      <section aria-label="Pergunta" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ padding: "16px 18px 0" }}>
+          <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: "#5b6b7f" }}>
+            Pergunta {currentIndex + 1} de {totalQuestions}
+          </p>
           <div
             role="img"
             aria-label={`Progresso: pergunta ${currentIndex + 1} de ${totalQuestions}`}
-            className="h-1.5 bg-[#eef1f5] rounded overflow-hidden mt-2.5"
+            style={{ height: "5px", background: "#eef1f5", borderRadius: "99px", overflow: "hidden", marginTop: "9px" }}
           >
             <div
-              className="h-full bg-[#0b3a6e] rounded transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
+              style={{ height: "100%", width: `${progressPercent}%`, background: "#0B3A6E", borderRadius: "99px", transition: "width 0.3s ease" }}
             />
           </div>
-          <h2 className="mt-[18px] mb-0 text-xl font-bold leading-snug text-pretty text-[#1a1a1a]">
+          <h2 style={{ margin: "16px 0 0", fontSize: "18px", fontWeight: 700, lineHeight: 1.35, color: "#11243c" }}>
             {currentQuestion.title}
           </h2>
           {currentQuestion.explanation && (
-            <div className="mt-4 rounded-xl border border-[#cfe0ef] bg-[#f0f7fc] px-4 py-3 text-sm leading-relaxed text-[#365b7a]">
-              <span className="mb-1 block text-xs font-bold uppercase tracking-[0.08em] text-[#0b4a83]">
+            <div style={{ marginTop: "14px", border: "1px solid #cfe0ef", borderLeft: "3px solid #0B3A6E", background: "#f4f8fc", borderRadius: "8px", padding: "12px", fontSize: "12.5px", lineHeight: 1.55, color: "#365b7a" }}>
+              <span style={{ display: "block", fontSize: "10.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".1em", color: "#0B3A6E", marginBottom: "3px" }}>
                 Entenda a decisão
               </span>
               {currentQuestion.explanation}
             </div>
           )}
+          {currentQuestion.type === "multi_choice" && currentQuestion.maxSelections && (
+            <p style={{ margin: "8px 0 0", fontSize: "11.5px", color: "#5b6b7f" }}>
+              Selecione até {currentQuestion.maxSelections} opções.
+            </p>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-[18px]">
+        <div style={{ padding: "16px 18px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "10px" }}>
           {currentQuestion.type === "single_choice" && (
-            <div role="radiogroup" aria-label={currentQuestion.title} className="flex flex-col gap-2.5">
+            <div role="radiogroup" aria-label={currentQuestion.title} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {currentQuestion.options?.map((option) => (
                 <ParticipantOptionButton
                   key={option}
@@ -388,36 +397,25 @@ export default function RoundPage() {
           )}
 
           {currentQuestion.type === "multi_choice" && (
-            <div>
-              <div
-                role="group"
-                aria-label={currentQuestion.title}
-                className="flex flex-col gap-2.5"
-              >
-                {currentQuestion.options?.map((option) => (
-                  <ParticipantOptionButton
-                    key={option}
-                    label={option}
-                    multi
-                    role="checkbox"
-                    selected={selectedOptions.includes(option)}
-                    onClick={() => toggleMultiChoice(option)}
-                  />
-                ))}
-              </div>
-              {currentQuestion.maxSelections && (
-                <p className="mt-3 mb-0 text-[12.5px] text-[#5b6b7f]">
-                  Selecione até {currentQuestion.maxSelections} opções.
-                </p>
-              )}
+            <div role="group" aria-label={currentQuestion.title} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {currentQuestion.options?.map((option) => (
+                <ParticipantOptionButton
+                  key={option}
+                  label={option}
+                  multi
+                  role="checkbox"
+                  selected={selectedOptions.includes(option)}
+                  onClick={() => toggleMultiChoice(option)}
+                />
+              ))}
             </div>
           )}
 
           {otherSelected && (
-            <div className="mt-4 rounded-xl border border-[#b9d5ed] bg-[#f3f8fc] p-4">
+            <div style={{ border: "1px solid #b9d5ed", background: "#f4f8fc", borderRadius: "10px", padding: "14px" }}>
               <label
                 htmlFor={`other-${currentQuestion.id}`}
-                className="mb-2 block text-sm font-semibold text-[#244c70]"
+                style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#244c70", marginBottom: "8px" }}
               >
                 Qual é a outra opção?
               </label>
@@ -434,9 +432,8 @@ export default function RoundPage() {
                 maxLength={500}
                 autoFocus
                 placeholder="Escreva aqui..."
-                className="h-12 w-full rounded-lg border border-[#9fb8cf] bg-white px-3.5 text-base text-[#1a1a1a] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0b3a6e] focus-visible:outline-offset-2"
+                style={{ width: "100%", height: "42px", border: "1px solid #9fb8cf", borderRadius: "8px", padding: "0 12px", fontSize: "14px", background: "#fff", color: "#11243c", outline: "none" }}
               />
-              <p className="mb-0 mt-2 text-xs text-[#64748b]">Até 500 caracteres.</p>
             </div>
           )}
 
@@ -449,9 +446,9 @@ export default function RoundPage() {
                 aria-label={currentQuestion.title}
                 maxLength={currentQuestion.maxLength ?? 2000}
                 rows={7}
-                className="w-full border border-[#c9d4e2] rounded-lg p-3.5 text-base leading-relaxed resize-y text-[#1a1a1a] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0b3a6e] focus-visible:outline-offset-2"
+                style={{ width: "100%", border: "1px solid #c9d4e2", borderRadius: "8px", padding: "12px", fontSize: "14px", lineHeight: 1.5, resize: "vertical", color: "#11243c", outline: "none" }}
               />
-              <p className="mt-2 mb-0 text-xs text-[#8a97a8]">
+              <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#8a97a8" }}>
                 Até {currentQuestion.maxLength ?? 2000} caracteres.
               </p>
             </>
@@ -459,28 +456,28 @@ export default function RoundPage() {
         </div>
 
         {(error || offline) && (
-          <div className="px-5 pb-2">
+          <div style={{ padding: "0 18px 12px" }}>
             <div
               role="alert"
-              className="border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+              style={{ border: "1px solid #e3b3ad", background: "#fdf2f1", borderRadius: "8px", padding: "12px 14px", fontSize: "13.5px", color: "#b42318" }}
             >
               {error || "Sem conexão. Suas respostas continuam salvas neste aparelho."}
             </div>
           </div>
         )}
 
-        <div className="shrink-0 border-t border-[#eef1f5] px-5 py-3.5 flex gap-2.5 bg-white">
+        <div style={{ padding: "12px 18px", borderTop: "1px solid #eef1f5", display: "flex", gap: "10px" }}>
           <button
             type="button"
             onClick={handleBack}
-            className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9]"
+            style={{ flex: 1, height: "46px", border: "1px solid #c9d4e2", background: "#fff", borderRadius: "8px", fontSize: "14.5px", fontWeight: 600, color: "#33415c", cursor: "pointer" }}
           >
             Voltar
           </button>
           <button
             type="button"
             onClick={handleContinue}
-            className="flex-1 h-[52px] bg-[#0b3a6e] text-white border border-[#0b3a6e] rounded-lg text-base font-semibold hover:bg-[#0d4a8a]"
+            style={{ flex: 2, height: "46px", border: "1px solid #0B3A6E", background: "#0B3A6E", borderRadius: "8px", fontSize: "14.5px", fontWeight: 600, color: "#fff", cursor: "pointer" }}
           >
             Continuar
           </button>

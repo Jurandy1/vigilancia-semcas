@@ -214,266 +214,287 @@ export default function EventConfiguracoesPage() {
       eventStatus={event.status}
       screenLabel="Configurações"
     >
-      <section aria-label="Configurações do evento" className="max-w-[1000px]">
-        <h1 className="m-0 text-[26px] font-bold tracking-[-0.01em] text-[#1a1a1a]">
+      <section aria-label="Configurações do evento" style={{ maxWidth: "1000px" }}>
+        <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700, letterSpacing: "-0.01em", color: "#1a1a1a" }}>
           Configurações do evento
         </h1>
-        <p className="mt-1.5 mb-0 text-sm text-[#5b6b7f]">{event.title}</p>
+        <p style={{ marginTop: "6px", marginBottom: 0, fontSize: "14px", color: "#5b6b7f" }}>{event.title}</p>
 
         {error && (
-          <div className="mt-4 text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2">
+          <div style={{ marginTop: "16px", fontSize: "14px", color: "#b42318", background: "#fdf2f1", border: "1px solid #e3b3ad", borderRadius: "6px", padding: "8px 12px" }}>
             {error}
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-5">
-          <nav aria-label="Seções de configuração" className="flex flex-col gap-0.5 min-w-0">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                aria-current={tab === t.id ? "page" : undefined}
-                className={cn(
-                  "text-left px-3 py-2.5 rounded-md text-[13.5px] font-semibold",
-                  tab === t.id
-                    ? "bg-[#eef3f9] text-[#0b3a6e]"
-                    : "text-[#5b6b7f] hover:bg-white hover:text-[#0b3a6e]"
-                )}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
-
-          <div className="bg-white border border-[#dde4ee] rounded-lg p-[22px] min-w-0">
-            {tab === "geral" && (
-              <form onSubmit={saveGeneral}>
-                <h2 className="m-0 mb-1 text-base font-semibold">Geral</h2>
-                <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
-                  Identificação do evento no sistema e no telão.
-                </p>
-                <label className="block mb-1.5 text-[12.5px] font-semibold text-[#33415c]">
-                  Título
-                </label>
-                <input
-                  value={titleDraft}
-                  onChange={(e) => setTitleDraft(e.target.value)}
-                  required
-                  className="w-full h-[42px] border border-[#c9d4e2] rounded-md px-3 text-sm"
-                />
-                <label className="block mt-4 mb-1.5 text-[12.5px] font-semibold text-[#33415c]">
-                  Descrição
-                </label>
-                <textarea
-                  rows={3}
-                  value={descriptionDraft}
-                  onChange={(e) => setDescriptionDraft(e.target.value)}
-                  className="w-full border border-[#c9d4e2] rounded-md px-3 py-2.5 text-sm resize-y"
-                />
-                <label className="block mt-4 mb-1.5 text-[12.5px] font-semibold text-[#33415c]">
-                  Título para o projetor
-                </label>
-                <input
-                  value={projectorTitleDraft}
-                  onChange={(e) => setProjectorTitleDraft(e.target.value)}
-                  placeholder="Usa o título do evento se vazio"
-                  className="w-full h-[42px] border border-[#c9d4e2] rounded-md px-3 text-sm"
-                />
-                {generalError && <p className="mt-3 text-sm text-[#b42318]">{generalError}</p>}
-                <div className="flex items-center gap-3 mt-5">
+        <div style={{ marginTop: "24px", display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media (min-width: 768px) {
+              .config-grid { grid-template-columns: 200px minmax(0, 1fr) !important; }
+            }
+          `}} />
+          <div className="config-grid" style={{ display: "grid", gap: "20px", gridTemplateColumns: "1fr" }}>
+            <nav aria-label="Seções de configuração" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+              {tabs.map((t) => {
+                const selected = tab === t.id;
+                return (
                   <button
-                    type="submit"
-                    disabled={savingGeneral}
-                    className="h-10 px-[18px] text-sm font-semibold bg-[#0b3a6e] text-white rounded-md hover:bg-[#0d4a8a] disabled:opacity-60"
-                  >
-                    {savingGeneral ? "Salvando..." : "Salvar"}
-                  </button>
-                  {generalSaved && (
-                    <span className="text-[12.5px] text-[#1a7f4b]">Salvo agora há pouco</span>
-                  )}
-                </div>
-              </form>
-            )}
-
-            {tab === "participacao" && (
-              <div>
-                <h2 className="m-0 mb-1 text-base font-semibold">Participação</h2>
-                <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
-                  Como as pessoas entram e respondem.
-                </p>
-                <div className="border border-[#dde4ee] rounded-md p-4">
-                  <p className="m-0 text-sm font-semibold">Modo de participação</p>
-                  <p className="mt-1.5 mb-0 text-[13px] text-[#5b6b7f] leading-relaxed">
-                    O participante escolhe entre <strong>identificado</strong> (informa o nome) e{" "}
-                    <strong>anônimo</strong> na entrada do evento. Este comportamento é padrão do
-                    sistema.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {tab === "acesso" && (
-              <div>
-                <h2 className="m-0 mb-1 text-base font-semibold">Acesso</h2>
-                <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
-                  Link público, QR Code e cartaz impresso.
-                </p>
-                <p className="m-0 mb-1.5 text-[12.5px] font-semibold text-[#33415c]">Link público</p>
-                <div className="flex gap-2 items-center flex-wrap">
-                  <code className="flex-1 min-w-[220px] bg-[#f7f9fc] border border-[#dde4ee] rounded-md px-3 py-2.5 text-[12.5px] text-[#33415c] truncate">
-                    {eventUrl}
-                  </code>
-                  <button
+                    key={t.id}
                     type="button"
-                    onClick={copyLink}
-                    className="h-10 px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9]"
-                  >
-                    {copied ? "Copiado" : "Copiar"}
-                  </button>
-                </div>
-                <div className="flex gap-5 items-center mt-5 flex-wrap">
-                  {qrDataUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={qrDataUrl}
-                      alt="QR Code"
-                      className="w-40 border border-[#dde4ee] rounded-lg p-2.5 bg-white"
-                    />
-                  )}
-                  <div>
-                    <EventQrDialog
-                      eventSlug={event.slug}
-                      eventTitle={event.title}
-                      trigger={
-                        <button
-                          type="button"
-                          className="h-[38px] px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9]"
-                        >
-                          Abrir painel de acesso
-                        </button>
+                    onClick={() => setTab(t.id)}
+                    aria-current={selected ? "page" : undefined}
+                    style={{
+                      textAlign: "left",
+                      padding: "10px 12px",
+                      borderRadius: "6px",
+                      fontSize: "13.5px",
+                      fontWeight: 600,
+                      backgroundColor: selected ? "#eef3f9" : "transparent",
+                      color: selected ? "#0b3a6e" : "#5b6b7f",
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "all 0.2s"
+                    }}
+                    onMouseOver={(e) => {
+                      if (!selected) {
+                        e.currentTarget.style.backgroundColor = "#fff";
+                        e.currentTarget.style.color = "#0b3a6e";
                       }
-                    />
-                    <p className="mt-2.5 mb-0 text-[12.5px] text-[#8a97a8] leading-relaxed">
-                      O cartaz A4 fica em{" "}
-                      <code className="text-xs">/print/{event.slug}</code>.
+                    }}
+                    onMouseOut={(e) => {
+                      if (!selected) {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "#5b6b7f";
+                      }
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div style={{ backgroundColor: "#fff", border: "1px solid #dde4ee", borderRadius: "8px", padding: "22px", minWidth: 0 }}>
+              {tab === "geral" && (
+                <form onSubmit={saveGeneral}>
+                  <h2 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: 600 }}>Geral</h2>
+                  <p style={{ margin: "0 0 18px 0", fontSize: "13px", color: "#8a97a8" }}>
+                    Identificação do evento no sistema e no telão.
+                  </p>
+                  <label style={{ display: "block", marginBottom: "6px", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>
+                    Título
+                  </label>
+                  <input
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    required
+                    style={{ width: "100%", height: "42px", border: "1px solid #c9d4e2", borderRadius: "6px", padding: "0 12px", fontSize: "14px" }}
+                  />
+                  <label style={{ display: "block", marginTop: "16px", marginBottom: "6px", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>
+                    Descrição
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    style={{ width: "100%", border: "1px solid #c9d4e2", borderRadius: "6px", padding: "10px 12px", fontSize: "14px", resize: "vertical" }}
+                  />
+                  <label style={{ display: "block", marginTop: "16px", marginBottom: "6px", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>
+                    Título para o projetor
+                  </label>
+                  <input
+                    value={projectorTitleDraft}
+                    onChange={(e) => setProjectorTitleDraft(e.target.value)}
+                    placeholder="Usa o título do evento se vazio"
+                    style={{ width: "100%", height: "42px", border: "1px solid #c9d4e2", borderRadius: "6px", padding: "0 12px", fontSize: "14px" }}
+                  />
+                  {generalError && <p style={{ marginTop: "12px", fontSize: "14px", color: "#b42318" }}>{generalError}</p>}
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "20px" }}>
+                    <button
+                      type="submit"
+                      disabled={savingGeneral}
+                      style={{ height: "40px", padding: "0 18px", fontSize: "14px", fontWeight: 600, backgroundColor: "#0b3a6e", color: "#fff", borderRadius: "6px", border: "none", cursor: savingGeneral ? "not-allowed" : "pointer", opacity: savingGeneral ? 0.6 : 1 }}
+                    >
+                      {savingGeneral ? "Salvando..." : "Salvar"}
+                    </button>
+                    {generalSaved && (
+                      <span style={{ fontSize: "12.5px", color: "#1a7f4b" }}>Salvo agora há pouco</span>
+                    )}
+                  </div>
+                </form>
+              )}
+
+              {tab === "participacao" && (
+                <div>
+                  <h2 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: 600 }}>Participação</h2>
+                  <p style={{ margin: "0 0 18px 0", fontSize: "13px", color: "#8a97a8" }}>
+                    Como as pessoas entram e respondem.
+                  </p>
+                  <div style={{ border: "1px solid #dde4ee", borderRadius: "6px", padding: "16px" }}>
+                    <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>Modo de participação</p>
+                    <p style={{ marginTop: "6px", marginBottom: 0, fontSize: "13px", color: "#5b6b7f", lineHeight: 1.5 }}>
+                      O participante escolhe entre <strong>identificado</strong> (informa o nome) e{" "}
+                      <strong>anônimo</strong> na entrada do evento. Este comportamento é padrão do
+                      sistema.
                     </p>
                   </div>
                 </div>
+              )}
 
-                <div className="mt-6 pt-5 border-t border-[#eef1f5]">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="m-0 text-sm font-semibold">Exigir código temporário</p>
-                      <p className="mt-1 mb-0 text-[13px] text-[#5b6b7f] leading-relaxed">
-                        O participante digita um código exibido no projetor antes de entrar.
-                      </p>
-                    </div>
-                    <button
-                      role="switch"
-                      aria-checked={event.requireLiveCode}
-                      disabled={savingCode}
-                      onClick={toggleLiveCode}
-                      className={cn(
-                        "shrink-0 w-11 h-6 rounded-full relative disabled:opacity-50",
-                        event.requireLiveCode ? "bg-[#0b3a6e]" : "bg-[#dde4ee]"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform",
-                          event.requireLiveCode ? "left-[22px]" : "left-0.5"
-                        )}
-                      />
-                    </button>
-                  </div>
-                  {event.requireLiveCode && (
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={rotateCode}
-                        disabled={rotating}
-                        className="h-[38px] px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9] disabled:opacity-60"
-                      >
-                        {rotating ? "Gerando..." : "Gerar novo código agora"}
-                      </button>
-                      {newCode && (
-                        <p className="mt-2 text-sm text-[#33415c]">
-                          Novo código: <strong>{formatAccessCode(newCode)}</strong>
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {tab === "projetor" && (
-              <div>
-                <h2 className="m-0 mb-1 text-base font-semibold">Projetor</h2>
-                <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
-                  O que aparece no telão do evento.
-                </p>
-                <div className="border border-[#dde4ee] rounded-md p-4">
-                  <p className="m-0 text-sm font-semibold">Conteúdo exibido</p>
-                  <ul className="mt-2.5 mb-0 pl-5 text-[13.5px] text-[#5b6b7f] leading-relaxed list-disc">
-                    <li>Entrada: QR Code e link do evento</li>
-                    <li>Votação em andamento: participantes até agora e quantos finalizaram</li>
-                    <li>Intervalo: aviso de próxima atividade</li>
-                  </ul>
-                  <p className="mt-3 mb-0 text-[13px] text-[#33415c] leading-relaxed">
-                    Perguntas e resultados <strong>não</strong> aparecem no telão — ficam restritos
-                    ao administrativo e ao relatório.
+              {tab === "acesso" && (
+                <div>
+                  <h2 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: 600 }}>Acesso</h2>
+                  <p style={{ margin: "0 0 18px 0", fontSize: "13px", color: "#8a97a8" }}>
+                    Link público, QR Code e cartaz impresso.
                   </p>
-                </div>
-                <Link
-                  href={`/projector/${event.slug}`}
-                  target="_blank"
-                  className="inline-flex items-center mt-4 h-[38px] px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9] no-underline"
-                >
-                  Abrir tela do projetor
-                </Link>
-              </div>
-            )}
-
-            {tab === "seguranca" && (
-              <div>
-                <h2 className="m-0 mb-1 text-base font-semibold">Segurança</h2>
-                <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
-                  Controle de entrada e encerramento.
-                </p>
-                <div className="border border-[#dde4ee] rounded-md p-4">
-                  <p className="m-0 text-sm font-semibold">Entrada pelo link do evento</p>
-                  <p className="mt-1.5 mb-0 text-[13px] text-[#5b6b7f] leading-relaxed">
-                    Quem tem o QR Code ou o link entra na enquete. O acesso deixa de funcionar quando
-                    o evento é encerrado.
-                  </p>
-                </div>
-
-                <div className="mt-6 pt-[18px] border-t border-[#eef1f5]">
-                  <p className="m-0 text-xs font-bold tracking-[0.09em] uppercase text-[#b42318]">
-                    Ação irreversível
-                  </p>
-                  <div className="mt-2.5 border border-[#e3b3ad] bg-[#fdf7f6] rounded-md p-4 flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                      <p className="m-0 text-sm font-semibold text-[#33415c]">Encerrar evento</p>
-                      <p className="mt-1.5 mb-0 text-[13px] text-[#5b6b7f] leading-relaxed">
-                        Todas as rodadas serão consideradas encerradas e novas respostas não serão
-                        aceitas.
-                      </p>
-                    </div>
+                  <p style={{ margin: "0 0 6px 0", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>Link público</p>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                    <code style={{ flex: 1, minWidth: "220px", backgroundColor: "#f7f9fc", border: "1px solid #dde4ee", borderRadius: "6px", padding: "10px 12px", fontSize: "12.5px", color: "#33415c", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {eventUrl}
+                    </code>
                     <button
                       type="button"
-                      disabled={event.status === "closed"}
-                      onClick={() => setClosing(true)}
-                      className="h-[38px] px-3.5 text-[13.5px] font-semibold bg-[#b42318] text-white rounded-md hover:bg-[#98200f] disabled:opacity-50 shrink-0"
+                      onClick={copyLink}
+                      style={{ height: "40px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, color: "#0b3a6e", backgroundColor: "transparent", border: "1px solid #c9d4e2", borderRadius: "6px", cursor: "pointer" }}
                     >
-                      {event.status === "closed" ? "Evento encerrado" : "Encerrar evento"}
+                      {copied ? "Copiado" : "Copiar"}
                     </button>
                   </div>
+                  <div style={{ display: "flex", gap: "20px", alignItems: "center", marginTop: "20px", flexWrap: "wrap" }}>
+                    {qrDataUrl && (
+                      <img
+                        src={qrDataUrl}
+                        alt="QR Code"
+                        style={{ width: "160px", border: "1px solid #dde4ee", borderRadius: "8px", padding: "10px", backgroundColor: "#fff" }}
+                      />
+                    )}
+                    <div>
+                      <EventQrDialog
+                        eventSlug={event.slug}
+                        eventTitle={event.title}
+                        trigger={
+                          <button
+                            type="button"
+                            style={{ height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, color: "#0b3a6e", backgroundColor: "transparent", border: "1px solid #c9d4e2", borderRadius: "6px", cursor: "pointer" }}
+                          >
+                            Abrir painel de acesso
+                          </button>
+                        }
+                      />
+                      <p style={{ marginTop: "10px", marginBottom: 0, fontSize: "12.5px", color: "#8a97a8", lineHeight: 1.5 }}>
+                        O cartaz A4 fica em{" "}
+                        <code style={{ fontSize: "12px" }}>/print/{event.slug}</code>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid #eef1f5" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>Exigir código temporário</p>
+                        <p style={{ marginTop: "4px", marginBottom: 0, fontSize: "13px", color: "#5b6b7f", lineHeight: 1.5 }}>
+                          O participante digita um código exibido no projetor antes de entrar.
+                        </p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-checked={event.requireLiveCode}
+                        disabled={savingCode}
+                        onClick={toggleLiveCode}
+                        style={{ flexShrink: 0, width: "44px", height: "24px", borderRadius: "99px", position: "relative", border: "none", cursor: savingCode ? "not-allowed" : "pointer", opacity: savingCode ? 0.5 : 1, backgroundColor: event.requireLiveCode ? "#0b3a6e" : "#dde4ee", transition: "background-color 0.2s" }}
+                      >
+                        <span
+                          style={{ position: "absolute", top: "2px", left: event.requireLiveCode ? "22px" : "2px", width: "20px", height: "20px", backgroundColor: "#fff", borderRadius: "99px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", transition: "left 0.2s" }}
+                        />
+                      </button>
+                    </div>
+                    {event.requireLiveCode && (
+                      <div style={{ marginTop: "16px" }}>
+                        <button
+                          type="button"
+                          onClick={rotateCode}
+                          disabled={rotating}
+                          style={{ height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, color: "#0b3a6e", backgroundColor: "transparent", border: "1px solid #c9d4e2", borderRadius: "6px", cursor: rotating ? "not-allowed" : "pointer", opacity: rotating ? 0.6 : 1 }}
+                        >
+                          {rotating ? "Gerando..." : "Gerar novo código agora"}
+                        </button>
+                        {newCode && (
+                          <p style={{ marginTop: "8px", fontSize: "14px", color: "#33415c" }}>
+                            Novo código: <strong>{formatAccessCode(newCode)}</strong>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {tab === "projetor" && (
+                <div>
+                  <h2 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: 600 }}>Projetor</h2>
+                  <p style={{ margin: "0 0 18px 0", fontSize: "13px", color: "#8a97a8" }}>
+                    O que aparece no telão do evento.
+                  </p>
+                  <div style={{ border: "1px solid #dde4ee", borderRadius: "6px", padding: "16px" }}>
+                    <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>Conteúdo exibido</p>
+                    <ul style={{ marginTop: "10px", marginBottom: 0, paddingLeft: "20px", fontSize: "13.5px", color: "#5b6b7f", lineHeight: 1.5, listStyleType: "disc" }}>
+                      <li>Entrada: QR Code e link do evento</li>
+                      <li>Votação em andamento: participantes até agora e quantos finalizaram</li>
+                      <li>Intervalo: aviso de próxima atividade</li>
+                    </ul>
+                    <p style={{ marginTop: "12px", marginBottom: 0, fontSize: "13px", color: "#33415c", lineHeight: 1.5 }}>
+                      Perguntas e resultados <strong>não</strong> aparecem no telão — ficam restritos
+                      ao administrativo e ao relatório.
+                    </p>
+                  </div>
+                  <Link
+                    href={`/projector/${event.slug}`}
+                    target="_blank"
+                    style={{ display: "inline-flex", alignItems: "center", marginTop: "16px", height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, color: "#0b3a6e", border: "1px solid #c9d4e2", borderRadius: "6px", textDecoration: "none" }}
+                  >
+                    Abrir tela do projetor
+                  </Link>
+                </div>
+              )}
+
+              {tab === "seguranca" && (
+                <div>
+                  <h2 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: 600 }}>Segurança</h2>
+                  <p style={{ margin: "0 0 18px 0", fontSize: "13px", color: "#8a97a8" }}>
+                    Controle de entrada e encerramento.
+                  </p>
+                  <div style={{ border: "1px solid #dde4ee", borderRadius: "6px", padding: "16px" }}>
+                    <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>Entrada pelo link do evento</p>
+                    <p style={{ marginTop: "6px", marginBottom: 0, fontSize: "13px", color: "#5b6b7f", lineHeight: 1.5 }}>
+                      Quem tem o QR Code ou o link entra na enquete. O acesso deixa de funcionar quando
+                      o evento é encerrado.
+                    </p>
+                  </div>
+
+                  <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "1px solid #eef1f5" }}>
+                    <p style={{ margin: 0, fontSize: "12px", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "#b42318" }}>
+                      Ação irreversível
+                    </p>
+                    <div style={{ marginTop: "10px", border: "1px solid #e3b3ad", backgroundColor: "#fdf7f6", borderRadius: "6px", padding: "16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#33415c" }}>Encerrar evento</p>
+                        <p style={{ marginTop: "6px", marginBottom: 0, fontSize: "13px", color: "#5b6b7f", lineHeight: 1.5 }}>
+                          Todas as rodadas serão consideradas encerradas e novas respostas não serão
+                          aceitas.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={event.status === "closed"}
+                        onClick={() => setClosing(true)}
+                        style={{ height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, backgroundColor: "#b42318", color: "#fff", border: "none", borderRadius: "6px", cursor: event.status === "closed" ? "not-allowed" : "pointer", opacity: event.status === "closed" ? 0.5 : 1, flexShrink: 0 }}
+                      >
+                        {event.status === "closed" ? "Evento encerrado" : "Encerrar evento"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>

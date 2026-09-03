@@ -2,34 +2,18 @@
 
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { DonutChart } from "@/components/admin/DonutChart";
 import { EventQrDialog } from "@/components/admin/EventQrDialog";
 import { resolveDashboardState, type DashboardRound } from "@/lib/admin/dashboard-state";
 import { Button } from "@/components/ui/button";
-import {
-  Activity,
-  ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  Layers3,
-  ListChecks,
-  MonitorUp,
-  QrCode,
-  UsersRound,
-} from "lucide-react";
+import { ArrowRight, BarChart3, ListChecks, MonitorUp, QrCode } from "lucide-react";
 
 interface DashboardViewProps {
   eventId: string;
   event: {
-    title: string;
-    slug: string;
-    status: string;
-    openedAt: string | null;
-    participantCount: number;
-    sequenceId?: string | null;
-    sequenceOrder?: number | null;
-    sequenceSize?: number | null;
-    sequenceRootSlug?: string | null;
-    nextEventTitle?: string | null;
+    title: string; slug: string; status: string; openedAt: string | null; participantCount: number;
+    sequenceId?: string | null; sequenceOrder?: number | null; sequenceSize?: number | null;
+    sequenceRootSlug?: string | null; nextEventTitle?: string | null;
   };
   stats: { registered: number; answering: number; completed: number };
   rounds: DashboardRound[];
@@ -37,234 +21,143 @@ interface DashboardViewProps {
   actionLoading: boolean;
 }
 
-const eventStatusLabel: Record<string, { label: string; className: string }> = {
-  open: { label: "Em andamento", className: "text-[#1a7f4b]" },
-  waiting: { label: "Aguardando início", className: "text-[#5b6b7f]" },
-  draft: { label: "Rascunho", className: "text-[#5b6b7f]" },
-  closed: { label: "Encerrado", className: "text-[#5b6b7f]" },
+const statusLabels: Record<string, string> = {
+  open: "Em andamento", waiting: "Aguardando início", draft: "Rascunho", closed: "Encerrado",
 };
 
-export function EventDashboardView({
-  eventId,
-  event,
-  stats,
-  rounds,
-  onOpenEvent,
-  actionLoading,
-}: DashboardViewProps) {
-  const dashboardState = resolveDashboardState(event.status, rounds);
-  const { currentRound } = dashboardState;
-  const statusInfo = eventStatusLabel[event.status] ?? eventStatusLabel.draft!;
-  const total = event.participantCount;
+export function EventDashboardView({ eventId, event, stats, rounds, onOpenEvent, actionLoading }: DashboardViewProps) {
+  const dashboard = resolveDashboardState(event.status, rounds);
+  const currentRound = dashboard.currentRound;
+  const total = Math.max(event.participantCount, stats.registered);
   const completed = stats.completed;
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const answering = stats.answering;
+  const waiting = Math.max(0, total - completed - answering);
+  const percent = total ? Math.round((completed / total) * 100) : 0;
   const openedTime = event.openedAt
-    ? new Date(event.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-    : null;
-
-  const openCount = rounds.filter((r) => r.status === "open").length;
-  const closedCount = rounds.filter((r) => r.status === "closed").length;
-  const draftCount = rounds.filter((r) => r.status === "draft" || r.status === "waiting").length;
-
+    ? new Date(event.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : null;
   const roundLabel = currentRound
     ? `${String(currentRound.order).padStart(2, "0")} · ${currentRound.title}`
-    : dashboardState.case === "event_waiting"
-      ? "Evento ainda não iniciado"
-      : dashboardState.case === "no_rounds_yet"
-        ? "Nenhuma rodada criada"
-        : "Nenhuma rodada em andamento";
+    : dashboard.case === "event_waiting" ? "Evento ainda não iniciado"
+      : dashboard.case === "no_rounds_yet" ? "Nenhuma rodada criada" : "Nenhuma rodada em andamento";
 
   return (
-    <AdminShell
-      eventId={eventId}
-      eventSlug={event.slug}
-      eventTitle={event.title}
-      eventStatus={event.status}
-      screenLabel="Visão geral"
-    >
-      <section aria-label="Visão geral do evento" className="w-full max-w-[1180px]">
-        <div className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <p className="mb-2 mt-0 text-xs font-bold uppercase tracking-[0.12em] text-[#18754a]">
-              Visão geral
-            </p>
-            <h1 className="admin-page-title m-0 max-w-[34ch] text-pretty">
-              {event.title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2.5 text-sm text-[#64748b]">
-              <span className={`inline-flex items-center gap-2 rounded-full border border-[#dbe4ef] bg-white px-3 py-1 font-semibold shadow-sm ${statusInfo.className}`}>
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    event.status === "open" ? "bg-[#1a7f4b]" : "bg-[#8a97a8]"
-                  }`}
-                />
-                {statusInfo.label}
+    <AdminShell eventId={eventId} eventSlug={event.slug} eventTitle={event.title} eventStatus={event.status} screenLabel="Visão geral">
+      <section data-screen-label="Visão geral">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "flex-end", justifyContent: "space-between", paddingBottom: "18px", borderBottom: "1px solid #dbe4ef" }}>
+          <div style={{ minWidth: "320px", flex: 1 }}>
+            <p style={{ margin: "0 0 8px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Visão geral</p>
+            <h1 style={{ margin: 0, fontSize: "27px", fontWeight: 700, letterSpacing: "-.022em", lineHeight: 1.2, color: "#11243c", maxWidth: "34ch", textWrap: "pretty" }}>{event.title}</h1>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "14px", marginTop: "12px", fontSize: "13px", color: "#5b6b7f" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "7px", fontWeight: 600, color: event.status === "open" ? "#18754A" : "#5b6b7f" }}>
+                <span style={{ width: "7px", height: "7px", borderRadius: "99px", background: event.status === "open" ? "#1a7f4b" : "#8a97a8" }} className={event.status === "open" ? "animate-pulse" : ""} />
+                {statusLabels[event.status] ?? event.status}
               </span>
               {openedTime && <span>Iniciado às {openedTime}</span>}
-              {event.sequenceId && event.sequenceOrder !== null && event.sequenceOrder !== undefined && (
-                <span>Evento {event.sequenceOrder + 1} de {event.sequenceSize}</span>
-              )}
+              {event.sequenceId && event.sequenceOrder != null && <span>Evento {event.sequenceOrder + 1} de {event.sequenceSize}</span>}
             </div>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button asChild variant="outline" className="h-11 w-full gap-2 rounded-xl border-[#b9c9d9] bg-white px-5 text-sm font-semibold text-[#0b4a83] sm:w-auto">
-              <Link href={`/admin/eventos/${eventId}/perguntas`}>
-                <ListChecks className="h-4 w-4" /> Editar perguntas
-              </Link>
-            </Button>
-            <Button asChild className="h-11 w-full shrink-0 gap-2 rounded-xl px-5 text-sm font-semibold shadow-sm sm:w-auto">
-              <Link href={`/admin/eventos/${eventId}/ao-vivo`}>
-                Abrir sessão ao vivo <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <Link href={`/admin/eventos/${eventId}/perguntas`} style={{ display: "inline-flex", alignItems: "center", height: "40px", padding: "0 16px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "13.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}>
+              Editar perguntas
+            </Link>
+            <Link href={`/admin/eventos/${eventId}/ao-vivo`} style={{ display: "inline-flex", alignItems: "center", height: "40px", padding: "0 18px", border: "1px solid #0B3A6E", background: "#0B3A6E", borderRadius: "8px", fontSize: "13.5px", fontWeight: 600, color: "#fff", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.background = "#082F57"; }} onMouseOut={(e) => { e.currentTarget.style.background = "#0B3A6E"; }}>
+              Abrir sessão ao vivo
+            </Link>
           </div>
         </div>
 
-        {dashboardState.case === "event_waiting" && (
-          <div className="admin-card mb-5 flex flex-col items-start justify-between gap-4 border-l-4 border-l-[#d29a20] p-5 sm:flex-row sm:items-center">
-            <p className="text-sm text-[#5b6b7f] mb-4">Este evento ainda não foi iniciado.</p>
-            <Button onClick={onOpenEvent} disabled={actionLoading}>
-              Iniciar evento
-            </Button>
+        {dashboard.case === "event_waiting" && (
+          <div style={{ marginTop: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", borderLeft: "4px solid #d29a20", padding: "20px", background: "#fff", borderTop: "1px solid #dbe4ef", borderRight: "1px solid #dbe4ef", borderBottom: "1px solid #dbe4ef", borderRadius: "10px" }}>
+            <div>
+              <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#11243c" }}>Este evento ainda não foi iniciado.</p>
+              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>A primeira rodada disponível será aberta automaticamente.</p>
+            </div>
+            <Button onClick={onOpenEvent} disabled={actionLoading}>Iniciar evento</Button>
           </div>
         )}
 
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div role="group" aria-label="Indicadores do evento" style={{ marginTop: "20px", border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", overflow: "hidden" }}>
           {[
-            { label: "Participantes", value: stats.registered || total, icon: UsersRound, tone: "text-[#0b4a83] bg-[#e9f2fb]" },
-            { label: "Respondendo agora", value: stats.answering, icon: Activity, tone: "text-[#9a6700] bg-[#fff6dc]" },
-            { label: "Respostas concluídas", value: completed, icon: CheckCircle2, tone: "text-[#18754a] bg-[#e9f7ef]" },
-            { label: "Rodadas criadas", value: rounds.length, icon: Layers3, tone: "text-[#6c4bb4] bg-[#f2edff]" },
-          ].map((item) => (
-            <div key={item.label} className="admin-card flex items-center gap-4 p-4 sm:block sm:p-5">
-              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.tone}`}>
-                <item.icon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 sm:mt-4">
-                <p className="m-0 text-2xl font-bold leading-none tracking-[-0.02em] text-[#11243c]">{item.value}</p>
-                <p className="mb-0 mt-1.5 text-[13px] text-[#64748b]">{item.label}</p>
-              </div>
+            { label: "Participantes", value: total, color: "#11243c", divider: "1px 0 0 0 #dbe4ef" },
+            { label: "Concluíram", value: completed, color: "#18754A", divider: "1px 0 0 0 #dbe4ef, 1px 0 0 0 #dbe4ef inset" },
+            { label: "Respondendo", value: answering, color: "#dba514", divider: "1px 0 0 0 #dbe4ef, 1px 0 0 0 #dbe4ef inset" },
+            { label: "Conclusão", value: `${percent}%`, color: "#0B3A6E", divider: "1px 0 0 0 #dbe4ef, 1px 0 0 0 #dbe4ef inset" }
+          ].map((k, i) => (
+            <div key={k.label} style={{ background: "#fff", padding: "16px 18px", borderRight: i !== 3 ? "1px solid #dbe4ef" : "none", borderBottom: "none" }}>
+              <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>{k.label}</p>
+              <p style={{ margin: "10px 0 0", fontSize: "30px", fontWeight: 700, lineHeight: 1, letterSpacing: "-.02em", color: k.color }}>{k.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,.6fr)]">
-          <div className="admin-card p-5 sm:p-6">
-            <h2 className="m-0 mb-3.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-              Situação atual
-            </h2>
-            <p className="m-0 text-[12.5px] text-[#5b6b7f]">Rodada atual</p>
-            <p className="mt-1 mb-0 text-xl font-semibold leading-snug text-[#11243c]">{roundLabel}</p>
-            <p className="mt-3.5 mb-2 text-sm text-[#33415c]">
-              <strong className="text-base">{completed}</strong> de {total} respostas ·{" "}
-              <strong className="font-semibold">{percent}%</strong>
-            </p>
-            <div
-              role="img"
-              aria-label={`${percent}% das respostas recebidas`}
-              className="h-2.5 bg-[#edf2f7] rounded-full overflow-hidden"
-            >
-              <div
-                className="h-full bg-[linear-gradient(90deg,#0b4a83,#18754a)] rounded-full transition-all duration-500"
-                style={{ width: `${percent}%` }}
-              />
-            </div>
-            <div className="mt-[18px] pt-4 border-t border-[#eef1f5] flex items-center justify-between gap-3 flex-wrap">
-              <span className="inline-flex items-center gap-1.5 text-[12.5px] text-[#5b6b7f]">
-                <span className="w-[7px] h-[7px] rounded-full bg-[#1a7f4b] animate-pulse" />
-                Atualização em tempo real
-              </span>
-              <Link
-                href={`/admin/eventos/${eventId}/ao-vivo`}
-                className="inline-flex items-center h-9 px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] bg-white border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9] hover:border-[#0b3a6e]"
-              >
-                Acompanhar ao vivo
-              </Link>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))", gap: "18px", marginTop: "18px" }}>
+          <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", padding: "18px 20px" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Situação da participação</h2>
+            <p style={{ margin: "0 0 8px", fontSize: "12.5px", color: "#8a97a8" }}>Distribuição dos {total} participantes do evento</p>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "24px", marginTop: "14px" }}>
+              <div style={{ position: "relative", width: "168px", height: "168px", flexShrink: 0 }}>
+                <DonutChart size={168} centerValue={total} centerLabel="participantes" showLegend={false} segments={[{ label: "Concluíram", value: completed, color: "#18754a" }, { label: "Respondendo", value: answering, color: "#dba514" }, { label: "Não iniciaram", value: waiting, color: "#cbd5e1" }]} />
+              </div>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1, minWidth: "180px", display: "flex", flexDirection: "column", gap: "1px", background: "#eef2f7", border: "1px solid #eef2f7", borderRadius: "8px", overflow: "hidden" }}>
+                {[
+                  { label: "Concluíram", value: completed, color: "#18754a" },
+                  { label: "Respondendo", value: answering, color: "#dba514" },
+                  { label: "Não iniciaram", value: waiting, color: "#cbd5e1" }
+                ].map((seg) => (
+                  <li key={seg.label} style={{ background: "#fff", padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px", fontSize: "13px" }}>
+                    <span aria-hidden="true" style={{ width: "9px", height: "9px", borderRadius: "2px", background: seg.color, flexShrink: 0 }}></span>
+                    <span style={{ flex: 1, color: "#33415c" }}>{seg.label}</span>
+                    <span style={{ fontWeight: 600, color: "#11243c" }}>{seg.value}</span>
+                    <span style={{ width: "52px", textAlign: "right", color: "#5b6b7f" }}>{total ? Math.round((seg.value / total) * 100) : 0}%</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
 
-          <div className="flex flex-col gap-5 min-w-0">
-            <div className="admin-card p-5">
-              <h2 className="m-0 mb-3 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-                Participação
-              </h2>
-              <div className="flex items-baseline gap-2.5">
-                <span className="text-[32px] font-bold text-[#0b3a6e] leading-none">{total}</span>
-                <span className="text-[13.5px] text-[#5b6b7f]">participantes no evento</span>
-              </div>
-              <p className="mt-3 mb-0 text-[12.5px] text-[#8a97a8] leading-relaxed">
-                O modo de participação (identificado ou anônimo) é definido nas configurações do
-                evento.
-              </p>
+          <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", padding: "18px 20px", display: "flex", flexDirection: "column" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Rodada atual</h2>
+            <p style={{ margin: "8px 0 0", fontSize: "19px", fontWeight: 600, lineHeight: 1.35, color: "#11243c", textWrap: "pretty" }}>{roundLabel}</p>
+            <p style={{ margin: "14px 0 8px", fontSize: "14px", color: "#33415c" }}><strong style={{ fontSize: "17px" }}>{completed}</strong> de {total} respostas · <strong>{percent}%</strong></p>
+            <div role="img" aria-label="Progresso da rodada" style={{ height: "10px", background: "#eef2f7", borderRadius: "99px", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${percent}%`, background: "#0B3A6E", borderRadius: "99px", transition: "width 400ms ease" }}></div>
             </div>
-
-            <div className="admin-card p-5">
-              <h2 className="m-0 mb-3 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-                Perguntas e rodadas
-              </h2>
-              <div className="flex flex-col gap-2 text-[13.5px] text-[#33415c]">
-                <div className="flex justify-between">
-                  <span>Em andamento</span>
-                  <strong className="font-semibold">{openCount}</strong>
-                </div>
-                <div className="flex justify-between text-[#5b6b7f]">
-                  <span>Concluídas</span>
-                  <strong className="font-semibold">{closedCount}</strong>
-                </div>
-                <div className="flex justify-between text-[#5b6b7f]">
-                  <span>Rascunhos</span>
-                  <strong className="font-semibold">{draftCount}</strong>
-                </div>
-              </div>
+            <div style={{ marginTop: "auto", paddingTop: "18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", borderTop: "1px solid #eef1f5" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "7px", fontSize: "12.5px", color: "#5b6b7f" }}>
+                <span style={{ width: "7px", height: "7px", borderRadius: "99px", background: "#1a7f4b" }} className="animate-pulse"></span>Atualização em tempo real
+              </span>
+              <button type="button" onClick={() => window.location.href = `/admin/eventos/${eventId}/ao-vivo`} style={{ height: "34px", padding: "0 13px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}>Acompanhar ao vivo</button>
             </div>
           </div>
         </div>
 
-        <div className="admin-card mt-5 p-5 sm:p-6">
-          <h2 className="m-0 mb-3.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-            Acesso rápido
-          </h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <EventQrDialog
-              eventSlug={event.sequenceRootSlug ?? event.slug}
-              eventTitle={event.title}
-              trigger={
-                <button
-                  type="button"
-                  className="flex min-h-[62px] w-full items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-left text-sm font-semibold text-[#0b4a83] transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
-                >
-                  <QrCode className="h-5 w-5 shrink-0" /> QR e código de acesso
-                </button>
-              }
-            />
-            <Link
-              href={`/admin/eventos/${eventId}/perguntas`}
-              className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
-            >
-              <ListChecks className="h-5 w-5 shrink-0" /> Editar perguntas
-            </Link>
-            <Link
-              href={`/projector/${event.slug}`}
-              target="_blank"
-              className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
-            >
-              <MonitorUp className="h-5 w-5 shrink-0" /> Tela do projetor
-            </Link>
-            {currentRound && (
-              <Link
-                href={`/admin/eventos/${eventId}/rodadas/${currentRound.id}/resultados`}
-                className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
-              >
-                <BarChart3 className="h-5 w-5 shrink-0" /> Resultados da rodada
-              </Link>
+        <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", padding: "18px 20px", marginTop: "18px" }}>
+          <h2 style={{ margin: "0 0 16px", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>Participação por rodada</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {rounds.length ? rounds.map((round) => {
+              const roundPercent = total ? Math.min(100, Math.round((round.submissionCount / total) * 100)) : 0;
+              return (
+                <div key={round.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "14px", fontSize: "13px" }}>
+                    <span style={{ minWidth: 0, color: "#33415c" }}><span style={{ fontFamily: "ui-monospace,Consolas,monospace", color: "#8a97a8", marginRight: "8px" }}>{String(round.order).padStart(2, "0")}</span>{round.title}</span>
+                    <span style={{ flexShrink: 0, color: "#5b6b7f" }}><strong style={{ color: "#11243c" }}>{round.submissionCount}</strong> respostas · {roundPercent}%</span>
+                  </div>
+                  <div style={{ height: "16px", background: "#f2f5f9", borderRadius: "4px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${roundPercent}%`, background: "#477da9", borderRadius: "4px", transition: "width 400ms ease" }}></div>
+                  </div>
+                </div>
+              );
+            }) : (
+              <p style={{ margin: 0, fontSize: "13px", color: "#8a97a8" }}>Nenhuma rodada criada.</p>
             )}
-            <Link
-              href={`/admin/eventos/${eventId}/relatorios`}
-              className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
-            >
-              <BarChart3 className="h-5 w-5 shrink-0" /> Relatório consolidado
-            </Link>
           </div>
+        </div>
+
+        <div style={{ marginTop: "18px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "8px" }}>
+          <EventQrDialog eventSlug={event.sequenceRootSlug ?? event.slug} eventTitle={event.title} trigger={<button type="button" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", height: "40px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", width: "100%" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}><QrCode style={{ width: "16px", height: "16px" }} />QR e acesso</button>} />
+          <Link href={`/projector/${event.slug}`} target="_blank" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", height: "40px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}><MonitorUp style={{ width: "16px", height: "16px" }} />Projetor</Link>
+          <Link href={`/admin/eventos/${eventId}/perguntas`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", height: "40px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}><ListChecks style={{ width: "16px", height: "16px" }} />Perguntas</Link>
+          <Link href={`/admin/eventos/${eventId}/relatorios`} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", height: "40px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}><BarChart3 style={{ width: "16px", height: "16px" }} />Relatórios</Link>
         </div>
       </section>
     </AdminShell>

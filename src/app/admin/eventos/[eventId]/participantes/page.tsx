@@ -84,26 +84,25 @@ export default function EventParticipantsPage() {
       eventStatus={data.event.status}
       screenLabel="Participantes"
     >
-      <section aria-label="Participantes" className="max-w-[1000px]">
-        <h1 className="m-0 text-[26px] font-bold tracking-[-0.01em] text-[#1a1a1a]">
-          Participantes
-        </h1>
-        <p className="mt-1.5 mb-0 text-sm text-[#5b6b7f]">
-          {data.event.participantCount} participantes no evento · atualização automática
-        </p>
-
-        <div className="mt-5">
-          {loadError ? (
-            <div className="text-sm text-[#5b6b7f] bg-white border border-[#dde4ee] rounded-lg p-5">
-              Falha ao carregar esta informação.{" "}
-              <button onClick={load} className="text-[#0b3a6e] hover:underline font-semibold">
-                Tentar novamente
-              </button>
-            </div>
-          ) : (
-            <LiveParticipantList participants={data.participants} />
-          )}
+      <section data-screen-label="Participantes">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-end", justifyContent: "space-between", paddingBottom: "16px", borderBottom: "1px solid #dbe4ef" }}>
+          <div>
+            <p style={{ margin: "0 0 6px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Evento atual</p>
+            <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700, letterSpacing: "-.02em", color: "#11243c" }}>Participantes</h1>
+          </div>
+          <p style={{ margin: 0, fontSize: "13px", color: "#5b6b7f" }}><strong style={{ color: "#11243c" }}>{data.event.participantCount}</strong> registros · atualização automática</p>
         </div>
+
+        {loadError ? (
+          <div style={{ marginTop: "20px", fontSize: "14px", color: "#5b6b7f", background: "#fff", border: "1px solid #dde4ee", borderRadius: "8px", padding: "20px" }}>
+            Falha ao carregar esta informação.{" "}
+            <button onClick={load} style={{ color: "#0b3a6e", border: "none", background: "none", cursor: "pointer", fontWeight: 600, textDecoration: "underline", padding: 0 }}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <LiveParticipantList participants={data.participants} />
+        )}
       </section>
     </AdminShell>
   );

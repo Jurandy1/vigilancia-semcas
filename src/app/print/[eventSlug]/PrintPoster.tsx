@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import QRCode from "qrcode";
+import { SemcasBrand } from "@/components/branding/SemcasBrand";
 
 interface PrintPosterProps {
   event: { title: string; slug: string };
@@ -19,14 +19,7 @@ export function PrintPoster({ event, appUrl }: PrintPosterProps) {
   return (
     <main className="min-h-screen bg-white flex flex-col items-center justify-center p-12 print:p-8">
       <div className="max-w-md w-full text-center space-y-8">
-        <Image
-          src="/images/logo-prefeitura-saoluis.jpg"
-          alt="Prefeitura de São Luís"
-          width={280}
-          height={90}
-          className="mx-auto"
-          priority
-        />
+        <SemcasBrand variant="poster" className="mx-auto" />
 
         <div>
           <h1 className="text-xl font-bold uppercase leading-relaxed tracking-wide">

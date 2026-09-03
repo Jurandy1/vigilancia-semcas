@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SemcasBrand } from "@/components/branding/SemcasBrand";
 
 interface RoundReport {
   round: { id: string; title: string };
@@ -71,14 +71,7 @@ export default function EventReportPrintPage() {
   return (
     <main className="min-h-screen bg-white p-10 print:p-6 max-w-3xl mx-auto">
       <header className="text-center mb-10 print:mb-6">
-        <Image
-          src="/images/logo-prefeitura-saoluis.jpg"
-          alt="Prefeitura de São Luís"
-          width={220}
-          height={71}
-          className="mx-auto mb-4"
-          priority
-        />
+        <SemcasBrand variant="poster" className="mx-auto mb-4" />
         <h1 className="text-xl font-bold">{eventTitle}</h1>
         <p className="text-sm text-gray-500 mt-1">Relatório consolidado do evento</p>
       </header>
