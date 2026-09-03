@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SemcasHeader } from "@/components/participant/SemcasLogo";
-import { Button } from "@/components/ui/button";
+import { ParticipantShell } from "@/components/participant/ParticipantShell";
 import { useAppCheck } from "@/hooks/use-app-check";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
@@ -65,12 +64,13 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-6 max-w-md mx-auto space-y-4">
-        <Skeleton className="h-14 w-14 mx-auto rounded-full" />
-        <Skeleton className="h-6 w-3/4 mx-auto" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </main>
+      <ParticipantShell eventTitle={event.title}>
+        <div className="p-6 space-y-4">
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      </ParticipantShell>
     );
   }
 
@@ -82,43 +82,50 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
   const isDevMock = process.env.NEXT_PUBLIC_USE_DEV_MOCK === "true";
 
   return (
-    <main className="min-h-screen p-6 max-w-md mx-auto">
-      {isDevMock && (
-        <div className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 text-center">
-          Modo desenvolvimento local — dados simulados
+    <ParticipantShell eventTitle={event.title}>
+      <section aria-label="Entrada" className="flex-1 flex flex-col p-6">
+        {isDevMock && (
+          <div className="mb-4 rounded-md bg-[#fdf5e3] border border-[#f0dfae] px-3 py-2 text-xs text-[#8a5a00]">
+            Modo desenvolvimento local — dados simulados
+          </div>
+        )}
+        <h2 className="m-0 text-xl font-bold leading-snug text-pretty text-[#1a1a1a]">
+          {event.title}
+        </h2>
+        <p className="mt-3.5 mb-0 text-[15px] text-[#5b6b7f]">Como deseja participar?</p>
+
+        <div className="flex flex-col gap-3 mt-5">
+          <button
+            type="button"
+            onClick={() => router.push(`/e/${event.slug}/participar?mode=identified`)}
+            className="text-left bg-white border border-[#c9d4e2] rounded-lg p-4 min-h-16 hover:border-[#0b3a6e] hover:bg-[#f7f9fc]"
+          >
+            <span className="block text-base font-semibold text-[#1a1a1a]">
+              Responder com identificação
+            </span>
+            <span className="block text-[13px] text-[#5b6b7f] mt-1">
+              Informarei meu nome completo
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/e/${event.slug}/participar?mode=anonymous`)}
+            className="text-left bg-white border border-[#c9d4e2] rounded-lg p-4 min-h-16 hover:border-[#0b3a6e] hover:bg-[#f7f9fc]"
+          >
+            <span className="block text-base font-semibold text-[#1a1a1a]">
+              Responder anonimamente
+            </span>
+            <span className="block text-[13px] text-[#5b6b7f] mt-1">
+              Meu nome não será coletado
+            </span>
+          </button>
         </div>
-      )}
-      <SemcasHeader title={event.title} />
 
-      <p className="text-center text-sm text-muted-foreground mb-8">
-        Como deseja participar?
-      </p>
-
-      <div className="space-y-3">
-        <Button
-          variant="outline"
-          size="xl"
-          className="h-auto py-4 flex flex-col items-start text-left"
-          onClick={() => router.push(`/e/${event.slug}/participar?mode=identified`)}
-        >
-          <span className="font-semibold">Responder com identificação</span>
-          <span className="text-xs text-muted-foreground font-normal mt-1">
-            Informarei meu nome completo
-          </span>
-        </Button>
-
-        <Button
-          variant="outline"
-          size="xl"
-          className="h-auto py-4 flex flex-col items-start text-left"
-          onClick={() => router.push(`/e/${event.slug}/participar?mode=anonymous`)}
-        >
-          <span className="font-semibold">Responder anonimamente</span>
-          <span className="text-xs text-muted-foreground font-normal mt-1">
-            Meu nome não será coletado
-          </span>
-        </Button>
-      </div>
-    </main>
+        <p className="mt-auto mb-0 pt-6 text-xs text-[#8a97a8] leading-relaxed">
+          Você entrou pelo QR Code do evento — não é preciso código nem cadastro. As respostas só
+          são enviadas quando você confirmar.
+        </p>
+      </section>
+    </ParticipantShell>
   );
 }

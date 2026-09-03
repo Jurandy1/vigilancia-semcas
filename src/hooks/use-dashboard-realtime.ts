@@ -11,6 +11,13 @@ interface DashboardEvent {
   status: string;
   openedAt: string | null;
   participantCount: number;
+  sequenceId: string | null;
+  sequenceOrder: number | null;
+  sequenceSize: number | null;
+  sequenceRootSlug: string | null;
+  nextEventId: string | null;
+  nextEventTitle: string | null;
+  nextEventSlug: string | null;
 }
 
 interface TimelinePoint {
@@ -41,6 +48,7 @@ export function useDashboardRealtime(eventId: string | null) {
     Array<{ roundId: string; status: string; completedAt: number | null }>
   >([]);
   const [loading, setLoading] = useState(true);
+  const [eventParticipantCount, setEventParticipantCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -55,6 +63,13 @@ export function useDashboardRealtime(eventId: string | null) {
         status: d.status,
         openedAt: d.openedAt?.toDate?.()?.toISOString?.() ?? null,
         participantCount: d.participantCount ?? 0,
+        sequenceId: d.sequenceId ?? null,
+        sequenceOrder: d.sequenceOrder ?? null,
+        sequenceSize: d.sequenceSize ?? null,
+        sequenceRootSlug: d.sequenceRootSlug ?? null,
+        nextEventId: d.nextEventId ?? null,
+        nextEventTitle: d.nextEventTitle ?? null,
+        nextEventSlug: d.nextEventSlug ?? null,
       });
       setLoading(false);
     });
@@ -85,10 +100,20 @@ export function useDashboardRealtime(eventId: string | null) {
       );
     });
 
+    const unsubEventParticipants = onSnapshot(
+      collection(db, `publicStats/${eventId}/participantShards`),
+      (snap) => {
+        setEventParticipantCount(
+          snap.docs.reduce((total, shard) => total + (shard.data().count ?? 0), 0)
+        );
+      }
+    );
+
     return () => {
       unsubEvent();
       unsubRounds();
       unsubPr();
+      unsubEventParticipants();
     };
   }, [eventId]);
 
@@ -133,5 +158,9 @@ export function useDashboardRealtime(eventId: string | null) {
     });
   }
 
-  return { event, rounds, stats, timeline, loading };
+  const resolvedEvent = event
+    ? { ...event, participantCount: eventParticipantCount ?? event.participantCount }
+    : null;
+
+  return { event: resolvedEvent, rounds, stats, timeline, loading };
 }

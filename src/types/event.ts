@@ -21,6 +21,14 @@ export interface Event {
   closedAt: string | null;
   accessCodeHash?: string | null;
   accessCodeExpiresAt?: string | null;
+  sequenceId?: string | null;
+  sequenceOrder?: number | null;
+  sequenceSize?: number | null;
+  sequenceRootEventId?: string | null;
+  sequenceRootSlug?: string | null;
+  nextEventId?: string | null;
+  nextEventTitle?: string | null;
+  nextEventSlug?: string | null;
 }
 
 export interface PublicEvent {
@@ -39,4 +47,10 @@ export interface PublicEvent {
     rotationSeconds: number;
   } | null;
   updatedAt: string;
+  sequenceId?: string | null;
+  sequenceOrder?: number | null;
+  sequenceSize?: number | null;
+  sequenceRootSlug?: string | null;
+  nextEventId?: string | null;
+  nextEventTitle?: string | null;
 }

@@ -8,6 +8,7 @@ import { getParticipantRoundId, getSubmissionId } from "@/lib/sessions/tokens";
 import { getShardId, getShardPath } from "@/lib/counters/shard";
 import { writeAuditLog } from "@/lib/firebase/helpers";
 import type { Question } from "@/types/round";
+import { findOtherOption } from "@/lib/questions/other-option";
 
 import { getEventIdFromSlug } from "@/lib/data/events";
 import { shouldUseMockData } from "@/lib/dev/config";
@@ -22,7 +23,7 @@ export const runtime = "nodejs";
 
 function validateAnswers(
   questions: Question[],
-  answers: { questionId: string; type: string; value: string | string[] }[]
+  answers: { questionId: string; type: string; value: string | string[]; otherText?: string }[]
 ) {
   const errors: string[] = [];
   const answerMap = new Map(answers.map((a) => [a.questionId, a]));
@@ -38,6 +39,19 @@ function validateAnswers(
       continue;
     }
     if (!answer || isEmpty) continue;
+
+    const otherOption = findOtherOption(q.options);
+    const selectedOther = otherOption
+      ? Array.isArray(answer.value)
+        ? answer.value.includes(otherOption)
+        : answer.value === otherOption
+      : false;
+    if (selectedOther && !answer.otherText?.trim()) {
+      errors.push(`Informe qual é a outra opção em: ${q.title}`);
+    }
+    if (!selectedOther && answer.otherText) {
+      errors.push(`Detalhamento de “Outro” inválido em: ${q.title}`);
+    }
 
     if (q.type === "single_choice") {
       if (typeof answer.value !== "string" || !q.options?.includes(answer.value)) {

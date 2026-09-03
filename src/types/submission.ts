@@ -5,6 +5,7 @@ export interface Answer {
   questionId: string;
   type: QuestionType;
   value: string | string[];
+  otherText?: string;
 }
 
 export interface Submission {

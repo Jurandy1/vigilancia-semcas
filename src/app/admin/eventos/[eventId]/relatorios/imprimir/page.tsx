@@ -17,6 +17,7 @@ interface RoundReport {
     options?: Array<{ option: string; count: number; percent: string }>;
     allowsMultiple?: boolean;
     answers?: Array<{ displayName: string; value: string }>;
+    otherAnswers?: Array<{ displayName: string; value: string }>;
   }>;
 }
 
@@ -116,6 +117,16 @@ export default function EventReportPrintPage() {
                       ))}
                     </tbody>
                   </table>
+                  {q.otherAnswers && q.otherAnswers.length > 0 && (
+                    <div className="mt-2 space-y-1 text-xs text-gray-600">
+                      <p className="font-semibold text-gray-700">Detalhes informados em “Outro”:</p>
+                      {q.otherAnswers.map((answer, index) => (
+                        <p key={index}>
+                          <span className="font-medium">{answer.displayName}:</span> {answer.value}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
 

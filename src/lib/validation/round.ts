@@ -9,6 +9,7 @@ export const questionSchema = z.object({
   order: z.number().int().min(1),
   type: z.enum(["single_choice", "multi_choice", "text"]),
   title: z.string().trim().min(3).max(500),
+  explanation: z.string().trim().max(1000).optional().nullable(),
   required: z.boolean().default(true),
   options: z.array(z.string().trim().min(1).max(200)).optional(),
   maxLength: z.number().int().min(1).max(5000).optional(),

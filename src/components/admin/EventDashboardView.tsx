@@ -1,24 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Users, CheckCircle2, RefreshCw, Monitor, QrCode } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { DashboardErrorBoundary } from "@/components/admin/DashboardErrorBoundary";
-import { LineChart } from "@/components/admin/LineChart";
 import { EventQrDialog } from "@/components/admin/EventQrDialog";
 import { resolveDashboardState, type DashboardRound } from "@/lib/admin/dashboard-state";
+import { Button } from "@/components/ui/button";
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  CheckCircle2,
+  Layers3,
+  ListChecks,
+  MonitorUp,
+  QrCode,
+  UsersRound,
+} from "lucide-react";
 
 interface DashboardViewProps {
   eventId: string;
@@ -28,299 +25,248 @@ interface DashboardViewProps {
     status: string;
     openedAt: string | null;
     participantCount: number;
+    sequenceId?: string | null;
+    sequenceOrder?: number | null;
+    sequenceSize?: number | null;
+    sequenceRootSlug?: string | null;
+    nextEventTitle?: string | null;
   };
   stats: { registered: number; answering: number; completed: number };
-  timeline: Array<{ time: string; count: number }>;
   rounds: DashboardRound[];
   onOpenEvent: () => void;
-  onCloseRound: () => void;
-  onOpenNextRound: () => void;
-  onFinalizeEvent: () => void;
   actionLoading: boolean;
 }
 
-function formatTime(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
 const eventStatusLabel: Record<string, { label: string; className: string }> = {
-  open: { label: "Em andamento", className: "bg-green-100 text-green-700" },
-  waiting: { label: "Aguardando início", className: "bg-gray-100 text-gray-600" },
-  draft: { label: "Rascunho", className: "bg-gray-100 text-gray-600" },
-  closed: { label: "Encerrado", className: "bg-gray-100 text-gray-500" },
+  open: { label: "Em andamento", className: "text-[#1a7f4b]" },
+  waiting: { label: "Aguardando início", className: "text-[#5b6b7f]" },
+  draft: { label: "Rascunho", className: "text-[#5b6b7f]" },
+  closed: { label: "Encerrado", className: "text-[#5b6b7f]" },
 };
-
-type PendingAction = "close_round" | "next_round" | "finalize_event" | null;
 
 export function EventDashboardView({
   eventId,
   event,
   stats,
-  timeline,
   rounds,
   onOpenEvent,
-  onCloseRound,
-  onOpenNextRound,
-  onFinalizeEvent,
   actionLoading,
 }: DashboardViewProps) {
-  const [pending, setPending] = useState<PendingAction>(null);
-
   const dashboardState = resolveDashboardState(event.status, rounds);
-  const { currentRound, nextRound, lastClosedRound } = dashboardState;
-
+  const { currentRound } = dashboardState;
+  const statusInfo = eventStatusLabel[event.status] ?? eventStatusLabel.draft!;
   const total = event.participantCount;
   const completed = stats.completed;
-  const answering = Math.max(0, stats.answering);
-
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   const openedTime = event.openedAt
     ? new Date(event.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-    : "—";
-  const statusInfo = eventStatusLabel[event.status] ?? eventStatusLabel.draft;
+    : null;
 
-  function confirm() {
-    if (pending === "close_round") onCloseRound();
-    if (pending === "next_round") onOpenNextRound();
-    if (pending === "finalize_event") onFinalizeEvent();
-    setPending(null);
-  }
+  const openCount = rounds.filter((r) => r.status === "open").length;
+  const closedCount = rounds.filter((r) => r.status === "closed").length;
+  const draftCount = rounds.filter((r) => r.status === "draft" || r.status === "waiting").length;
+
+  const roundLabel = currentRound
+    ? `${String(currentRound.order).padStart(2, "0")} · ${currentRound.title}`
+    : dashboardState.case === "event_waiting"
+      ? "Evento ainda não iniciado"
+      : dashboardState.case === "no_rounds_yet"
+        ? "Nenhuma rodada criada"
+        : "Nenhuma rodada em andamento";
 
   return (
-    <AdminShell eventId={eventId} eventSlug={event.slug} eventTitle={event.title} eventStatus={event.status}>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h1>
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.className}`}>
-            {statusInfo.label}
-          </span>
-          {event.openedAt && <span className="text-gray-500">Iniciado às {openedTime}</span>}
+    <AdminShell
+      eventId={eventId}
+      eventSlug={event.slug}
+      eventTitle={event.title}
+      eventStatus={event.status}
+      screenLabel="Visão geral"
+    >
+      <section aria-label="Visão geral do evento" className="w-full max-w-[1180px]">
+        <div className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="mb-2 mt-0 text-xs font-bold uppercase tracking-[0.12em] text-[#18754a]">
+              Visão geral
+            </p>
+            <h1 className="admin-page-title m-0 max-w-[34ch] text-pretty">
+              {event.title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2.5 text-sm text-[#64748b]">
+              <span className={`inline-flex items-center gap-2 rounded-full border border-[#dbe4ef] bg-white px-3 py-1 font-semibold shadow-sm ${statusInfo.className}`}>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    event.status === "open" ? "bg-[#1a7f4b]" : "bg-[#8a97a8]"
+                  }`}
+                />
+                {statusInfo.label}
+              </span>
+              {openedTime && <span>Iniciado às {openedTime}</span>}
+              {event.sequenceId && event.sequenceOrder !== null && event.sequenceOrder !== undefined && (
+                <span>Evento {event.sequenceOrder + 1} de {event.sequenceSize}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button asChild variant="outline" className="h-11 w-full gap-2 rounded-xl border-[#b9c9d9] bg-white px-5 text-sm font-semibold text-[#0b4a83] sm:w-auto">
+              <Link href={`/admin/eventos/${eventId}/perguntas`}>
+                <ListChecks className="h-4 w-4" /> Editar perguntas
+              </Link>
+            </Button>
+            <Button asChild className="h-11 w-full shrink-0 gap-2 rounded-xl px-5 text-sm font-semibold shadow-sm sm:w-auto">
+              <Link href={`/admin/eventos/${eventId}/ao-vivo`}>
+                Abrir sessão ao vivo <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {dashboardState.case !== "event_waiting" && dashboardState.case !== "event_closed" && (
-        <>
-          {/* 3 big numbers */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white border border-gray-200 rounded-lg p-5 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-2">
-                <Users className="w-3.5 h-3.5" />
-                Participantes
-              </div>
-              <p className="text-4xl font-bold text-[#0b3a6e]">{total}</p>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-5 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-2">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Responderam
-              </div>
-              <p className="text-4xl font-bold text-green-600">{completed}</p>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-5 text-center">
-              <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-2">
-                <RefreshCw className="w-3.5 h-3.5" />
-                Respondendo
-              </div>
-              <p className="text-4xl font-bold text-orange-500">{answering}</p>
-            </div>
+        {dashboardState.case === "event_waiting" && (
+          <div className="admin-card mb-5 flex flex-col items-start justify-between gap-4 border-l-4 border-l-[#d29a20] p-5 sm:flex-row sm:items-center">
+            <p className="text-sm text-[#5b6b7f] mb-4">Este evento ainda não foi iniciado.</p>
+            <Button onClick={onOpenEvent} disabled={actionLoading}>
+              Iniciar evento
+            </Button>
           </div>
+        )}
 
-          {/* Chart */}
-          <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
-            <h2 className="text-sm font-semibold text-gray-800 mb-4">
-              Respostas recebidas ao longo do tempo
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Participantes", value: stats.registered || total, icon: UsersRound, tone: "text-[#0b4a83] bg-[#e9f2fb]" },
+            { label: "Respondendo agora", value: stats.answering, icon: Activity, tone: "text-[#9a6700] bg-[#fff6dc]" },
+            { label: "Respostas concluídas", value: completed, icon: CheckCircle2, tone: "text-[#18754a] bg-[#e9f7ef]" },
+            { label: "Rodadas criadas", value: rounds.length, icon: Layers3, tone: "text-[#6c4bb4] bg-[#f2edff]" },
+          ].map((item) => (
+            <div key={item.label} className="admin-card flex items-center gap-4 p-4 sm:block sm:p-5">
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.tone}`}>
+                <item.icon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 sm:mt-4">
+                <p className="m-0 text-2xl font-bold leading-none tracking-[-0.02em] text-[#11243c]">{item.value}</p>
+                <p className="mb-0 mt-1.5 text-[13px] text-[#64748b]">{item.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,.6fr)]">
+          <div className="admin-card p-5 sm:p-6">
+            <h2 className="m-0 mb-3.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+              Situação atual
             </h2>
-            <DashboardErrorBoundary label="o gráfico de respostas">
-              <LineChart
-                points={timeline.map((t) => ({ label: formatTime(t.time), value: t.count }))}
-                maxValue={total}
+            <p className="m-0 text-[12.5px] text-[#5b6b7f]">Rodada atual</p>
+            <p className="mt-1 mb-0 text-xl font-semibold leading-snug text-[#11243c]">{roundLabel}</p>
+            <p className="mt-3.5 mb-2 text-sm text-[#33415c]">
+              <strong className="text-base">{completed}</strong> de {total} respostas ·{" "}
+              <strong className="font-semibold">{percent}%</strong>
+            </p>
+            <div
+              role="img"
+              aria-label={`${percent}% das respostas recebidas`}
+              className="h-2.5 bg-[#edf2f7] rounded-full overflow-hidden"
+            >
+              <div
+                className="h-full bg-[linear-gradient(90deg,#0b4a83,#18754a)] rounded-full transition-all duration-500"
+                style={{ width: `${percent}%` }}
               />
-            </DashboardErrorBoundary>
-          </div>
-        </>
-      )}
-
-      {/* Round / action block */}
-      <DashboardErrorBoundary label="o estado da rodada">
-        <div className="bg-white border border-gray-200 rounded-lg p-5 mb-6">
-          {dashboardState.case === "event_waiting" && (
-            <div className="text-center py-6">
-              <p className="text-sm text-gray-500 mb-4">Este evento ainda não foi iniciado.</p>
-              <Button onClick={onOpenEvent} disabled={actionLoading}>
-                Iniciar evento
-              </Button>
             </div>
-          )}
-
-          {dashboardState.case === "event_closed" && (
-            <div className="text-center py-6">
-              <p className="text-sm text-gray-500">Este evento foi encerrado.</p>
+            <div className="mt-[18px] pt-4 border-t border-[#eef1f5] flex items-center justify-between gap-3 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 text-[12.5px] text-[#5b6b7f]">
+                <span className="w-[7px] h-[7px] rounded-full bg-[#1a7f4b] animate-pulse" />
+                Atualização em tempo real
+              </span>
               <Link
-                href={`/admin/eventos/${eventId}/relatorios`}
-                className="text-sm text-[#0b3a6e] hover:underline mt-2 inline-block"
+                href={`/admin/eventos/${eventId}/ao-vivo`}
+                className="inline-flex items-center h-9 px-3.5 text-[13.5px] font-semibold text-[#0b3a6e] bg-white border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9] hover:border-[#0b3a6e]"
               >
-                Ver relatório
+                Acompanhar ao vivo
               </Link>
             </div>
-          )}
+          </div>
 
-          {dashboardState.case === "no_rounds_yet" && (
-            <div className="text-center py-6">
-              <p className="text-sm text-gray-500 mb-4">Nenhuma rodada criada ainda.</p>
-              <Button asChild>
-                <Link href={`/admin/eventos/${eventId}/rodadas/nova`}>Criar primeira rodada</Link>
-              </Button>
-            </div>
-          )}
-
-          {dashboardState.case === "round_open" && currentRound && (
-            <div>
-              <h2 className="text-sm font-semibold text-gray-800 mb-1">Rodada atual</h2>
-              <p className="text-base font-medium text-gray-900 mb-1">{currentRound.title}</p>
-              <p className="text-xs text-gray-500 mb-4">
-                {currentRound.submissionCount} de {total} responderam
+          <div className="flex flex-col gap-5 min-w-0">
+            <div className="admin-card p-5">
+              <h2 className="m-0 mb-3 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+                Participação
+              </h2>
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-[32px] font-bold text-[#0b3a6e] leading-none">{total}</span>
+                <span className="text-[13.5px] text-[#5b6b7f]">participantes no evento</span>
+              </div>
+              <p className="mt-3 mb-0 text-[12.5px] text-[#8a97a8] leading-relaxed">
+                O modo de participação (identificado ou anônimo) é definido nas configurações do
+                evento.
               </p>
-              <Button
-                variant="destructive"
-                onClick={() => setPending("close_round")}
-                disabled={actionLoading}
-              >
-                Encerrar rodada
-              </Button>
             </div>
-          )}
 
-          {dashboardState.case === "has_next_round" && nextRound && (
-            <div>
-              {lastClosedRound && (
-                <>
-                  <h2 className="text-sm font-semibold text-gray-800 mb-1">Última rodada</h2>
-                  <p className="text-base font-medium text-gray-900">{lastClosedRound.title}</p>
-                  <p className="text-xs text-gray-500 mb-4">
-                    ✓ Encerrada · {lastClosedRound.submissionCount} respostas
-                  </p>
-                </>
-              )}
-              <h2 className="text-sm font-semibold text-gray-800 mb-1">Próxima rodada</h2>
-              <p className="text-base font-medium text-gray-900 mb-4">{nextRound.title}</p>
-              <div className="flex flex-wrap gap-2">
-                {lastClosedRound && (
-                  <Button asChild variant="outline">
-                    <Link href={`/admin/eventos/${eventId}/rodadas/${lastClosedRound.id}/resultados`}>
-                      Ver relatório
-                    </Link>
-                  </Button>
-                )}
-                <Button onClick={() => setPending("next_round")} disabled={actionLoading}>
-                  Iniciar próxima rodada
-                </Button>
+            <div className="admin-card p-5">
+              <h2 className="m-0 mb-3 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+                Perguntas e rodadas
+              </h2>
+              <div className="flex flex-col gap-2 text-[13.5px] text-[#33415c]">
+                <div className="flex justify-between">
+                  <span>Em andamento</span>
+                  <strong className="font-semibold">{openCount}</strong>
+                </div>
+                <div className="flex justify-between text-[#5b6b7f]">
+                  <span>Concluídas</span>
+                  <strong className="font-semibold">{closedCount}</strong>
+                </div>
+                <div className="flex justify-between text-[#5b6b7f]">
+                  <span>Rascunhos</span>
+                  <strong className="font-semibold">{draftCount}</strong>
+                </div>
               </div>
             </div>
-          )}
+          </div>
+        </div>
 
-          {dashboardState.case === "no_next_round" && (
-            <div>
-              {lastClosedRound && (
-                <>
-                  <h2 className="text-sm font-semibold text-gray-800 mb-1">Última rodada</h2>
-                  <p className="text-base font-medium text-gray-900">{lastClosedRound.title}</p>
-                  <p className="text-xs text-gray-500 mb-4">
-                    ✓ Encerrada · {lastClosedRound.submissionCount} respostas
-                  </p>
-                </>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                {lastClosedRound && (
-                  <Button asChild variant="outline">
-                    <Link href={`/admin/eventos/${eventId}/rodadas/${lastClosedRound.id}/resultados`}>
-                      Ver relatório
-                    </Link>
-                  </Button>
-                )}
-                <Button asChild variant="outline">
-                  <Link href={`/admin/eventos/${eventId}/rodadas/nova`}>+ Criar rodada</Link>
-                </Button>
+        <div className="admin-card mt-5 p-5 sm:p-6">
+          <h2 className="m-0 mb-3.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+            Acesso rápido
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <EventQrDialog
+              eventSlug={event.sequenceRootSlug ?? event.slug}
+              eventTitle={event.title}
+              trigger={
                 <button
-                  onClick={() => setPending("finalize_event")}
-                  disabled={actionLoading}
-                  className="ml-auto text-xs text-gray-400 hover:text-gray-600 hover:underline"
+                  type="button"
+                  className="flex min-h-[62px] w-full items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-left text-sm font-semibold text-[#0b4a83] transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
                 >
-                  Finalizar evento
+                  <QrCode className="h-5 w-5 shrink-0" /> QR e código de acesso
                 </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </DashboardErrorBoundary>
-
-      {/* Projector + QR shortcuts */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
-          <Monitor className="w-8 h-8 text-[#0b3a6e]" />
-          <div className="flex-1">
-            <p className="text-xs font-medium text-gray-700">Tela do projetor</p>
-            <p className="text-[10px] text-gray-400">Exibir no telão do evento</p>
-          </div>
-          <Link
-            href={`/projector/${event.slug}`}
-            target="_blank"
-            className="text-xs bg-[#0b3a6e] text-white px-3 py-1.5 rounded-md hover:bg-[#0b3a6e]/90"
-          >
-            Abrir
-          </Link>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
-          <QrCode className="w-8 h-8 text-[#0b3a6e]" />
-          <div className="flex-1">
-            <p className="text-xs font-medium text-gray-700">Acesso dos participantes</p>
-            <p className="text-[10px] text-gray-400">/e/{event.slug}</p>
-          </div>
-          <EventQrDialog
-            eventSlug={event.slug}
-            eventTitle={event.title}
-            trigger={
-              <button className="text-xs bg-[#0b3a6e] text-white px-3 py-1.5 rounded-md hover:bg-[#0b3a6e]/90">
-                Ver QR
-              </button>
-            }
-          />
-        </div>
-      </div>
-
-      <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pending === "close_round" && "Encerrar rodada?"}
-              {pending === "next_round" && "Iniciar próxima rodada?"}
-              {pending === "finalize_event" && "Finalizar evento?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pending === "close_round" &&
-                "Após o encerramento, novas respostas não serão aceitas."}
-              {pending === "next_round" &&
-                nextRound &&
-                `Próxima rodada: "${nextRound.title}". ${total} participantes do evento estarão aptos a responder.`}
-              {pending === "finalize_event" &&
-                "Todas as rodadas deste evento serão consideradas encerradas. Novas respostas não serão aceitas."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirm}
-              disabled={actionLoading}
-              className={pending === "finalize_event" ? "bg-red-600 hover:bg-red-700" : ""}
+              }
+            />
+            <Link
+              href={`/admin/eventos/${eventId}/perguntas`}
+              className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
             >
-              {pending === "close_round" && "Encerrar rodada"}
-              {pending === "next_round" && "Iniciar"}
-              {pending === "finalize_event" && "Finalizar evento"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <ListChecks className="h-5 w-5 shrink-0" /> Editar perguntas
+            </Link>
+            <Link
+              href={`/projector/${event.slug}`}
+              target="_blank"
+              className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
+            >
+              <MonitorUp className="h-5 w-5 shrink-0" /> Tela do projetor
+            </Link>
+            {currentRound && (
+              <Link
+                href={`/admin/eventos/${eventId}/rodadas/${currentRound.id}/resultados`}
+                className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
+              >
+                <BarChart3 className="h-5 w-5 shrink-0" /> Resultados da rodada
+              </Link>
+            )}
+            <Link
+              href={`/admin/eventos/${eventId}/relatorios`}
+              className="flex min-h-[62px] items-center gap-3 rounded-xl border border-[#dbe4ef] bg-[#f8fafc] px-4 text-sm font-semibold text-[#0b4a83] no-underline transition hover:-translate-y-0.5 hover:border-[#9cb8d4] hover:bg-white hover:shadow-sm"
+            >
+              <BarChart3 className="h-5 w-5 shrink-0" /> Relatório consolidado
+            </Link>
+          </div>
+        </div>
+      </section>
     </AdminShell>
   );
 }

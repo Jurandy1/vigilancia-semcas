@@ -4,16 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { Copy, Check, Download, Printer } from "lucide-react";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
 import { adminFetch } from "@/lib/api-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert } from "@/components/ui/alert";
 import { slugify } from "@/lib/utils/format";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { cn } from "@/lib/utils";
 
 interface CreatedEvent {
   eventId: string;
@@ -41,62 +36,60 @@ function EventCreatedView({ created }: { created: CreatedEvent }) {
 
   return (
     <AdminShell eventId={created.eventId} eventTitle={created.title} eventSlug={created.slug}>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Evento criado</h1>
-        <p className="text-sm text-gray-500 mt-1">{created.title}</p>
-      </div>
+      <section className="max-w-[720px]">
+        <h1 className="m-0 text-[26px] font-bold tracking-[-0.01em]">Evento criado</h1>
+        <p className="mt-1.5 mb-0 text-sm text-[#5b6b7f]">{created.title}</p>
 
-      <div className="max-w-sm bg-white border border-gray-200 rounded-lg p-5">
-        {qrDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={qrDataUrl} alt="QR Code do evento" className="w-52 h-52 mx-auto mb-4" />
-        )}
-
-        <p className="text-xs text-gray-500 mb-1">Link de participação</p>
-        <div className="flex items-center gap-2 mb-4">
-          <code className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 truncate">
-            {eventUrl}
-          </code>
-          <Button size="sm" variant="outline" onClick={copyLink}>
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          </Button>
-        </div>
-
-        <div className="flex gap-2 mb-4">
-          <Button asChild variant="outline" className="flex-1">
-            <a href={qrDataUrl} download={`qrcode-${created.slug}.png`}>
-              <Download className="w-4 h-4" />
-              Baixar QR
-            </a>
-          </Button>
-          <Button asChild variant="outline" className="flex-1">
-            <Link href={`/print/${created.slug}`} target="_blank">
-              <Printer className="w-4 h-4" />
-              Imprimir A4
+        <div className="mt-6 bg-white border border-[#dde4ee] rounded-lg p-[22px]">
+          {qrDataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qrDataUrl} alt="QR Code do evento" className="w-52 h-52 mx-auto mb-4" />
+          )}
+          <p className="m-0 text-[12.5px] font-semibold text-[#33415c]">Link de participação</p>
+          <div className="flex items-center gap-2 mt-2 mb-4">
+            <code className="flex-1 text-xs bg-[#f7f9fc] border border-[#dde4ee] rounded-md px-3 py-2 truncate">
+              {eventUrl}
+            </code>
+            <button
+              type="button"
+              onClick={copyLink}
+              className="h-9 px-3 text-[13px] font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md"
+            >
+              {copied ? "Copiado" : "Copiar"}
+            </button>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Link
+              href={`/admin/eventos/${created.eventId}/rodadas/nova`}
+              className="inline-flex items-center h-10 px-4 text-sm font-semibold bg-[#0b3a6e] text-white rounded-md no-underline"
+            >
+              Criar primeira rodada
             </Link>
-          </Button>
+            <Link
+              href={`/admin/eventos/${created.eventId}/ao-vivo`}
+              className="inline-flex items-center h-10 px-4 text-sm font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md no-underline"
+            >
+              Ir para sessão ao vivo
+            </Link>
+          </div>
         </div>
-
-        <Button asChild className="w-full">
-          <Link href={`/admin/eventos/${created.eventId}/rodadas/nova`}>Criar primeira rodada</Link>
-        </Button>
-      </div>
+      </section>
     </AdminShell>
   );
 }
 
 export default function NovoEventoPage() {
   const router = useRouter();
+  const [step, setStep] = useState(1);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [projectorTitle, setProjectorTitle] = useState("");
+  const [slugOverride, setSlugOverride] = useState("");
   const [isTest, setIsTest] = useState(false);
   const [requireLiveCode, setRequireLiveCode] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<CreatedEvent | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [origin, setOrigin] = useState("");
 
   useEffect(() => {
     const unsub = onAdminAuthChange((user) => {
@@ -109,39 +102,30 @@ export default function NovoEventoPage() {
     return unsub;
   }, [router]);
 
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  const previewSlug = (slugOverride || slugify(title) || "meu-evento").toLowerCase();
 
-  const previewSlug = slugify(title) || "meu-evento";
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function createEvent() {
     setError("");
     setLoading(true);
-
     try {
       const token = await getAdminIdToken();
       if (!token) throw new Error("Não autenticado.");
-
       const res = await adminFetch("/api/admin/events", token, {
         method: "POST",
         body: JSON.stringify({
           title,
-          slug: slugify(title),
+          slug: previewSlug,
           description: description || null,
-          projectorTitle: projectorTitle || null,
+          projectorTitle: null,
           isTest,
           requireLiveCode,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Erro ao criar evento.");
         return;
       }
-
       setCreated({ eventId: data.eventId, slug: data.slug, title });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar evento.");
@@ -150,66 +134,212 @@ export default function NovoEventoPage() {
     }
   }
 
-  if (created) {
-    return <EventCreatedView created={created} />;
+  function next() {
+    setError("");
+    if (step === 1 && title.trim().length < 3) {
+      setError("Informe o nome do evento (mínimo 3 caracteres).");
+      return;
+    }
+    if (step === 4) {
+      void createEvent();
+      return;
+    }
+    setStep((s) => Math.min(4, s + 1));
   }
 
+  function back() {
+    if (step === 1) {
+      router.push("/admin/eventos");
+      return;
+    }
+    setStep((s) => Math.max(1, s - 1));
+  }
+
+  if (created) return <EventCreatedView created={created} />;
+
+  const steps = [
+    { n: 1, label: "Informações" },
+    { n: 2, label: "Participação" },
+    { n: 3, label: "Acesso" },
+    { n: 4, label: "Confirmar" },
+  ];
+
   return (
-    <AdminShell>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Novo evento</h1>
-      </div>
+    <AdminShell screenLabel="Criar evento">
+      <section aria-label="Criar evento" className="max-w-[720px]">
+        <h1 className="m-0 text-[26px] font-bold tracking-[-0.01em]">Criar evento</h1>
+        <p className="mt-1.5 mb-0 text-sm text-[#5b6b7f]">
+          Quatro etapas curtas. As rodadas podem ser criadas depois.
+        </p>
 
-      <div className="max-w-lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Título do evento</Label>
-            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-            <p className="text-xs text-gray-400">
-              Link: {origin}/e/{previewSlug}
-            </p>
+        <ol className="flex gap-2 list-none m-[22px_0_20px] p-0 flex-wrap">
+          {steps.map((st) => (
+            <li
+              key={st.n}
+              className={cn(
+                "h-9 px-3 inline-flex items-center gap-2 rounded-md text-[13px] font-semibold border",
+                step === st.n
+                  ? "bg-[#eef3f9] border-[#0b3a6e] text-[#0b3a6e]"
+                  : step > st.n
+                    ? "bg-white border-[#c3e4d1] text-[#1a7f4b]"
+                    : "bg-white border-[#dde4ee] text-[#8a97a8]"
+              )}
+            >
+              <span className="tabular-nums">{st.n}</span> {st.label}
+            </li>
+          ))}
+        </ol>
+
+        <div className="bg-white border border-[#dde4ee] rounded-lg p-[22px]">
+          {step === 1 && (
+            <>
+              <h2 className="m-0 mb-1 text-base font-semibold">Informações</h2>
+              <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
+                Como o evento será identificado.
+              </p>
+              <label className="block mb-1.5 text-[12.5px] font-semibold text-[#33415c]">
+                Nome do evento
+              </label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ex.: Avaliação do Encontro de Monitoramento"
+                className="w-full h-[42px] border border-[#c9d4e2] rounded-md px-3 text-sm"
+              />
+              <label className="block mt-4 mb-1.5 text-[12.5px] font-semibold text-[#33415c]">
+                Descrição <span className="font-normal text-[#8a97a8]">(opcional)</span>
+              </label>
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full border border-[#c9d4e2] rounded-md px-3 py-2.5 text-sm resize-y"
+              />
+              <label className="mt-4 flex items-center gap-2 text-sm text-[#33415c]">
+                <input
+                  type="checkbox"
+                  checked={isTest}
+                  onChange={(e) => setIsTest(e.target.checked)}
+                  className="w-[18px] h-[18px] accent-[#0b3a6e]"
+                />
+                Evento de teste
+              </label>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <h2 className="m-0 mb-1 text-base font-semibold">Participação</h2>
+              <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
+                Como as pessoas se apresentam ao responder.
+              </p>
+              <div className="flex flex-col gap-2.5">
+                <div className="border border-[#0b3a6e] bg-[#eef3f9] rounded-md p-3.5">
+                  <p className="m-0 text-sm font-semibold">Permitir identificada e anônima</p>
+                  <p className="mt-1.5 mb-0 text-[13px] text-[#5b6b7f]">
+                    O participante escolhe na entrada. Comportamento padrão do sistema.
+                  </p>
+                </div>
+                <div className="border border-[#dde4ee] rounded-md p-3.5 opacity-60">
+                  <p className="m-0 text-sm font-semibold text-[#33415c]">Somente identificada</p>
+                  <p className="mt-1.5 mb-0 text-[13px] text-[#5b6b7f]">
+                    Exige nome completo de todos. (em breve)
+                  </p>
+                </div>
+                <div className="border border-[#dde4ee] rounded-md p-3.5 opacity-60">
+                  <p className="m-0 text-sm font-semibold text-[#33415c]">Somente anônima</p>
+                  <p className="mt-1.5 mb-0 text-[13px] text-[#5b6b7f]">
+                    Nenhum nome é coletado. (em breve)
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <h2 className="m-0 mb-1 text-base font-semibold">Acesso</h2>
+              <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">
+                O link e o QR Code são gerados a partir do endereço do evento.
+              </p>
+              <label className="block mb-1.5 text-[12.5px] font-semibold text-[#33415c]">
+                Endereço do evento
+              </label>
+              <div className="flex items-center border border-[#c9d4e2] rounded-md overflow-hidden">
+                <span className="px-2.5 h-[42px] inline-flex items-center bg-[#f7f9fc] border-r border-[#dde4ee] text-[13px] text-[#8a97a8] whitespace-nowrap">
+                  /e/
+                </span>
+                <input
+                  value={slugOverride || slugify(title)}
+                  onChange={(e) => setSlugOverride(slugify(e.target.value))}
+                  placeholder="monitoramento-2026"
+                  className="flex-1 min-w-0 h-[42px] border-0 px-3 text-sm outline-none"
+                />
+              </div>
+              <p className="mt-[18px] mb-0 text-[12.5px] text-[#8a97a8] leading-relaxed">
+                Os participantes entram pelo QR Code ou pelo link.
+              </p>
+              <label className="mt-4 flex items-center gap-2 text-sm text-[#33415c]">
+                <input
+                  type="checkbox"
+                  checked={requireLiveCode}
+                  onChange={(e) => setRequireLiveCode(e.target.checked)}
+                  className="w-[18px] h-[18px] accent-[#0b3a6e]"
+                />
+                Exigir código temporário no projetor
+              </label>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <h2 className="m-0 mb-1 text-base font-semibold">Confirmar</h2>
+              <p className="m-0 mb-[18px] text-[13px] text-[#8a97a8]">Revise antes de criar.</p>
+              <div className="border border-[#dde4ee] rounded-md p-4 space-y-2 text-[13px] text-[#5b6b7f]">
+                <p className="m-0">
+                  <strong className="text-[#33415c]">Nome:</strong> {title}
+                </p>
+                <p className="m-0">
+                  <strong className="text-[#33415c]">Link:</strong> /e/{previewSlug}
+                </p>
+                <p className="m-0">
+                  Status inicial: <strong className="text-[#33415c]">Aguardando</strong>, sem
+                  rodadas.
+                </p>
+                {isTest && (
+                  <p className="m-0">
+                    Selo: <strong className="text-[#8a5a00]">Evento de teste</strong>
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+
+          {error && (
+            <div className="mt-4 text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-between gap-2.5 mt-[22px] pt-[18px] border-t border-[#eef1f5] flex-wrap">
+            <button
+              type="button"
+              onClick={back}
+              className="h-10 px-4 text-sm font-semibold text-[#33415c] border border-[#c9d4e2] rounded-md hover:bg-[#f4f6f9]"
+            >
+              {step === 1 ? "Cancelar" : "Voltar"}
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              disabled={loading || !authReady}
+              className="h-10 px-[18px] text-sm font-semibold bg-[#0b3a6e] text-white rounded-md hover:bg-[#0d4a8a] disabled:opacity-60"
+            >
+              {loading ? "Criando..." : step === 4 ? "Criar evento" : "Continuar"}
+            </button>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="projectorTitle">Título para o projetor</Label>
-            <Input
-              id="projectorTitle"
-              value={projectorTitle}
-              onChange={(e) => setProjectorTitle(e.target.value)}
-              placeholder="Usa o título do evento se ficar em branco"
-            />
-          </div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isTest} onChange={(e) => setIsTest(e.target.checked)} />
-            Evento de teste
-          </label>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={requireLiveCode}
-              onChange={(e) => setRequireLiveCode(e.target.checked)}
-            />
-            Exigir código temporário para entrar
-          </label>
-
-          {error && <Alert variant="destructive">{error}</Alert>}
-
-          <Button type="submit" disabled={loading || !authReady}>
-            {loading ? "Salvando..." : "Criar evento"}
-          </Button>
-        </form>
-      </div>
+        </div>
+      </section>
     </AdminShell>
   );
 }

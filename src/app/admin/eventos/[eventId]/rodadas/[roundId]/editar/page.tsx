@@ -4,16 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
 import { adminFetch } from "@/lib/api-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   QuestionEditorList,
-  QuestionPreviewDialog,
   validateQuestions,
   type QuestionDraft,
 } from "@/components/admin/QuestionEditor";
@@ -32,7 +26,6 @@ export default function EditarRodadaPage() {
   const [loadingRound, setLoadingRound] = useState(true);
   const [editable, setEditable] = useState(true);
   const [event, setEvent] = useState<{ title: string; slug: string } | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -57,10 +50,12 @@ export default function EditarRodadaPage() {
         (roundData.questions as Array<Record<string, unknown>>).map((q) => ({
           id: q.id as string,
           title: q.title as string,
+          explanation: (q.explanation as string | null) ?? "",
           type: q.type as QuestionDraft["type"],
           options: (q.options as string[] | null) ?? [],
           required: (q.required as boolean) ?? true,
           maxSelections: (q.maxSelections as number | null) ?? undefined,
+          maxLength: (q.maxLength as number | null) ?? undefined,
         }))
       );
       setEditable(roundData.editable);
@@ -76,19 +71,15 @@ export default function EditarRodadaPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-
     const validationError = validateQuestions(questions);
     if (validationError) {
       setError(validationError);
       return;
     }
-
     setLoading(true);
-
     try {
       const token = await getAdminIdToken();
       if (!token) throw new Error("Não autenticado.");
-
       const res = await adminFetch(`/api/admin/events/${eventId}/rounds/${roundId}`, token, {
         method: "PATCH",
         body: JSON.stringify({
@@ -99,22 +90,21 @@ export default function EditarRodadaPage() {
             order: i + 1,
             type: q.type,
             title: q.title,
+            explanation: q.explanation?.trim() || null,
             required: q.required,
             options: q.type !== "text" ? q.options.map((o) => o.trim()).filter(Boolean) : undefined,
-            maxLength: q.type === "text" ? 2000 : undefined,
+            maxLength: q.type === "text" ? q.maxLength ?? 2000 : undefined,
             maxSelections:
               q.type === "multi_choice" && q.maxSelections ? q.maxSelections : undefined,
           })),
         }),
       });
-
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Erro ao salvar rodada.");
         return;
       }
-
-      router.push(`/admin/eventos/${eventId}/rodadas`);
+      router.push(`/admin/eventos/${eventId}/perguntas`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar rodada.");
     } finally {
@@ -124,7 +114,7 @@ export default function EditarRodadaPage() {
 
   if (loadingRound) {
     return (
-      <AdminShell eventId={eventId}>
+      <AdminShell eventId={eventId} screenLabel="Editar perguntas">
         <div className="space-y-4">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-48 w-full" />
@@ -134,54 +124,52 @@ export default function EditarRodadaPage() {
   }
 
   return (
-    <AdminShell eventId={eventId} eventTitle={event?.title} eventSlug={event?.slug}>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Editar rodada</h1>
-        <QuestionPreviewDialog
-          questions={questions}
-          open={previewOpen}
-          onOpenChange={setPreviewOpen}
-          trigger={
-            <Button type="button" variant="outline" size="sm">
-              Visualizar como participante
-            </Button>
-          }
-        />
-      </div>
+    <AdminShell
+      eventId={eventId}
+      eventTitle={event?.title}
+      eventSlug={event?.slug}
+      screenLabel="Editar perguntas"
+    >
+      <form onSubmit={handleSubmit} className="max-w-[1320px]">
+        <div className="flex items-start justify-between gap-5 flex-wrap mb-5">
+          <div className="min-w-0">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              disabled={!editable}
+              className="m-0 w-full max-w-xl text-2xl font-bold tracking-[-0.01em] text-[#1a1a1a] bg-transparent border-0 outline-none disabled:opacity-60"
+            />
+            <p className="mt-1.5 mb-0 text-[13.5px] text-[#5b6b7f]">
+              {questions.length} perguntas ·{" "}
+              {editable
+                ? "alterações são salvas ao clicar em Salvar rodada"
+                : "rodada bloqueada após receber respostas"}
+            </p>
+          </div>
+          <button
+            type="submit"
+            disabled={loading || !editable}
+            className="h-10 px-[18px] text-sm font-semibold bg-[#0b3a6e] text-white rounded-md hover:bg-[#0d4a8a] disabled:opacity-60"
+          >
+            {loading ? "Salvando..." : "Salvar rodada"}
+          </button>
+        </div>
 
-      {!editable && (
-        <Alert className="max-w-2xl mb-4">
-          Esta rodada já recebeu respostas e não pode mais ser editada. Os campos abaixo estão bloqueados.
-        </Alert>
-      )}
+        {!editable && (
+          <div className="mb-4 text-sm text-[#8a5a00] bg-[#fdf5e3] border border-[#f0dfae] rounded-md px-3 py-2">
+            Esta rodada já recebeu respostas e não pode mais ser editada.
+          </div>
+        )}
 
-      <div className="max-w-2xl">
-        <fieldset disabled={!editable} className="space-y-6 disabled:opacity-60">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="title">Título</Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-            </div>
+        {error && (
+          <div className="mb-4 text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2">
+            {error}
+          </div>
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-
-            <QuestionEditorList questions={questions} onChange={setQuestions} />
-
-            {error && <Alert variant="destructive">{error}</Alert>}
-
-            <Button type="submit" disabled={loading || !editable}>
-              {loading ? "Salvando..." : "Salvar alterações"}
-            </Button>
-          </form>
-        </fieldset>
-      </div>
+        <QuestionEditorList questions={questions} onChange={setQuestions} disabled={!editable} />
+      </form>
     </AdminShell>
   );
 }

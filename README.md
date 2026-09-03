@@ -60,7 +60,7 @@ npm run dev
 | `npm run typecheck` | Verificação TypeScript |
 | `npm run test` | Testes unitários |
 | `npm run seed` | Cria evento de teste |
-| `npm run load-test` | Simula 100 participantes (somente isTest) |
+| `npm run load-test` | Cria um cenário isolado, simula 200 votantes e remove os dados ao terminar |
 | `npm run set-admin` | Define custom claim admin |
 
 ## Rotas principais

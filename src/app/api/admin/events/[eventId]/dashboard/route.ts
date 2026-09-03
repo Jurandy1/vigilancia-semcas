@@ -32,6 +32,14 @@ export async function GET(
     participantCount: eventData.participantCount ?? 0,
     openedAt: eventData.openedAt ? toIsoString(eventData.openedAt) : null,
     createdAt: toIsoString(eventData.createdAt),
+    sequenceId: eventData.sequenceId ?? null,
+    sequenceOrder: eventData.sequenceOrder ?? null,
+    sequenceSize: eventData.sequenceSize ?? null,
+    sequenceRootEventId: eventData.sequenceRootEventId ?? null,
+    sequenceRootSlug: eventData.sequenceRootSlug ?? null,
+    nextEventId: eventData.nextEventId ?? null,
+    nextEventTitle: eventData.nextEventTitle ?? null,
+    nextEventSlug: eventData.nextEventSlug ?? null,
   };
 
   let participantRoundsQuery = db.collection(`events/${eventId}/participantRounds`);
@@ -57,6 +65,8 @@ export async function GET(
         ? db.collection(`events/${eventId}/submissions`).where("roundId", "==", roundId).get()
         : Promise.resolve(null),
     ]);
+
+  event.participantCount = participantsSnap.size;
 
   const questionCount = roundDoc?.data()?.questionCount ?? 0;
 

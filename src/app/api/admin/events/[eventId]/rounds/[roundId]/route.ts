@@ -98,6 +98,7 @@ export async function PATCH(
         order: q.order ?? index + 1,
         type: q.type,
         title: q.title,
+        explanation: q.explanation ?? null,
         required: q.required ?? true,
         options: q.options ?? null,
         maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),

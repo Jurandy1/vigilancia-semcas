@@ -15,10 +15,11 @@ interface Participant {
   status: string;
   currentQuestion: number;
   questionCount: number;
+  lastActivityAt?: string | null;
 }
 
 interface DashboardData {
-  event: { title: string; slug: string; participantCount: number };
+  event: { title: string; slug: string; participantCount: number; status?: string };
   participants: Participant[];
 }
 
@@ -61,34 +62,44 @@ export default function EventParticipantsPage() {
 
   if (!data) {
     return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
+      <AdminShell eventId={eventId} screenLabel="Participantes">
+        <div className="space-y-4 max-w-[1000px]">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </AdminShell>
     );
   }
 
   return (
-    <AdminShell eventId={eventId} eventSlug={data.event.slug} eventTitle={data.event.title}>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Participantes</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {data.event.title} · {data.event.participantCount} participantes
+    <AdminShell
+      eventId={eventId}
+      eventSlug={data.event.slug}
+      eventTitle={data.event.title}
+      eventStatus={data.event.status}
+      screenLabel="Participantes"
+    >
+      <section aria-label="Participantes" className="max-w-[1000px]">
+        <h1 className="m-0 text-[26px] font-bold tracking-[-0.01em] text-[#1a1a1a]">
+          Participantes
+        </h1>
+        <p className="mt-1.5 mb-0 text-sm text-[#5b6b7f]">
+          {data.event.participantCount} participantes no evento · atualiza a cada 5 segundos
         </p>
-      </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-5">
-        {loadError ? (
-          <div className="text-sm text-gray-500">
-            Falha ao carregar esta informação.{" "}
-            <button onClick={load} className="text-[#0b3a6e] hover:underline">
-              Tentar novamente
-            </button>
-          </div>
-        ) : (
-          <LiveParticipantList participants={data.participants} />
-        )}
-      </div>
+        <div className="mt-5">
+          {loadError ? (
+            <div className="text-sm text-[#5b6b7f] bg-white border border-[#dde4ee] rounded-lg p-5">
+              Falha ao carregar esta informação.{" "}
+              <button onClick={load} className="text-[#0b3a6e] hover:underline font-semibold">
+                Tentar novamente
+              </button>
+            </div>
+          ) : (
+            <LiveParticipantList participants={data.participants} />
+          )}
+        </div>
+      </section>
     </AdminShell>
   );
 }

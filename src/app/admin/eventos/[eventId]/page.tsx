@@ -16,9 +16,7 @@ export default function EventDashboardPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { event, rounds, stats, timeline, loading } = useDashboardRealtime(
-    authReady ? eventId : null
-  );
+  const { event, rounds, stats, loading } = useDashboardRealtime(authReady ? eventId : null);
 
   useEffect(() => {
     const unsub = onAdminAuthChange((user) => {
@@ -31,21 +29,17 @@ export default function EventDashboardPage() {
     return unsub;
   }, [router]);
 
-  async function runAction(path: string) {
+  async function handleOpenEvent() {
     setActionLoading(true);
     setActionError(null);
     try {
       const token = await getAdminIdToken();
       if (!token) return;
-      const res = await adminFetch(`/api/admin/events/${eventId}${path}`, token, {
-        method: "POST",
-      });
+      const res = await adminFetch(`/api/admin/events/${eventId}/open`, token, { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
         setActionError(json.error ?? "Não foi possível concluir esta operação. Tente novamente.");
       }
-      // Nenhum recarregamento manual necessário — os listeners do Firestore
-      // já refletem a mudança assim que o servidor grava o novo estado.
     } catch {
       setActionError("Não foi possível concluir esta operação. Tente novamente.");
     } finally {
@@ -53,34 +47,14 @@ export default function EventDashboardPage() {
     }
   }
 
-  async function handleOpenEvent() {
-    await runAction("/open");
-  }
-
-  async function handleCloseRound() {
-    const openRoundId = rounds.find((r) => r.status === "open")?.id;
-    if (!openRoundId) return;
-    await runAction(`/rounds/${openRoundId}/close`);
-  }
-
-  async function handleOpenNextRound() {
-    await runAction("/rounds/next/open");
-  }
-
-  async function handleFinalizeEvent() {
-    await runAction("/close");
-  }
-
   if (loading || !event) {
     return (
-      <div className="min-h-screen bg-[#f4f6f9] p-6 space-y-4">
+      <div className="min-h-screen bg-[#eaeef4] p-6 space-y-4">
         <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-28" />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-40" />
+          <Skeleton className="h-40" />
         </div>
-        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -88,7 +62,7 @@ export default function EventDashboardPage() {
   return (
     <>
       {actionError && (
-        <div className="fixed top-4 right-4 z-50 max-w-sm bg-red-50 border border-red-200 text-red-700 text-sm rounded-md px-4 py-3 shadow-lg">
+        <div className="fixed top-4 right-4 z-50 max-w-sm bg-[#fdf2f1] border border-[#e3b3ad] text-[#b42318] text-sm rounded-md px-4 py-3">
           {actionError}
         </div>
       )}
@@ -96,12 +70,8 @@ export default function EventDashboardPage() {
         eventId={eventId}
         event={event}
         stats={stats}
-        timeline={timeline}
         rounds={rounds}
         onOpenEvent={handleOpenEvent}
-        onCloseRound={handleCloseRound}
-        onOpenNextRound={handleOpenNextRound}
-        onFinalizeEvent={handleFinalizeEvent}
         actionLoading={actionLoading}
       />
     </>

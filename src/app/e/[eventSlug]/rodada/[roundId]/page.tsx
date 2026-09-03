@@ -2,13 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { SemcasHeader } from "@/components/participant/SemcasLogo";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Alert } from "@/components/ui/alert";
+import {
+  ParticipantOptionButton,
+  ParticipantShell,
+} from "@/components/participant/ParticipantShell";
 import { useAppCheck } from "@/hooks/use-app-check";
 import { apiFetch } from "@/lib/api-client";
 import {
@@ -17,6 +14,7 @@ import {
 } from "@/stores/participant-store";
 import type { Question } from "@/types/round";
 import { Skeleton } from "@/components/ui/skeleton";
+import { findOtherOption, getOtherDraftKey } from "@/lib/questions/other-option";
 
 export default function RoundPage() {
   useAppCheck();
@@ -102,6 +100,10 @@ export default function RoundPage() {
   function handleAnswer(value: string) {
     if (!currentQuestion) return;
     saveDraftAnswer(roundId, currentQuestion.id, value);
+    const otherOption = findOtherOption(currentQuestion.options);
+    if (otherOption && value !== otherOption) {
+      saveDraftAnswer(roundId, getOtherDraftKey(currentQuestion.id), "");
+    }
   }
 
   function toggleMultiChoice(option: string) {
@@ -122,6 +124,10 @@ export default function RoundPage() {
       ? selected.filter((o) => o !== option)
       : [...selected, option];
     saveDraftAnswer(roundId, currentQuestion.id, JSON.stringify(next));
+    const otherOption = findOtherOption(currentQuestion.options);
+    if (option === otherOption && selected.includes(option)) {
+      saveDraftAnswer(roundId, getOtherDraftKey(currentQuestion.id), "");
+    }
   }
 
   function handleContinue() {
@@ -133,6 +139,19 @@ export default function RoundPage() {
         : !answer?.trim();
     if (currentQuestion.required && isEmpty) {
       setError("Esta pergunta é obrigatória.");
+      return;
+    }
+    const otherOption = findOtherOption(currentQuestion.options);
+    const selectedOther = otherOption
+      ? currentQuestion.type === "multi_choice"
+        ? Boolean(answer && (JSON.parse(answer) as string[]).includes(otherOption))
+        : answer === otherOption
+      : false;
+    if (
+      selectedOther &&
+      !draft[getOtherDraftKey(currentQuestion.id)]?.trim()
+    ) {
+      setError("Escreva qual é a outra opção antes de continuar.");
       return;
     }
     setError("");
@@ -196,55 +215,116 @@ export default function RoundPage() {
     }
   }
 
+  function formatAnswer(q: Question) {
+    const raw = draft[q.id];
+    if (!raw) return "—";
+    if (q.type === "multi_choice") {
+      try {
+        const value = (JSON.parse(raw) as string[]).join(", ") || "—";
+        const detail = draft[getOtherDraftKey(q.id)]?.trim();
+        return detail ? `${value} — ${detail}` : value;
+      } catch {
+        return raw;
+      }
+    }
+    const detail = draft[getOtherDraftKey(q.id)]?.trim();
+    return detail ? `${raw} — ${detail}` : raw;
+  }
+
   if (loading) {
     return (
-      <main className="min-h-screen p-6 max-w-md mx-auto space-y-4">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-2 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </main>
+      <ParticipantShell>
+        <div className="p-6 space-y-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-2 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </ParticipantShell>
     );
   }
 
   if (error && !currentQuestion) {
     return (
-      <main className="min-h-screen p-6 max-w-md mx-auto text-center">
-        <Alert variant="destructive" className="mb-4">{error}</Alert>
-        <Button onClick={() => router.push(`/e/${eventSlug}/aguarde`)}>Voltar</Button>
-      </main>
+      <ParticipantShell>
+        <div className="p-6 text-center">
+          <div
+            role="alert"
+            className="mb-4 border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+          >
+            {error}
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push(`/e/${eventSlug}/aguarde`)}
+            className="h-12 px-5 bg-[#0b3a6e] text-white rounded-lg font-semibold"
+          >
+            Voltar
+          </button>
+        </div>
+      </ParticipantShell>
     );
   }
 
   if (showReview) {
     return (
-      <main className="min-h-screen p-6 max-w-md mx-auto">
-        <SemcasHeader />
-        <div className="text-center mb-8">
-          <div className="text-3xl text-accent mb-3">✓</div>
-          <h2 className="text-lg font-semibold">Revisar e enviar</h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            Você respondeu {totalQuestions} perguntas. Após o envio, não será possível alterar.
-          </p>
-        </div>
-
-        {error && <Alert variant="destructive" className="mb-4">{error}</Alert>}
-        {offline && (
-          <Alert className="mb-4">Sem conexão. Suas respostas continuam salvas neste aparelho.</Alert>
-        )}
-
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleBack} disabled={submissionState === "submitting"}>
-            VOLTAR
-          </Button>
-          <Button
-            className="flex-1"
-            onClick={handleSubmit}
-            disabled={submissionState === "submitting"}
-          >
-            {submissionState === "submitting" ? "ENVIANDO..." : "ENVIAR"}
-          </Button>
-        </div>
-      </main>
+      <ParticipantShell>
+        <section aria-label="Revisão" className="flex-1 flex flex-col min-h-0">
+          <div className="px-5 pt-[22px]">
+            <h2 className="m-0 text-xl font-bold text-[#1a1a1a]">Revisar e enviar</h2>
+            <p className="mt-2.5 mb-0 text-sm text-[#5b6b7f] leading-relaxed">
+              Você respondeu {totalQuestions} perguntas. Após o envio, não será possível alterar.
+            </p>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-[18px]">
+            {questions.map((q, idx) => (
+              <div key={q.id} className="py-3 border-b border-[#f2f5f8]">
+                <p className="m-0 text-[12.5px] text-[#8a97a8]">
+                  {idx + 1} ·{" "}
+                  {q.type === "text"
+                    ? "Aberta"
+                    : q.type === "multi_choice"
+                      ? "Múltipla"
+                      : "Única"}
+                </p>
+                <p className="mt-1 mb-0 text-sm text-[#33415c] leading-snug text-pretty">
+                  {q.title}
+                </p>
+                <p className="mt-1.5 mb-0 text-[15px] font-semibold text-[#0b3a6e] leading-snug">
+                  {formatAnswer(q)}
+                </p>
+              </div>
+            ))}
+          </div>
+          {(error || offline) && (
+            <div className="px-5 pb-2">
+              <div
+                role="alert"
+                className="border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+              >
+                {error || "Sem conexão. Suas respostas continuam salvas neste aparelho."}
+              </div>
+            </div>
+          )}
+          <div className="shrink-0 border-t border-[#eef1f5] px-5 py-3.5 flex gap-2.5 bg-white">
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={submissionState === "submitting"}
+              className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9] disabled:opacity-60"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submissionState === "submitting"}
+              className="flex-1 h-[52px] bg-[#0b3a6e] text-white border border-[#0b3a6e] rounded-lg text-base font-semibold hover:bg-[#0d4a8a] disabled:opacity-60"
+            >
+              {submissionState === "submitting" ? "Enviando..." : "Enviar respostas"}
+            </button>
+          </div>
+        </section>
+      </ParticipantShell>
     );
   }
 
@@ -255,88 +335,159 @@ export default function RoundPage() {
     currentQuestion.type === "multi_choice" && currentAnswer
       ? (JSON.parse(currentAnswer) as string[])
       : [];
+  const otherOption = findOtherOption(currentQuestion.options);
+  const otherSelected = otherOption
+    ? currentQuestion.type === "multi_choice"
+      ? selectedOptions.includes(otherOption)
+      : currentAnswer === otherOption
+    : false;
+  const otherText = draft[getOtherDraftKey(currentQuestion.id)] ?? "";
 
   return (
-    <main className="min-h-screen p-6 max-w-md mx-auto flex flex-col">
-      <div className="mb-6">
-        <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-4">SEMCAS</p>
-        <p className="text-sm text-muted-foreground mb-2">
-          Pergunta {currentIndex + 1} de {totalQuestions}
-        </p>
-        <Progress value={progressPercent} className="mb-6" />
-        <h2 className="text-lg font-semibold leading-snug">{currentQuestion.title}</h2>
-      </div>
+    <ParticipantShell>
+      <section aria-label="Pergunta" className="flex-1 flex flex-col min-h-0">
+        <div className="px-5 pt-[18px]">
+          <div className="flex items-center justify-between gap-2.5">
+            <p className="m-0 text-[13px] font-semibold text-[#5b6b7f]">
+              Pergunta {currentIndex + 1} de {totalQuestions}
+            </p>
+          </div>
+          <div
+            role="img"
+            aria-label={`Progresso: pergunta ${currentIndex + 1} de ${totalQuestions}`}
+            className="h-1.5 bg-[#eef1f5] rounded overflow-hidden mt-2.5"
+          >
+            <div
+              className="h-full bg-[#0b3a6e] rounded transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <h2 className="mt-[18px] mb-0 text-xl font-bold leading-snug text-pretty text-[#1a1a1a]">
+            {currentQuestion.title}
+          </h2>
+          {currentQuestion.explanation && (
+            <div className="mt-4 rounded-xl border border-[#cfe0ef] bg-[#f0f7fc] px-4 py-3 text-sm leading-relaxed text-[#365b7a]">
+              <span className="mb-1 block text-xs font-bold uppercase tracking-[0.08em] text-[#0b4a83]">
+                Entenda a decisão
+              </span>
+              {currentQuestion.explanation}
+            </div>
+          )}
+        </div>
 
-      <div className="flex-1 mb-8">
-        {currentQuestion.type === "single_choice" && (
-          <RadioGroup value={currentAnswer} onValueChange={handleAnswer}>
-            {currentQuestion.options?.map((option) => (
-              <div
-                key={option}
-                className="flex items-center space-x-3 border border-border rounded-md px-4 py-3 cursor-pointer hover:bg-muted/50"
-              >
-                <RadioGroupItem value={option} id={option} />
-                <Label htmlFor={option} className="flex-1 cursor-pointer font-normal">
-                  {option}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-        )}
-
-        {currentQuestion.type === "multi_choice" && (
-          <div className="space-y-2">
-            {currentQuestion.options?.map((option) => {
-              const checked = selectedOptions.includes(option);
-              return (
-                <label
+        <div className="flex-1 overflow-y-auto px-5 py-[18px]">
+          {currentQuestion.type === "single_choice" && (
+            <div role="radiogroup" aria-label={currentQuestion.title} className="flex flex-col gap-2.5">
+              {currentQuestion.options?.map((option) => (
+                <ParticipantOptionButton
                   key={option}
-                  htmlFor={option}
-                  className="flex items-center space-x-3 border border-border rounded-md px-4 py-3 cursor-pointer hover:bg-muted/50"
-                >
-                  <input
-                    type="checkbox"
-                    id={option}
-                    checked={checked}
-                    onChange={() => toggleMultiChoice(option)}
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  label={option}
+                  selected={currentAnswer === option}
+                  onClick={() => handleAnswer(option)}
+                />
+              ))}
+            </div>
+          )}
+
+          {currentQuestion.type === "multi_choice" && (
+            <div>
+              <div
+                role="group"
+                aria-label={currentQuestion.title}
+                className="flex flex-col gap-2.5"
+              >
+                {currentQuestion.options?.map((option) => (
+                  <ParticipantOptionButton
+                    key={option}
+                    label={option}
+                    multi
+                    role="checkbox"
+                    selected={selectedOptions.includes(option)}
+                    onClick={() => toggleMultiChoice(option)}
                   />
-                  <span className="flex-1 font-normal">{option}</span>
-                </label>
-              );
-            })}
-            {currentQuestion.maxSelections && (
-              <p className="text-xs text-muted-foreground">
-                Selecione até {currentQuestion.maxSelections} opções.
+                ))}
+              </div>
+              {currentQuestion.maxSelections && (
+                <p className="mt-3 mb-0 text-[12.5px] text-[#5b6b7f]">
+                  Selecione até {currentQuestion.maxSelections} opções.
+                </p>
+              )}
+            </div>
+          )}
+
+          {otherSelected && (
+            <div className="mt-4 rounded-xl border border-[#b9d5ed] bg-[#f3f8fc] p-4">
+              <label
+                htmlFor={`other-${currentQuestion.id}`}
+                className="mb-2 block text-sm font-semibold text-[#244c70]"
+              >
+                Qual é a outra opção?
+              </label>
+              <input
+                id={`other-${currentQuestion.id}`}
+                value={otherText}
+                onChange={(event) =>
+                  saveDraftAnswer(
+                    roundId,
+                    getOtherDraftKey(currentQuestion.id),
+                    event.target.value
+                  )
+                }
+                maxLength={500}
+                autoFocus
+                placeholder="Escreva aqui..."
+                className="h-12 w-full rounded-lg border border-[#9fb8cf] bg-white px-3.5 text-base text-[#1a1a1a] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0b3a6e] focus-visible:outline-offset-2"
+              />
+              <p className="mb-0 mt-2 text-xs text-[#64748b]">Até 500 caracteres.</p>
+            </div>
+          )}
+
+          {currentQuestion.type === "text" && (
+            <>
+              <textarea
+                value={currentAnswer}
+                onChange={(e) => handleAnswer(e.target.value)}
+                placeholder="Digite sua resposta..."
+                aria-label={currentQuestion.title}
+                maxLength={currentQuestion.maxLength ?? 2000}
+                rows={7}
+                className="w-full border border-[#c9d4e2] rounded-lg p-3.5 text-base leading-relaxed resize-y text-[#1a1a1a] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0b3a6e] focus-visible:outline-offset-2"
+              />
+              <p className="mt-2 mb-0 text-xs text-[#8a97a8]">
+                Até {currentQuestion.maxLength ?? 2000} caracteres.
               </p>
-            )}
+            </>
+          )}
+        </div>
+
+        {(error || offline) && (
+          <div className="px-5 pb-2">
+            <div
+              role="alert"
+              className="border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+            >
+              {error || "Sem conexão. Suas respostas continuam salvas neste aparelho."}
+            </div>
           </div>
         )}
 
-        {currentQuestion.type === "text" && (
-          <Textarea
-            value={currentAnswer}
-            onChange={(e) => handleAnswer(e.target.value)}
-            placeholder="Digite sua resposta..."
-            maxLength={currentQuestion.maxLength ?? 2000}
-            rows={5}
-          />
-        )}
-      </div>
-
-      {error && <Alert variant="destructive" className="mb-4">{error}</Alert>}
-      {offline && (
-        <Alert className="mb-4">Sem conexão. Suas respostas continuam salvas neste aparelho.</Alert>
-      )}
-
-      <div className="flex gap-3 mt-auto">
-        <Button variant="outline" onClick={handleBack}>
-          VOLTAR
-        </Button>
-        <Button className="flex-1" onClick={handleContinue}>
-          CONTINUAR
-        </Button>
-      </div>
-    </main>
+        <div className="shrink-0 border-t border-[#eef1f5] px-5 py-3.5 flex gap-2.5 bg-white">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9]"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            onClick={handleContinue}
+            className="flex-1 h-[52px] bg-[#0b3a6e] text-white border border-[#0b3a6e] rounded-lg text-base font-semibold hover:bg-[#0d4a8a]"
+          >
+            Continuar
+          </button>
+        </div>
+      </section>
+    </ParticipantShell>
   );
 }

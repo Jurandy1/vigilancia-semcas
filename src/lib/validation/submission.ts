@@ -7,6 +7,7 @@ export const answerSchema = z.object({
     z.string().trim().min(1).max(5000),
     z.array(z.string().trim().min(1).max(200)).min(1).max(50),
   ]),
+  otherText: z.string().trim().min(1).max(500).optional(),
 });
 
 export const progressSchema = z.object({

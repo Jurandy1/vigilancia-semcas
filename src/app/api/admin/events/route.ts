@@ -19,8 +19,9 @@ export async function GET(request: NextRequest) {
     snapshot.docs.map(async (doc) => {
       const d = doc.data();
 
-      const [submissionsCount, currentRoundDoc] = await Promise.all([
+      const [submissionsCount, participantsCount, currentRoundDoc] = await Promise.all([
         db.collection(`events/${doc.id}/submissions`).count().get(),
+        db.collection(`events/${doc.id}/participants`).count().get(),
         d.currentOpenRoundId
           ? db.doc(`events/${doc.id}/rounds/${d.currentOpenRoundId}`).get()
           : Promise.resolve(null),
@@ -33,10 +34,18 @@ export async function GET(request: NextRequest) {
         status: d.status,
         isTest: d.isTest,
         order: d.order ?? 0,
-        participantCount: d.participantCount ?? 0,
+        participantCount: participantsCount.data().count,
         submissionCount: submissionsCount.data().count,
         currentRoundTitle: currentRoundDoc?.exists ? (currentRoundDoc.data()!.title as string) : null,
         createdAt: d.createdAt ? toIsoString(d.createdAt) : null,
+        sequenceId: d.sequenceId ?? null,
+        sequenceOrder: d.sequenceOrder ?? null,
+        sequenceSize: d.sequenceSize ?? null,
+        sequenceRootEventId: d.sequenceRootEventId ?? null,
+        sequenceRootSlug: d.sequenceRootSlug ?? null,
+        nextEventId: d.nextEventId ?? null,
+        nextEventTitle: d.nextEventTitle ?? null,
+        nextEventSlug: d.nextEventSlug ?? null,
       };
     })
   );
@@ -89,6 +98,14 @@ export async function POST(request: NextRequest) {
       closedAt: null,
       accessCodeHash: null,
       accessCodeExpiresAt: null,
+      sequenceId: null,
+      sequenceOrder: null,
+      sequenceSize: null,
+      sequenceRootEventId: null,
+      sequenceRootSlug: null,
+      nextEventId: null,
+      nextEventTitle: null,
+      nextEventSlug: null,
     });
 
     tx.set(db.doc(`publicEvents/${eventRef.id}`), {
@@ -103,6 +120,14 @@ export async function POST(request: NextRequest) {
       currentRoundTitle: null,
       currentRoundStatus: null,
       accessChallenge: null,
+      sequenceId: null,
+      sequenceOrder: null,
+      sequenceSize: null,
+      sequenceRootEventId: null,
+      sequenceRootSlug: null,
+      nextEventId: null,
+      nextEventTitle: null,
+      nextEventSlug: null,
       updatedAt: now,
     });
   });

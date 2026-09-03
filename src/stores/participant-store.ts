@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import type { ParticipantMode } from "@/types/participant";
 import type { Answer } from "@/types/submission";
 import type { ConnectionState } from "@/types/index";
+import { findOtherOption, getOtherDraftKey } from "@/lib/questions/other-option";
 
 interface DraftState {
   [roundId: string]: {
@@ -96,14 +97,31 @@ export const useParticipantStore = create<ParticipantStore>()(
 );
 
 export function buildAnswersFromDraft(
-  questions: { id: string; type: "single_choice" | "multi_choice" | "text" }[],
+  questions: {
+    id: string;
+    type: "single_choice" | "multi_choice" | "text";
+    options?: string[];
+  }[],
   draft: Record<string, string>
 ): Answer[] {
   return questions
     .filter((q) => draft[q.id])
-    .map((q) => ({
-      questionId: q.id,
-      type: q.type,
-      value: q.type === "multi_choice" ? (JSON.parse(draft[q.id]!) as string[]) : draft[q.id]!,
-    }));
+    .map((q) => {
+      const value =
+        q.type === "multi_choice" ? (JSON.parse(draft[q.id]!) as string[]) : draft[q.id]!;
+      const otherOption = findOtherOption(q.options);
+      const selectedOther = otherOption
+        ? Array.isArray(value)
+          ? value.includes(otherOption)
+          : value === otherOption
+        : false;
+      const otherText = selectedOther ? draft[getOtherDraftKey(q.id)]?.trim() : undefined;
+
+      return {
+        questionId: q.id,
+        type: q.type,
+        value,
+        ...(otherText ? { otherText } : {}),
+      };
+    });
 }

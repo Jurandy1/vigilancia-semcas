@@ -19,12 +19,11 @@ export async function GET(
   const db = getAdminDb();
 
   // Independent reads — fire them together instead of awaiting one at a time.
-  const [roundDoc, questionsSnap, submissionsSnap, participantsSnap, eventDoc] = await Promise.all([
+  const [roundDoc, questionsSnap, submissionsSnap, participantsSnap] = await Promise.all([
     db.doc(`events/${eventId}/rounds/${roundId}`).get(),
     db.collection(`events/${eventId}/rounds/${roundId}/questions`).orderBy("order").get(),
     db.collection(`events/${eventId}/submissions`).where("roundId", "==", roundId).get(),
     db.collection(`events/${eventId}/participants`).get(),
-    db.doc(`events/${eventId}`).get(),
   ]);
 
   if (!roundDoc.exists) {
@@ -34,7 +33,7 @@ export async function GET(
   const participantMap = new Map(participantsSnap.docs.map((d) => [d.id, d.data()]));
 
   const totalSubmissions = submissionsSnap.size;
-  const totalParticipants = eventDoc.data()?.participantCount ?? 0;
+  const totalParticipants = participantsSnap.size;
   const submissionDatas = submissionsSnap.docs.map((d) => d.data());
 
   const questions = questionsSnap.docs.map((qDoc) => {
@@ -44,6 +43,7 @@ export async function GET(
       order: q.order,
       type: q.type,
       title: q.title,
+      explanation: q.explanation ?? null,
     };
 
     if (q.type === "single_choice" || q.type === "multi_choice") {
@@ -53,22 +53,41 @@ export async function GET(
         qDoc.id
       );
       questionReport.allowsMultiple = q.type === "multi_choice";
+      questionReport.otherAnswers = submissionsSnap.docs
+        .map((subDoc) => {
+          const submission = subDoc.data();
+          const answer = submission.answers?.find(
+            (item: { questionId: string }) => item.questionId === qDoc.id
+          );
+          if (!answer?.otherText) return null;
+          const participant = participantMap.get(submission.participantId);
+          return {
+            displayName: getParticipantDisplayName({
+              mode: submission.mode,
+              name: participant?.name ?? null,
+            }),
+            value: String(answer.otherText).trim(),
+          };
+        })
+        .filter(Boolean);
     }
 
     if (q.type === "text") {
-      questionReport.answers = submissionsSnap.docs.map((subDoc) => {
-        const p = participantMap.get(subDoc.data().participantId);
-        const answer = subDoc.data().answers?.find(
-          (a: { questionId: string }) => a.questionId === qDoc.id
-        );
-        return {
-          displayName: getParticipantDisplayName({
-            mode: subDoc.data().mode,
-            name: p?.name ?? null,
-          }),
-          value: answer?.value ?? "",
-        };
-      });
+      questionReport.answers = submissionsSnap.docs
+        .map((subDoc) => {
+          const p = participantMap.get(subDoc.data().participantId);
+          const answer = subDoc.data().answers?.find(
+            (a: { questionId: string }) => a.questionId === qDoc.id
+          );
+          return {
+            displayName: getParticipantDisplayName({
+              mode: subDoc.data().mode,
+              name: p?.name ?? null,
+            }),
+            value: typeof answer?.value === "string" ? answer.value.trim() : "",
+          };
+        })
+        .filter((answer) => answer.value.length > 0);
     }
 
     return questionReport;

@@ -2,11 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { SemcasHeader } from "@/components/participant/SemcasLogo";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert } from "@/components/ui/alert";
+import { ParticipantShell } from "@/components/participant/ParticipantShell";
 import { useAppCheck } from "@/hooks/use-app-check";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
@@ -63,65 +59,91 @@ function ParticiparContent() {
 
   if (mode === "anonymous") {
     return (
-      <main className="min-h-screen p-6 max-w-md mx-auto">
-        <SemcasHeader title="Participação anônima" />
-        <p className="text-sm text-muted-foreground text-center mb-8 leading-relaxed">
-          Sua participação será anônima.
-          <br />
-          Seu nome não será solicitado.
-        </p>
-        {error && <Alert variant="destructive" className="mb-4">{error}</Alert>}
-        <Button size="xl" onClick={handleContinue} disabled={loading}>
-          {loading ? "Aguarde..." : "CONTINUAR"}
-        </Button>
-        <button
-          className="block mx-auto mt-4 text-sm text-muted-foreground"
-          onClick={() => router.back()}
-        >
-          ← Voltar
-        </button>
-      </main>
+      <ParticipantShell>
+        <section aria-label="Participação anônima" className="flex-1 flex flex-col p-6">
+          <h2 className="m-0 text-xl font-bold text-[#1a1a1a]">Participação anônima</h2>
+          <p className="mt-4 mb-0 text-[15px] text-[#5b6b7f] leading-relaxed">
+            Sua participação será anônima. Seu nome não será solicitado.
+          </p>
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+            >
+              {error}
+            </div>
+          )}
+          <div className="mt-auto flex gap-2.5">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9]"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={handleContinue}
+              disabled={loading}
+              className="flex-1 h-[52px] bg-[#0b3a6e] text-white border border-[#0b3a6e] rounded-lg text-base font-semibold hover:bg-[#0d4a8a] disabled:opacity-60"
+            >
+              {loading ? "Aguarde..." : "Continuar"}
+            </button>
+          </div>
+        </section>
+      </ParticipantShell>
     );
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-md mx-auto">
-      <SemcasHeader title="Identificação" />
-
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="name">Nome completo</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Seu nome completo"
-            autoComplete="name"
-            autoFocus
-          />
-          <p className="text-xs text-muted-foreground">
-            Seu nome será associado às suas respostas neste evento.
-          </p>
+    <ParticipantShell>
+      <section aria-label="Identificação" className="flex-1 flex flex-col p-6">
+        <h2 className="m-0 text-xl font-bold text-[#1a1a1a]">Identificação</h2>
+        <label
+          htmlFor="semcas-nome"
+          className="block mt-[18px] mb-2 text-sm font-semibold text-[#33415c]"
+        >
+          Nome completo
+        </label>
+        <input
+          id="semcas-nome"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Seu nome completo"
+          autoComplete="name"
+          autoFocus
+          className="w-full h-[52px] border border-[#c9d4e2] rounded-lg px-3.5 text-base outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0b3a6e] focus-visible:outline-offset-2"
+        />
+        <p className="mt-2.5 mb-0 text-[12.5px] text-[#8a97a8] leading-relaxed">
+          Seu nome será associado às suas respostas neste evento.
+        </p>
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 border border-[#e3b3ad] bg-[#fdf2f1] rounded-md px-3 py-2 text-[13.5px] text-[#b42318]"
+          >
+            {error}
+          </div>
+        )}
+        <div className="mt-auto flex gap-2.5">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9]"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={loading || name.trim().length < 2}
+            className="flex-1 h-[52px] bg-[#0b3a6e] text-white border border-[#0b3a6e] rounded-lg text-base font-semibold hover:bg-[#0d4a8a] disabled:opacity-60"
+          >
+            {loading ? "Aguarde..." : "Continuar"}
+          </button>
         </div>
-
-        {error && <Alert variant="destructive">{error}</Alert>}
-
-        <Button
-          size="xl"
-          onClick={handleContinue}
-          disabled={loading || name.trim().length < 2}
-        >
-          {loading ? "Aguarde..." : "CONTINUAR"}
-        </Button>
-
-        <button
-          className="block mx-auto text-sm text-muted-foreground"
-          onClick={() => router.back()}
-        >
-          ← Voltar
-        </button>
-      </div>
-    </main>
+      </section>
+    </ParticipantShell>
   );
 }
 

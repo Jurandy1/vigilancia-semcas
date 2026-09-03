@@ -1,182 +1,261 @@
 /**
- * Load test — somente para eventos isTest === true.
- * Uso: npm run load-test
+ * Teste de carga isolado.
+ * Cria seus próprios dados, simula os votos e remove tudo ao terminar.
  */
 import "./load-env";
+import { performance } from "node:perf_hooks";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminDb } from "../src/lib/firebase/admin";
 import {
   generateSessionToken,
-  hashSessionToken,
-  getSubmissionId,
   getParticipantRoundId,
   getSessionExpiry,
+  getSubmissionId,
+  hashSessionToken,
 } from "../src/lib/sessions/tokens";
-import { getShardId, getShardPath } from "../src/lib/counters/shard";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import {
+  getEventParticipantShardPath,
+  getShardId,
+  getShardPath,
+} from "../src/lib/counters/shard";
+import { NUM_SHARDS } from "../src/types";
 
-const NUM_PARTICIPANTS = 100;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const NUM_PARTICIPANTS = Number(process.env.LOAD_TEST_PARTICIPANTS ?? 200);
+const ANSWER_OPTIONS = ["Aprovo", "Aprovo com ressalvas", "Não aprovo"];
+
+function percentile(values: number[], percent: number) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.min(sorted.length - 1, Math.ceil((percent / 100) * sorted.length) - 1);
+  return sorted[Math.max(0, index)] ?? 0;
+}
 
 async function main() {
+  if (!Number.isInteger(NUM_PARTICIPANTS) || NUM_PARTICIPANTS < 1) {
+    throw new Error("LOAD_TEST_PARTICIPANTS deve ser um número inteiro positivo.");
+  }
+
   const db = getAdminDb();
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const eventRef = db.collection("events").doc(`load-test-${suffix}`);
+  const eventId = eventRef.id;
+  const eventSlug = `load-test-${suffix}`;
+  const publicEventRef = db.collection("publicEvents").doc(eventSlug);
+  const publicStatsRef = db.collection("publicStats").doc(eventId);
+  const roundRef = eventRef.collection("rounds").doc("round-001");
+  const roundId = roundRef.id;
+  const latencies: number[] = [];
+  const startedAt = performance.now();
 
-  const eventsSnap = await db
-    .collection("events")
-    .where("isTest", "==", true)
-    .limit(1)
-    .get();
+  console.log(`Preparando teste isolado com ${NUM_PARTICIPANTS} votantes...`);
 
-  if (eventsSnap.empty) {
-    console.error("Nenhum evento de teste encontrado. Execute npm run seed primeiro.");
-    process.exit(1);
-  }
+  try {
+    const setup = db.batch();
+    const now = Timestamp.now();
+    setup.set(eventRef, {
+      name: "Teste isolado de carga",
+      slug: eventSlug,
+      status: "open",
+      isTest: true,
+      participantCount: 0,
+      currentRoundId: roundId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    setup.set(publicEventRef, {
+      eventId,
+      name: "Teste isolado de carga",
+      slug: eventSlug,
+      status: "open",
+      currentRoundId: roundId,
+      updatedAt: now,
+    });
+    setup.set(roundRef, {
+      title: "Rodada de validação",
+      status: "open",
+      order: 1,
+      questionCount: 3,
+      createdAt: now,
+      updatedAt: now,
+    });
 
-  const eventDoc = eventsSnap.docs[0]!;
-  const eventId = eventDoc.id;
-  const eventData = eventDoc.data();
-
-  const roundsSnap = await db
-    .collection(`events/${eventId}/rounds`)
-    .where("status", "==", "open")
-    .limit(1)
-    .get();
-
-  if (roundsSnap.empty) {
-    console.error("Nenhuma rodada aberta. Abra uma rodada antes do load test.");
-    process.exit(1);
-  }
-
-  const roundId = roundsSnap.docs[0]!.id;
-  const questionsSnap = await db
-    .collection(`events/${eventId}/rounds/${roundId}/questions`)
-    .orderBy("order")
-    .get();
-
-  const questions = questionsSnap.docs.map((d) => ({
-    id: d.id,
-    type: d.data().type as string,
-    options: d.data().options as string[] | undefined,
-  }));
-
-  console.log(`Iniciando load test: ${NUM_PARTICIPANTS} participantes`);
-  console.log(`Evento: ${eventId}, Rodada: ${roundId}`);
-
-  const results = await Promise.allSettled(
-    Array.from({ length: NUM_PARTICIPANTS }, async (_, i) => {
-      const participantRef = db.collection(`events/${eventId}/participants`).doc();
-      const participantId = participantRef.id;
-      const sessionToken = generateSessionToken();
-      const now = Timestamp.now();
-
-      await participantRef.set({
-        eventId,
-        mode: i % 3 === 0 ? "anonymous" : "identified",
-        name: i % 3 === 0 ? null : `Participante ${i + 1}`,
-        sessionTokenHash: hashSessionToken(sessionToken),
-        sessionExpiresAt: Timestamp.fromDate(getSessionExpiry()),
-        createdAt: now,
-        lastActivityAt: now,
+    for (let i = 0; i < 3; i += 1) {
+      setup.set(roundRef.collection("questions").doc(`question-${i + 1}`), {
+        text: `Questão ${i + 1}`,
+        type: "single_choice",
+        options: ANSWER_OPTIONS,
+        order: i + 1,
+        required: true,
       });
+    }
 
-      const answers = questions.map((q) => {
-        if (q.type === "single_choice") {
-          const opts = q.options as string[];
-          return { questionId: q.id, type: q.type, value: opts[i % opts.length] };
-        }
-        return { questionId: q.id, type: q.type, value: `Resposta do participante ${i + 1}` };
+    for (let shardId = 0; shardId < NUM_SHARDS; shardId += 1) {
+      setup.set(db.doc(getShardPath(eventId, roundId, shardId)), {
+        shardId,
+        registered: 0,
+        answering: 0,
+        completed: 0,
+        updatedAt: now,
       });
+    }
+    await setup.commit();
 
-      const submissionId = getSubmissionId(roundId, participantId);
-      const prId = getParticipantRoundId(roundId, participantId);
-      const shardId = getShardId(participantId, roundId);
-      const shardPath = getShardPath(eventId, roundId, shardId);
+    const results = await Promise.allSettled(
+      Array.from({ length: NUM_PARTICIPANTS }, async (_, index) => {
+        const operationStartedAt = performance.now();
+        const participantRef = eventRef.collection("participants").doc();
+        const participantId = participantRef.id;
+        const sessionToken = generateSessionToken();
+        const joinedAt = Timestamp.now();
+        const participantShardId = getShardId(participantId, eventId);
 
-      await db.runTransaction(async (tx) => {
-        const existing = await tx.get(db.doc(`events/${eventId}/submissions/${submissionId}`));
-        if (existing.exists) return;
-
-        tx.set(db.doc(`events/${eventId}/submissions/${submissionId}`), {
-          id: submissionId,
+        const joinBatch = db.batch();
+        joinBatch.set(participantRef, {
           eventId,
-          roundId,
-          participantId,
-          mode: i % 3 === 0 ? "anonymous" : "identified",
-          answers,
-          submittedAt: now,
+          mode: index % 3 === 0 ? "anonymous" : "identified",
+          name: index % 3 === 0 ? null : `Participante ${index + 1}`,
+          sessionTokenHash: hashSessionToken(sessionToken),
+          sessionExpiresAt: Timestamp.fromDate(getSessionExpiry()),
+          createdAt: joinedAt,
+          lastActivityAt: joinedAt,
         });
-
-        tx.set(
-          db.doc(`events/${eventId}/participantRounds/${prId}`),
+        joinBatch.set(
+          db.doc(getEventParticipantShardPath(eventId, participantShardId)),
           {
-            id: prId,
-            eventId,
-            roundId,
-            participantId,
-            status: "completed",
-            currentQuestion: questions.length,
-            startedAt: now,
-            lastActivityAt: now,
-            completedAt: now,
+            count: FieldValue.increment(1),
+            updatedAt: FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
+        await joinBatch.commit();
 
-        const shardRef = db.doc(shardPath);
-        const shardDoc = await tx.get(shardRef);
-        if (!shardDoc.exists) {
-          tx.set(shardRef, {
-            shardId,
-            registered: 1,
-            answering: 0,
-            completed: 1,
-            updatedAt: FieldValue.serverTimestamp(),
+        const submissionId = getSubmissionId(roundId, participantId);
+        const participantRoundId = getParticipantRoundId(roundId, participantId);
+        const roundShardId = getShardId(participantId, roundId);
+        const submissionRef = eventRef.collection("submissions").doc(submissionId);
+        const participantRoundRef = eventRef
+          .collection("participantRounds")
+          .doc(participantRoundId);
+        const roundShardRef = db.doc(getShardPath(eventId, roundId, roundShardId));
+        const submittedAt = Timestamp.now();
+        const answers = Array.from({ length: 3 }, (_, questionIndex) => ({
+          questionId: `question-${questionIndex + 1}`,
+          type: "single_choice",
+          value: ANSWER_OPTIONS[(index + questionIndex) % ANSWER_OPTIONS.length]!,
+        }));
+
+        await db.runTransaction(async (transaction) => {
+          const submissionSnapshot = await transaction.get(submissionRef);
+          const shardSnapshot = await transaction.get(roundShardRef);
+          if (submissionSnapshot.exists) return;
+          if (!shardSnapshot.exists) throw new Error(`Shard ${roundShardId} não inicializado.`);
+
+          transaction.set(submissionRef, {
+            id: submissionId,
+            eventId,
+            roundId,
+            participantId,
+            mode: index % 3 === 0 ? "anonymous" : "identified",
+            answers,
+            submittedAt,
           });
-        } else {
-          tx.update(shardRef, {
+          transaction.set(
+            participantRoundRef,
+            {
+              id: participantRoundId,
+              eventId,
+              roundId,
+              participantId,
+              status: "completed",
+              currentQuestion: answers.length,
+              startedAt: joinedAt,
+              lastActivityAt: submittedAt,
+              completedAt: submittedAt,
+            },
+            { merge: true }
+          );
+          transaction.update(roundShardRef, {
             registered: FieldValue.increment(1),
             completed: FieldValue.increment(1),
             updatedAt: FieldValue.serverTimestamp(),
           });
-        }
-      });
+        });
 
-      return participantId;
-    })
-  );
+        latencies.push(performance.now() - operationStartedAt);
+        return participantId;
+      })
+    );
 
-  const succeeded = results.filter((r) => r.status === "fulfilled").length;
-  const failed = results.filter((r) => r.status === "rejected").length;
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    const participantsCount = (
+      await eventRef.collection("participants").count().get()
+    ).data().count;
+    const submissionsCount = (
+      await eventRef.collection("submissions").count().get()
+    ).data().count;
+    const participantShards = await publicStatsRef.collection("participantShards").get();
+    const roundShards = await publicStatsRef
+      .collection("rounds")
+      .doc(roundId)
+      .collection("shards")
+      .get();
+    const participantShardCount = participantShards.docs.reduce(
+      (sum, document) => sum + Number(document.data().count ?? 0),
+      0
+    );
+    const completedShardCount = roundShards.docs.reduce(
+      (sum, document) => sum + Number(document.data().completed ?? 0),
+      0
+    );
+    const durationMs = performance.now() - startedAt;
 
-  const submissionsSnap = await db
-    .collection(`events/${eventId}/submissions`)
-    .where("roundId", "==", roundId)
-    .count()
-    .get();
+    const summary = {
+      requested: NUM_PARTICIPANTS,
+      succeeded: results.length - failures.length,
+      failed: failures.length,
+      participants: participantsCount,
+      submissions: submissionsCount,
+      participantCounter: participantShardCount,
+      completedCounter: completedShardCount,
+      durationMs: Math.round(durationMs),
+      throughputPerSecond: Number(((results.length - failures.length) / (durationMs / 1000)).toFixed(2)),
+      latencyMs: {
+        p50: Math.round(percentile(latencies, 50)),
+        p95: Math.round(percentile(latencies, 95)),
+        max: Math.round(Math.max(0, ...latencies)),
+      },
+    };
 
-  const shardsSnap = await db
-    .collection(`publicStats/${eventId}/rounds/${roundId}/shards`)
-    .get();
+    console.log(JSON.stringify(summary, null, 2));
+    if (failures.length > 0) {
+      console.error("Primeiras falhas:", failures.slice(0, 5).map((failure) => failure.reason));
+    }
 
-  let shardCompleted = 0;
-  shardsSnap.docs.forEach((d) => {
-    shardCompleted += d.data().completed ?? 0;
-  });
+    const countsAreExact = [
+      participantsCount,
+      submissionsCount,
+      participantShardCount,
+      completedShardCount,
+    ].every((count) => count === NUM_PARTICIPANTS);
+    if (failures.length > 0 || !countsAreExact) {
+      throw new Error("Teste reprovado: houve falha ou divergência nos contadores.");
+    }
 
-  console.log(`\nResultados:`);
-  console.log(`  Sucesso: ${succeeded}`);
-  console.log(`  Falhas: ${failed}`);
-  console.log(`  Submissions no Firestore: ${submissionsSnap.data().count}`);
-  console.log(`  Completed nos shards: ${shardCompleted}`);
-
-  if (submissionsSnap.data().count !== shardCompleted) {
-    console.error("FALHA: contadores divergem das submissions!");
-    process.exit(1);
+    console.log(
+      `Teste aprovado: ${NUM_PARTICIPANTS} votantes processados sem perda ou divergência.`
+    );
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(eventRef),
+      db.recursiveDelete(publicStatsRef),
+      publicEventRef.delete(),
+    ]);
+    console.log("Dados isolados do teste removidos.");
   }
-
-  console.log("Load test concluído com sucesso.");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
 });

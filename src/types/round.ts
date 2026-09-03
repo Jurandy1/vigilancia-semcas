@@ -7,6 +7,7 @@ export interface Question {
   order: number;
   type: QuestionType;
   title: string;
+  explanation?: string | null;
   required: boolean;
   options?: string[];
   maxLength?: number;

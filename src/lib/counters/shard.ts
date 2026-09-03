@@ -10,4 +10,8 @@ export function getShardPath(eventId: string, roundId: string, shardId: number):
   return `publicStats/${eventId}/rounds/${roundId}/shards/${shardId}`;
 }
 
+export function getEventParticipantShardPath(eventId: string, shardId: number): string {
+  return `publicStats/${eventId}/participantShards/${shardId}`;
+}
+
 export type CounterField = "registered" | "answering" | "completed";

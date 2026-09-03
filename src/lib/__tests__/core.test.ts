@@ -3,6 +3,8 @@ import { getShardId } from "@/lib/counters/shard";
 import { getSubmissionId, getParticipantRoundId } from "@/lib/sessions/tokens";
 import { aggregateShardStats } from "@/lib/counters/aggregate";
 import { getParticipantDisplayName } from "@/lib/utils/participant-display";
+import { NUM_SHARDS } from "@/types";
+import { findOtherOption, isOtherOptionLabel } from "@/lib/questions/other-option";
 
 describe("shard", () => {
   it("returns deterministic shard for same participant+round", () => {
@@ -10,7 +12,7 @@ describe("shard", () => {
     const b = getShardId("p1", "r1");
     expect(a).toBe(b);
     expect(a).toBeGreaterThanOrEqual(0);
-    expect(a).toBeLessThan(10);
+    expect(a).toBeLessThan(NUM_SHARDS);
   });
 
   it("returns different shards for different participants", () => {
@@ -47,5 +49,17 @@ describe("participant display", () => {
     expect(getParticipantDisplayName({ mode: "identified", name: "Maria Silva" })).toBe(
       "Maria Silva"
     );
+  });
+});
+
+describe("other option", () => {
+  it("recognizes Portuguese Outro/Outra labels", () => {
+    expect(isOtherOptionLabel("Outros. Qual? __________")).toBe(true);
+    expect(isOtherOptionLabel("Outra periodicidade")).toBe(true);
+    expect(isOtherOptionLabel("Trimestral")).toBe(false);
+  });
+
+  it("finds the option that requires a written detail", () => {
+    expect(findOtherOption(["Mensal", "Outra periodicidade"])).toBe("Outra periodicidade");
   });
 });

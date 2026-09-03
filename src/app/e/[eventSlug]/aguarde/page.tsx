@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { SemcasHeader } from "@/components/participant/SemcasLogo";
-import { Button } from "@/components/ui/button";
+import { ParticipantShell } from "@/components/participant/ParticipantShell";
 import { useAppCheck } from "@/hooks/use-app-check";
 import { usePublicEvent } from "@/hooks/use-public-event";
 import { apiFetch } from "@/lib/api-client";
@@ -60,44 +59,57 @@ export default function AguardePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-6 max-w-md mx-auto space-y-4">
-        <Skeleton className="h-14 w-14 mx-auto" />
-        <Skeleton className="h-6 w-48 mx-auto" />
-      </main>
+      <ParticipantShell eventTitle={publicEvent?.title}>
+        <div className="p-6 space-y-4">
+          <Skeleton className="h-6 w-48 mx-auto" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      </ParticipantShell>
     );
   }
 
   if (newRoundAvailable && newRoundId) {
     return (
-      <main className="min-h-screen p-6 max-w-md mx-auto flex flex-col items-center justify-center text-center">
-        <SemcasHeader title="Nova etapa disponível" />
-        <p className="text-sm text-muted-foreground mb-8">
-          {publicEvent?.currentRoundTitle
-            ? `Uma nova atividade foi aberta: ${publicEvent.currentRoundTitle}`
-            : "Uma nova atividade foi aberta."}
-        </p>
-        <Button
-          size="xl"
-          onClick={() => router.push(`/e/${eventSlug}/rodada/${newRoundId}`)}
-        >
-          RESPONDER AGORA
-        </Button>
-      </main>
+      <ParticipantShell eventTitle={publicEvent?.title}>
+        <section className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8">
+          <h2 className="m-0 text-xl font-bold text-[#1a1a1a]">Nova etapa disponível</h2>
+          <p className="mt-2.5 mb-0 text-[15px] text-[#5b6b7f]">
+            {publicEvent?.currentRoundTitle
+              ? `Uma nova atividade foi aberta: ${publicEvent.currentRoundTitle}`
+              : "Uma nova atividade foi aberta."}
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push(`/e/${eventSlug}/rodada/${newRoundId}`)}
+            className="mt-8 h-[52px] px-6 bg-[#0b3a6e] text-white rounded-lg text-base font-semibold hover:bg-[#0d4a8a]"
+          >
+            Responder agora
+          </button>
+        </section>
+      </ParticipantShell>
     );
   }
 
   return (
-    <main className="min-h-screen p-6 max-w-md mx-auto flex flex-col items-center justify-center text-center">
-      <SemcasHeader />
-      <div className="text-3xl text-accent mb-4">✓</div>
-      <h2 className="text-lg font-semibold mb-2">Resposta enviada</h2>
-      <p className="text-sm text-muted-foreground mb-2">Obrigado pela sua participação.</p>
-      <p className="text-sm text-muted-foreground">Aguarde novas atividades.</p>
-      <div className="mt-8 flex gap-1" aria-hidden="true">
-        <span className="w-2 h-2 rounded-full bg-muted-foreground/30 animate-pulse" />
-        <span className="w-2 h-2 rounded-full bg-muted-foreground/30 animate-pulse delay-100" />
-        <span className="w-2 h-2 rounded-full bg-muted-foreground/30 animate-pulse delay-200" />
-      </div>
-    </main>
+    <ParticipantShell eventTitle={publicEvent?.title}>
+      <section
+        aria-label="Aguardando próxima atividade"
+        className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8"
+      >
+        <span
+          aria-hidden
+          className="w-14 h-14 rounded-full bg-[#eef3f9] border border-[#d6e0ec] text-[#0b3a6e] text-[26px] flex items-center justify-center"
+        >
+          ✓
+        </span>
+        <h2 className="mt-5 mb-0 text-xl font-bold text-[#1a1a1a]">Resposta enviada</h2>
+        <p className="mt-2.5 mb-0 text-[15px] text-[#5b6b7f]">Obrigado pela sua participação.</p>
+        <p className="mt-1.5 mb-0 text-[15px] text-[#5b6b7f]">Aguarde novas atividades.</p>
+        <p className="mt-[26px] mb-0 inline-flex items-center gap-2 text-[13px] text-[#8a97a8]">
+          <span className="w-2 h-2 rounded-full bg-[#8a97a8] animate-pulse" />
+          Esta tela atualiza sozinha quando a próxima rodada abrir
+        </p>
+      </section>
+    </ParticipantShell>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { writeAuditLog } from "@/lib/firebase/helpers";
 import { getParticipantFromRequest } from "@/lib/sessions/verify";
 import { getEventBySlug } from "@/lib/data/events";
+import { getEventParticipantShardPath, getShardId } from "@/lib/counters/shard";
 import { shouldUseMockData } from "@/lib/dev/config";
 import {
   createMockParticipant,
@@ -120,21 +121,30 @@ export async function POST(
     const participantRef = db.collection(`events/${eventId}/participants`).doc();
     const participantId = participantRef.id;
 
-    await db.runTransaction(async (tx) => {
-      tx.set(participantRef, {
-        eventId,
-        mode: parsed.data.mode,
-        name: parsed.data.mode === "identified" ? parsed.data.name?.trim() : null,
-        sessionTokenHash,
-        sessionExpiresAt,
-        createdAt: now,
-        lastActivityAt: now,
-      });
-      tx.update(db.doc(`events/${eventId}`), {
-        participantCount: FieldValue.increment(1),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+    const participantShardId = getShardId(participantId, "event-participants");
+    const participantShardRef = db.doc(
+      getEventParticipantShardPath(eventId, participantShardId)
+    );
+    const batch = db.batch();
+    batch.set(participantRef, {
+      eventId,
+      mode: parsed.data.mode,
+      name: parsed.data.mode === "identified" ? parsed.data.name?.trim() : null,
+      sessionTokenHash,
+      sessionExpiresAt,
+      createdAt: now,
+      lastActivityAt: now,
     });
+    batch.set(
+      participantShardRef,
+      {
+        shardId: participantShardId,
+        count: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    await batch.commit();
 
     await writeAuditLog({
       eventId,

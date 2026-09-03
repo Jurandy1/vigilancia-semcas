@@ -33,6 +33,24 @@ export async function POST(
       };
     }
 
+    const eventData = eventDoc.data()!;
+    if (eventData.sequenceId && (eventData.sequenceOrder ?? 0) > 0) {
+      const sequenceSnap = await tx.get(
+        db.collection("events").where("sequenceId", "==", eventData.sequenceId)
+      );
+      const pendingPrevious = sequenceSnap.docs.some((doc) => {
+        const data = doc.data();
+        return (data.sequenceOrder ?? 0) < eventData.sequenceOrder && data.status !== "closed";
+      });
+      if (pendingPrevious) {
+        return {
+          ok: false as const,
+          status: 409,
+          error: "Este evento faz parte de uma sequência. Inicie e finalize os eventos anteriores primeiro.",
+        };
+      }
+    }
+
     const openEventsSnap = await tx.get(
       db.collection("events").where("status", "==", "open")
     );
