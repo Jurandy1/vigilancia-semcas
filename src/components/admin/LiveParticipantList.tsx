@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
 
 interface Participant {
   id: string;
@@ -18,13 +17,6 @@ const statusLabel: Record<string, string> = {
   answering: "Respondendo",
   completed: "Concluído",
   inactive: "Inativo",
-};
-
-const statusStyle: Record<string, string> = {
-  waiting: "text-[#5b6b7f] bg-[#f4f6f9] border-[#dde4ee]",
-  answering: "text-[#8a5a00] bg-[#fdf5e3] border-[#f0dfae]",
-  completed: "text-[#1a7f4b] bg-[#e8f5ee] border-[#c3e4d1]",
-  inactive: "text-[#8a97a8] bg-[#f4f6f9] border-[#dde4ee]",
 };
 
 interface LiveParticipantListProps {
@@ -147,16 +139,12 @@ export function LiveParticipantList({ participants }: LiveParticipantListProps) 
               {filtered.map((p) => {
                 const isCompleted = p.status === "completed";
                 const isAnswering = p.status === "answering";
-                const isWaiting = p.status === "waiting";
                 
-                let badgeStyle = "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#5b6b7f;background:#f4f6f9;border:1px solid #dde4ee;border-radius:4px;padding:2px 6px;";
                 let dotColor = "#8a97a8";
                 
                 if (isCompleted) {
-                  badgeStyle = "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#1a7f4b;background:#e8f5ee;border:1px solid #c3e4d1;border-radius:4px;padding:2px 6px;";
                   dotColor = "#1a7f4b";
                 } else if (isAnswering) {
-                  badgeStyle = "display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#8a5a00;background:#fdf5e3;border:1px solid #f0dfae;border-radius:4px;padding:2px 6px;";
                   dotColor = "#dba514";
                 }
 

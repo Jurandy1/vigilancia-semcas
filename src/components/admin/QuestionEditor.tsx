@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronUp, ChevronDown, Copy, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Trash2, ChevronUp, ChevronDown, Copy } from "lucide-react";
 import { isOtherOptionLabel } from "@/lib/questions/other-option";
 
 export type QuestionType = "single_choice" | "multi_choice" | "text";
