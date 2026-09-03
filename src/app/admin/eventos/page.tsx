@@ -15,6 +15,7 @@ import {
   Plus,
   Printer,
   QrCode,
+  RotateCcw,
   Settings,
   Star,
   Trash2,
@@ -91,6 +92,7 @@ export default function AdminEventosPage() {
   const [filter, setFilter] = useState<FilterKey>("todos");
   const [closingEvent, setClosingEvent] = useState<EventItem | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<EventItem | null>(null);
+  const [resettingEvent, setResettingEvent] = useState<EventItem | null>(null);
   const [sequenceOpen, setSequenceOpen] = useState(false);
   const [sequenceIds, setSequenceIds] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
@@ -297,6 +299,30 @@ export default function AdminEventosPage() {
     }
   }
 
+  async function confirmResetEvent() {
+    if (!resettingEvent) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch(`/api/admin/events/${resettingEvent.id}/reset`, token, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Não foi possível resetar o evento.");
+        return;
+      }
+      setResettingEvent(null);
+      await load();
+    } catch {
+      setError("Não foi possível resetar o evento.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   const filters: Array<{ key: FilterKey; label: string }> = [
     { key: "todos", label: "Todos" },
     { key: "open", label: "Em andamento" },
@@ -334,11 +360,18 @@ export default function AdminEventosPage() {
             <p style={{ margin: 0, fontSize: "11px", fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#0b4a83" }}>QR Code fixo</p>
             {dailyActiveEvent ? (
               <p style={{ margin: "4px 0 0", fontSize: "13.5px", color: "#244c70" }}>
-                Hoje aponta para <strong>{dailyActiveEvent.title}</strong>. O link e o QR nunca mudam — só troque qual evento está ativo.
+                Hoje começa em <strong>{dailyActiveEvent.title}</strong>
+                {dailyActiveEvent.sequenceSize && dailyActiveEvent.sequenceSize > 1
+                  ? ` (${dailyActiveEvent.sequenceSize} eventos na sequência)`
+                  : ""}
+                . O link e o QR nunca mudam — se essa sequência tiver mais de um evento, ao clicar em
+                &quot;Próximo evento&quot; o link segue sozinho para o seguinte, sem precisar ativar de novo.
               </p>
             ) : (
               <p style={{ margin: "4px 0 0", fontSize: "13.5px", color: "#244c70" }}>
-                Nenhum evento definido. Imprima este QR uma vez e use &quot;Definir como evento do dia&quot; em qualquer evento para ativá-lo.
+                Nenhum evento definido. Imprima este QR uma vez e use &quot;Definir como evento do dia&quot; em
+                qualquer evento (ou no primeiro de uma sequência) para ativá-lo — os demais eventos dessa
+                sequência são seguidos automaticamente conforme você avança com &quot;Próximo evento&quot;.
               </p>
             )}
           </div>
@@ -542,6 +575,14 @@ export default function AdminEventosPage() {
                           <Star className="w-4 h-4" />
                           {event.isDailyActive ? "Remover do QR fixo" : "Definir como evento do dia"}
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setResettingEvent(event)}
+                          className="text-red-600 hover:bg-red-50 focus:bg-red-50"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          Resetar evento
+                        </DropdownMenuItem>
                         {event.status === "open" && (
                           <>
                             <DropdownMenuSeparator />
@@ -610,6 +651,27 @@ export default function AdminEventosPage() {
             <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteEvent} disabled={actionLoading} className="bg-red-600 hover:bg-red-700">
               {actionLoading ? "Excluindo..." : "Excluir definitivamente"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={resettingEvent !== null} onOpenChange={(open) => !open && setResettingEvent(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resetar evento e apagar respostas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso apaga permanentemente os {resettingEvent?.participantCount ?? 0} participante(s) e{" "}
+              {resettingEvent?.submissionCount ?? 0} resposta(s) de “{resettingEvent?.title}”, e volta o
+              evento ao estado inicial (rascunho) — mesmo que já esteja encerrado. As perguntas continuam
+              intactas. Esta ação não pode ser desfeita — use apenas se algo deu errado e o evento precisa
+              ser votado de novo do zero.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetEvent} disabled={actionLoading} className="bg-red-600 hover:bg-red-700">
+              {actionLoading ? "Resetando..." : "Apagar e resetar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
