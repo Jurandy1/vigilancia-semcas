@@ -48,22 +48,24 @@ export function EventQrDialog({ eventSlug, eventTitle, trigger }: EventQrDialogP
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Acesso ao evento</DialogTitle>
-          <DialogDescription>{eventTitle}</DialogDescription>
+          <DialogDescription className="text-pretty">{eventTitle}</DialogDescription>
         </DialogHeader>
 
         {qrDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={qrDataUrl} alt="QR Code do evento" className="w-52 h-52 mx-auto" />
+          <div className="mx-auto w-fit rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrDataUrl} alt="QR Code do evento" className="w-52 h-52" />
+          </div>
         )}
 
         <div className="flex items-center gap-2">
-          <code className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 truncate">
+          <code className="flex-1 min-w-0 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 truncate">
             {eventUrl}
           </code>
-          <Button size="sm" variant="outline" onClick={copyLink}>
+          <Button size="sm" variant="outline" onClick={copyLink} className="shrink-0">
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
           </Button>
         </div>
