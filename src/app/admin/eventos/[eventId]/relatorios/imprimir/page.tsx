@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
+import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
 

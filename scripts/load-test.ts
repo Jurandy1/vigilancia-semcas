@@ -4,21 +4,8 @@
  */
 import "./load-env";
 import { performance } from "node:perf_hooks";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { getAdminDb } from "../src/lib/firebase/admin";
-import {
-  generateSessionToken,
-  getParticipantRoundId,
-  getSessionExpiry,
-  getSubmissionId,
-  hashSessionToken,
-} from "../src/lib/sessions/tokens";
-import {
-  getEventParticipantShardPath,
-  getShardId,
-  getShardPath,
-} from "../src/lib/counters/shard";
-import { NUM_SHARDS } from "../src/types";
+import { getSupabaseAdmin } from "../src/lib/supabase/admin";
+import { generateSessionToken, getSessionExpiry, hashSessionToken } from "../src/lib/sessions/tokens";
 
 const NUM_PARTICIPANTS = Number(process.env.LOAD_TEST_PARTICIPANTS ?? 200);
 const ANSWER_OPTIONS = ["Aprovo", "Aprovo com ressalvas", "Não aprovo"];
@@ -34,190 +21,123 @@ async function main() {
     throw new Error("LOAD_TEST_PARTICIPANTS deve ser um número inteiro positivo.");
   }
 
-  const db = getAdminDb();
+  const supabase = getSupabaseAdmin();
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const eventRef = db.collection("events").doc(`load-test-${suffix}`);
-  const eventId = eventRef.id;
   const eventSlug = `load-test-${suffix}`;
-  const publicEventRef = db.collection("publicEvents").doc(eventSlug);
-  const publicStatsRef = db.collection("publicStats").doc(eventId);
-  const roundRef = eventRef.collection("rounds").doc("round-001");
-  const roundId = roundRef.id;
   const latencies: number[] = [];
   const startedAt = performance.now();
 
   console.log(`Preparando teste isolado com ${NUM_PARTICIPANTS} votantes...`);
 
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .insert({ title: "Teste isolado de carga", slug: eventSlug, status: "open", is_test: true })
+    .select("id")
+    .single();
+  if (eventError || !event) throw eventError;
+  const eventId = event.id as string;
+
   try {
-    const setup = db.batch();
-    const now = Timestamp.now();
-    setup.set(eventRef, {
-      name: "Teste isolado de carga",
-      slug: eventSlug,
-      status: "open",
-      isTest: true,
-      participantCount: 0,
-      currentRoundId: roundId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    setup.set(publicEventRef, {
-      eventId,
-      name: "Teste isolado de carga",
-      slug: eventSlug,
-      status: "open",
-      currentRoundId: roundId,
-      updatedAt: now,
-    });
-    setup.set(roundRef, {
-      title: "Rodada de validação",
-      status: "open",
-      order: 1,
-      questionCount: 3,
-      createdAt: now,
-      updatedAt: now,
-    });
+    const { data: round, error: roundError } = await supabase
+      .from("rounds")
+      .insert({
+        event_id: eventId,
+        title: "Rodada de validação",
+        order: 1,
+        status: "open",
+        question_count: 3,
+      })
+      .select("id")
+      .single();
+    if (roundError || !round) throw roundError;
+    const roundId = round.id as string;
 
-    for (let i = 0; i < 3; i += 1) {
-      setup.set(roundRef.collection("questions").doc(`question-${i + 1}`), {
-        text: `Questão ${i + 1}`,
-        type: "single_choice",
-        options: ANSWER_OPTIONS,
-        order: i + 1,
-        required: true,
-      });
-    }
+    const { data: questionRows, error: questionsError } = await supabase
+      .from("questions")
+      .insert(
+        Array.from({ length: 3 }, (_, i) => ({
+          round_id: roundId,
+          order: i + 1,
+          type: "single_choice",
+          title: `Questão ${i + 1}`,
+          required: true,
+          options: ANSWER_OPTIONS,
+        }))
+      )
+      .select("id, order");
+    if (questionsError || !questionRows) throw questionsError;
 
-    for (let shardId = 0; shardId < NUM_SHARDS; shardId += 1) {
-      setup.set(db.doc(getShardPath(eventId, roundId, shardId)), {
-        shardId,
-        registered: 0,
-        answering: 0,
-        completed: 0,
-        updatedAt: now,
-      });
-    }
-    await setup.commit();
+    const questionIds = questionRows.sort((a, b) => a.order - b.order).map((q) => q.id as string);
+
+    await supabase.from("public_events").insert({
+      event_id: eventId,
+      slug: eventSlug,
+      title: "Teste isolado de carga",
+      status: "open",
+      current_open_round_id: roundId,
+      current_round_status: "open",
+    });
+    await supabase.from("public_round_stats").insert({
+      round_id: roundId,
+      event_id: eventId,
+      status: "open",
+    });
 
     const results = await Promise.allSettled(
       Array.from({ length: NUM_PARTICIPANTS }, async (_, index) => {
         const operationStartedAt = performance.now();
-        const participantRef = eventRef.collection("participants").doc();
-        const participantId = participantRef.id;
+        const mode = index % 3 === 0 ? "anonymous" : "identified";
         const sessionToken = generateSessionToken();
-        const joinedAt = Timestamp.now();
-        const participantShardId = getShardId(participantId, eventId);
 
-        const joinBatch = db.batch();
-        joinBatch.set(participantRef, {
-          eventId,
-          mode: index % 3 === 0 ? "anonymous" : "identified",
-          name: index % 3 === 0 ? null : `Participante ${index + 1}`,
-          sessionTokenHash: hashSessionToken(sessionToken),
-          sessionExpiresAt: Timestamp.fromDate(getSessionExpiry()),
-          createdAt: joinedAt,
-          lastActivityAt: joinedAt,
+        const { data: participantId, error: joinError } = await supabase.rpc("join_event_participant", {
+          p_event_id: eventId,
+          p_mode: mode,
+          p_name: mode === "identified" ? `Participante ${index + 1}` : null,
+          p_session_token_hash: hashSessionToken(sessionToken),
+          p_session_expires_at: getSessionExpiry().toISOString(),
         });
-        joinBatch.set(
-          db.doc(getEventParticipantShardPath(eventId, participantShardId)),
-          {
-            count: FieldValue.increment(1),
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-        await joinBatch.commit();
+        if (joinError || !participantId) throw joinError ?? new Error("join falhou");
 
-        const submissionId = getSubmissionId(roundId, participantId);
-        const participantRoundId = getParticipantRoundId(roundId, participantId);
-        const roundShardId = getShardId(participantId, roundId);
-        const submissionRef = eventRef.collection("submissions").doc(submissionId);
-        const participantRoundRef = eventRef
-          .collection("participantRounds")
-          .doc(participantRoundId);
-        const roundShardRef = db.doc(getShardPath(eventId, roundId, roundShardId));
-        const submittedAt = Timestamp.now();
-        const answers = Array.from({ length: 3 }, (_, questionIndex) => ({
-          questionId: `question-${questionIndex + 1}`,
+        const answers = questionIds.map((questionId, questionIndex) => ({
+          questionId,
           type: "single_choice",
           value: ANSWER_OPTIONS[(index + questionIndex) % ANSWER_OPTIONS.length]!,
         }));
 
-        await db.runTransaction(async (transaction) => {
-          const submissionSnapshot = await transaction.get(submissionRef);
-          const shardSnapshot = await transaction.get(roundShardRef);
-          if (submissionSnapshot.exists) return;
-          if (!shardSnapshot.exists) throw new Error(`Shard ${roundShardId} não inicializado.`);
-
-          transaction.set(submissionRef, {
-            id: submissionId,
-            eventId,
-            roundId,
-            participantId,
-            mode: index % 3 === 0 ? "anonymous" : "identified",
-            answers,
-            submittedAt,
-          });
-          transaction.set(
-            participantRoundRef,
-            {
-              id: participantRoundId,
-              eventId,
-              roundId,
-              participantId,
-              status: "completed",
-              currentQuestion: answers.length,
-              startedAt: joinedAt,
-              lastActivityAt: submittedAt,
-              completedAt: submittedAt,
-            },
-            { merge: true }
-          );
-          transaction.update(roundShardRef, {
-            registered: FieldValue.increment(1),
-            completed: FieldValue.increment(1),
-            updatedAt: FieldValue.serverTimestamp(),
-          });
+        const { error: submitError } = await supabase.rpc("submit_answers", {
+          p_event_id: eventId,
+          p_round_id: roundId,
+          p_participant_id: participantId,
+          p_mode: mode,
+          p_answers: answers,
         });
+        if (submitError) throw submitError;
 
         latencies.push(performance.now() - operationStartedAt);
-        return participantId;
+        return participantId as string;
       })
     );
 
     const failures = results.filter(
       (result): result is PromiseRejectedResult => result.status === "rejected"
     );
-    const participantsCount = (
-      await eventRef.collection("participants").count().get()
-    ).data().count;
-    const submissionsCount = (
-      await eventRef.collection("submissions").count().get()
-    ).data().count;
-    const participantShards = await publicStatsRef.collection("participantShards").get();
-    const roundShards = await publicStatsRef
-      .collection("rounds")
-      .doc(roundId)
-      .collection("shards")
-      .get();
-    const participantShardCount = participantShards.docs.reduce(
-      (sum, document) => sum + Number(document.data().count ?? 0),
-      0
-    );
-    const completedShardCount = roundShards.docs.reduce(
-      (sum, document) => sum + Number(document.data().completed ?? 0),
-      0
-    );
+
+    const [{ count: participantsCount }, { count: submissionsCount }, { data: roundRow }] = await Promise.all([
+      supabase.from("participants").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+      supabase.from("submissions").select("id", { count: "exact", head: true }).eq("round_id", roundId),
+      supabase.from("rounds").select("registered_count, completed_count").eq("id", roundId).single(),
+    ]);
+
     const durationMs = performance.now() - startedAt;
 
     const summary = {
       requested: NUM_PARTICIPANTS,
       succeeded: results.length - failures.length,
       failed: failures.length,
-      participants: participantsCount,
-      submissions: submissionsCount,
-      participantCounter: participantShardCount,
-      completedCounter: completedShardCount,
+      participants: participantsCount ?? 0,
+      submissions: submissionsCount ?? 0,
+      participantCounter: roundRow?.registered_count ?? 0,
+      completedCounter: roundRow?.completed_count ?? 0,
       durationMs: Math.round(durationMs),
       throughputPerSecond: Number(((results.length - failures.length) / (durationMs / 1000)).toFixed(2)),
       latencyMs: {
@@ -233,10 +153,10 @@ async function main() {
     }
 
     const countsAreExact = [
-      participantsCount,
-      submissionsCount,
-      participantShardCount,
-      completedShardCount,
+      participantsCount ?? 0,
+      submissionsCount ?? 0,
+      roundRow?.registered_count ?? 0,
+      roundRow?.completed_count ?? 0,
     ].every((count) => count === NUM_PARTICIPANTS);
     if (failures.length > 0 || !countsAreExact) {
       throw new Error("Teste reprovado: houve falha ou divergência nos contadores.");
@@ -246,11 +166,7 @@ async function main() {
       `Teste aprovado: ${NUM_PARTICIPANTS} votantes processados sem perda ou divergência.`
     );
   } finally {
-    await Promise.all([
-      db.recursiveDelete(eventRef),
-      db.recursiveDelete(publicStatsRef),
-      publicEventRef.delete(),
-    ]);
+    await supabase.from("events").delete().eq("id", eventId);
     console.log("Dados isolados do teste removidos.");
   }
 }

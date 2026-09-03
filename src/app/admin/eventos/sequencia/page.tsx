@@ -7,7 +7,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminFetch } from "@/lib/api-client";
-import { getAdminIdToken, onAdminAuthChange } from "@/lib/firebase/auth-client";
+import { getAdminIdToken, onAdminAuthChange } from "@/lib/supabase/auth-client";
 
 interface EventItem {
   id: string;

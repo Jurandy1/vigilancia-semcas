@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Timestamp } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { createRoundSchema } from "@/lib/validation/round";
 
@@ -14,27 +13,30 @@ export async function GET(
   if (!admin) return adminUnauthorized();
 
   const { eventId } = await params;
-  const db = getAdminDb();
+  const supabase = getSupabaseAdmin();
 
-  const roundsSnap = await db
-    .collection(`events/${eventId}/rounds`)
-    .orderBy("order")
-    .get();
+  const { data: roundRows } = await supabase
+    .from("rounds")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("order", { ascending: true });
 
-  const rounds = await Promise.all(
-    roundsSnap.docs.map(async (doc) => {
-      const submissionsSnap = await db
-        .collection(`events/${eventId}/submissions`)
-        .where("roundId", "==", doc.id)
-        .count()
-        .get();
-      return {
-        id: doc.id,
-        ...doc.data(),
-        submissionCount: submissionsSnap.data().count,
-      };
-    })
-  );
+  const rounds = (roundRows ?? []).map((r) => ({
+    id: r.id,
+    eventId: r.event_id,
+    title: r.title,
+    description: r.description,
+    order: r.order,
+    type: r.type,
+    status: r.status,
+    allowNewParticipants: r.allow_new_participants,
+    resultsVisibility: r.results_visibility,
+    questionCount: r.question_count,
+    createdAt: r.created_at,
+    openedAt: r.opened_at,
+    closedAt: r.closed_at,
+    submissionCount: r.completed_count ?? 0,
+  }));
 
   return NextResponse.json({ rounds });
 }
@@ -57,49 +59,49 @@ export async function POST(
     );
   }
 
-  const db = getAdminDb();
-  const existingRounds = await db
-    .collection(`events/${eventId}/rounds`)
-    .orderBy("order", "desc")
+  const supabase = getSupabaseAdmin();
+  const { data: lastRound } = await supabase
+    .from("rounds")
+    .select("order")
+    .eq("event_id", eventId)
+    .order("order", { ascending: false })
     .limit(1)
-    .get();
+    .maybeSingle();
+  const nextOrder = (lastRound?.order ?? 0) + 1;
 
-  const nextOrder = existingRounds.empty ? 1 : (existingRounds.docs[0]!.data().order ?? 0) + 1;
-  const now = Timestamp.now();
-  const roundRef = db.collection(`events/${eventId}/rounds`).doc();
-
-  await db.runTransaction(async (tx) => {
-    tx.set(roundRef, {
-      eventId,
+  const { data: round, error } = await supabase
+    .from("rounds")
+    .insert({
+      event_id: eventId,
       title: parsed.data.title,
       description: parsed.data.description ?? null,
       order: nextOrder,
       type: parsed.data.type,
       status: "draft",
-      allowNewParticipants: parsed.data.allowNewParticipants,
-      resultsVisibility: parsed.data.resultsVisibility,
-      questionCount: parsed.data.questions.length,
-      createdAt: now,
-      openedAt: null,
-      closedAt: null,
-    });
+      allow_new_participants: parsed.data.allowNewParticipants,
+      results_visibility: parsed.data.resultsVisibility,
+      question_count: parsed.data.questions.length,
+    })
+    .select("id")
+    .single();
 
-    parsed.data.questions.forEach((q, index) => {
-      const qRef = db
-        .collection(`events/${eventId}/rounds/${roundRef.id}/questions`)
-        .doc();
-      tx.set(qRef, {
-        order: q.order ?? index + 1,
-        type: q.type,
-        title: q.title,
-        explanation: q.explanation ?? null,
-        required: q.required ?? true,
-        options: q.options ?? null,
-        maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),
-        maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
-      });
-    });
-  });
+  if (error || !round) {
+    return NextResponse.json({ error: "Não foi possível criar a rodada." }, { status: 500 });
+  }
 
-  return NextResponse.json({ success: true, roundId: roundRef.id });
+  const questions = parsed.data.questions.map((q, index) => ({
+    round_id: round.id,
+    order: q.order ?? index + 1,
+    type: q.type,
+    title: q.title,
+    explanation: q.explanation ?? null,
+    required: q.required ?? true,
+    options: q.options ?? null,
+    max_length: q.maxLength ?? (q.type === "text" ? 2000 : null),
+    max_selections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
+  }));
+
+  await supabase.from("questions").insert(questions);
+
+  return NextResponse.json({ success: true, roundId: round.id });
 }

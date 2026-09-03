@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
-import { writeAuditLog } from "@/lib/firebase/helpers";
+import { writeAuditLog } from "@/lib/supabase/helpers";
 
 export const runtime = "nodejs";
+
+const ERROR_MESSAGES: Record<string, { status: number; message: string }> = {
+  EVENT_NOT_FOUND: { status: 404, message: "Evento não encontrado." },
+  NO_NEXT_EVENT: { status: 409, message: "Este é o último evento da sequência." },
+  ROUND_STILL_OPEN: {
+    status: 409,
+    message: "Encerre a rodada em andamento antes de avançar para o próximo evento.",
+  },
+  ANOTHER_EVENT_OPEN: {
+    status: 409,
+    message: "Existe outro evento em andamento. Encerre-o antes de continuar.",
+  },
+  EVENT_NOT_STARTABLE: { status: 409, message: "O próximo evento não está disponível para início." },
+};
 
 export async function POST(
   request: NextRequest,
@@ -14,111 +27,38 @@ export async function POST(
   if (!admin) return adminUnauthorized();
 
   const { eventId } = await params;
-  const db = getAdminDb();
-  const now = Timestamp.now();
+  const supabase = getSupabaseAdmin();
 
-  const result = await db.runTransaction(async (tx) => {
-    const currentRef = db.doc(`events/${eventId}`);
-    const currentDoc = await tx.get(currentRef);
-    if (!currentDoc.exists) {
-      return { ok: false as const, status: 404, error: "Evento não encontrado." };
-    }
-
-    const current = currentDoc.data()!;
-    if (!current.nextEventId) {
-      return { ok: false as const, status: 409, error: "Este é o último evento da sequência." };
-    }
-
-    const nextRef = db.doc(`events/${current.nextEventId}`);
-    const nextDoc = await tx.get(nextRef);
-    const openRounds = await tx.get(
-      db.collection(`events/${eventId}/rounds`).where("status", "==", "open")
+  const { data: currentRound } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("status", "open")
+    .maybeSingle();
+  if (currentRound) {
+    return NextResponse.json(
+      { error: ERROR_MESSAGES.ROUND_STILL_OPEN!.message },
+      { status: ERROR_MESSAGES.ROUND_STILL_OPEN!.status }
     );
-    const openEvents = await tx.get(db.collection("events").where("status", "==", "open"));
-
-    if (!nextDoc.exists) {
-      return { ok: false as const, status: 404, error: "O próximo evento não foi encontrado." };
-    }
-    if (!openRounds.empty) {
-      return {
-        ok: false as const,
-        status: 409,
-        error: "Encerre a rodada em andamento antes de avançar para o próximo evento.",
-      };
-    }
-    if (current.status !== "open" && current.status !== "closed") {
-      return {
-        ok: false as const,
-        status: 409,
-        error: "Inicie o evento atual antes de avançar na sequência.",
-      };
-    }
-
-    const nextData = nextDoc.data()!;
-    if (nextData.status !== "draft" && nextData.status !== "waiting") {
-      return {
-        ok: false as const,
-        status: 409,
-        error: "O próximo evento não está disponível para início.",
-      };
-    }
-
-    const anotherOpen = openEvents.docs.some((doc) => doc.id !== eventId && doc.id !== nextDoc.id);
-    if (anotherOpen) {
-      return {
-        ok: false as const,
-        status: 409,
-        error: "Existe outro evento em andamento. Encerre-o antes de continuar.",
-      };
-    }
-
-    tx.set(
-      currentRef,
-      {
-        status: "closed",
-        closedAt: current.closedAt ?? now,
-        currentOpenRoundId: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    tx.set(
-      db.doc(`publicEvents/${eventId}`),
-      {
-        status: "closed",
-        currentOpenRoundId: null,
-        currentRoundStatus: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    tx.set(
-      nextRef,
-      { status: "open", openedAt: now, updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-    tx.set(
-      db.doc(`publicEvents/${nextDoc.id}`),
-      { status: "open", updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
-
-    return {
-      ok: true as const,
-      nextEventId: nextDoc.id,
-      nextEventSlug: nextData.slug as string,
-      nextEventTitle: nextData.title as string,
-    };
-  });
-
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
   }
+
+  const { data: nextEventId, error } = await supabase.rpc("advance_sequence", { p_event_id: eventId });
+
+  if (error) {
+    const mapped = ERROR_MESSAGES[error.message] ?? { status: 500, message: "Não foi possível avançar para o próximo evento." };
+    return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+  }
+
+  const { data: nextEvent } = await supabase
+    .from("events")
+    .select("slug, title")
+    .eq("id", nextEventId as string)
+    .maybeSingle();
 
   await Promise.all([
     writeAuditLog({ eventId, action: "event_closed", actorType: "admin", actorId: admin.uid }),
     writeAuditLog({
-      eventId: result.nextEventId,
+      eventId: nextEventId as string,
       action: "event_opened",
       actorType: "admin",
       actorId: admin.uid,
@@ -126,5 +66,10 @@ export async function POST(
     }),
   ]);
 
-  return NextResponse.json({ success: true, ...result });
+  return NextResponse.json({
+    success: true,
+    nextEventId,
+    nextEventSlug: nextEvent?.slug ?? null,
+    nextEventTitle: nextEvent?.title ?? null,
+  });
 }

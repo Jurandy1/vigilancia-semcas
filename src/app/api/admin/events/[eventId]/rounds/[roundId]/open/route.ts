@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
-import { writeAuditLog } from "@/lib/firebase/helpers";
+import { writeAuditLog } from "@/lib/supabase/helpers";
 import { openRoundTransaction } from "@/lib/rounds/open-round";
 
 export const runtime = "nodejs";

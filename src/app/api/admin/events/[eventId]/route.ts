@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { updateEventSettingsSchema } from "@/lib/validation/event";
-import { toIsoString } from "@/lib/firebase/helpers";
 
 export const runtime = "nodejs";
 
@@ -15,36 +13,34 @@ export async function GET(
   if (!admin) return adminUnauthorized();
 
   const { eventId } = await params;
-  const db = getAdminDb();
-  const doc = await db.doc(`events/${eventId}`).get();
-  if (!doc.exists) {
+  const supabase = getSupabaseAdmin();
+  const { data: d } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();
+  if (!d) {
     return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
   }
 
-  const d = doc.data()!;
-  const participantsCount = await db.collection(`events/${eventId}/participants`).count().get();
   return NextResponse.json({
     event: {
-      id: doc.id,
+      id: d.id,
       title: d.title,
       slug: d.slug,
       description: d.description ?? null,
-      projectorTitle: d.projectorTitle ?? null,
+      projectorTitle: d.projector_title ?? null,
       status: d.status,
-      isTest: d.isTest ?? false,
-      requireLiveCode: d.requireLiveCode ?? false,
-      participantCount: participantsCount.data().count,
-      createdAt: toIsoString(d.createdAt),
-      openedAt: d.openedAt ? toIsoString(d.openedAt) : null,
-      closedAt: d.closedAt ? toIsoString(d.closedAt) : null,
-      sequenceId: d.sequenceId ?? null,
-      sequenceOrder: d.sequenceOrder ?? null,
-      sequenceSize: d.sequenceSize ?? null,
-      sequenceRootEventId: d.sequenceRootEventId ?? null,
-      sequenceRootSlug: d.sequenceRootSlug ?? null,
-      nextEventId: d.nextEventId ?? null,
-      nextEventTitle: d.nextEventTitle ?? null,
-      nextEventSlug: d.nextEventSlug ?? null,
+      isTest: d.is_test ?? false,
+      requireLiveCode: d.require_live_code ?? false,
+      participantCount: d.participant_count ?? 0,
+      createdAt: d.created_at,
+      openedAt: d.opened_at ?? null,
+      closedAt: d.closed_at ?? null,
+      sequenceId: d.sequence_id ?? null,
+      sequenceOrder: d.sequence_order ?? null,
+      sequenceSize: d.sequence_size ?? null,
+      sequenceRootEventId: d.sequence_root_event_id ?? null,
+      sequenceRootSlug: d.sequence_root_slug ?? null,
+      nextEventId: d.next_event_id ?? null,
+      nextEventTitle: d.next_event_title ?? null,
+      nextEventSlug: d.next_event_slug ?? null,
     },
   });
 }
@@ -57,9 +53,9 @@ export async function PATCH(
   if (!admin) return adminUnauthorized();
 
   const { eventId } = await params;
-  const db = getAdminDb();
-  const doc = await db.doc(`events/${eventId}`).get();
-  if (!doc.exists) {
+  const supabase = getSupabaseAdmin();
+  const { data: existing } = await supabase.from("events").select("id").eq("id", eventId).maybeSingle();
+  if (!existing) {
     return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
   }
 
@@ -72,10 +68,9 @@ export async function PATCH(
     );
   }
 
-  const now = FieldValue.serverTimestamp();
-
-  const eventUpdates: Record<string, unknown> = { updatedAt: now };
-  const publicUpdates: Record<string, unknown> = { updatedAt: now };
+  const now = new Date().toISOString();
+  const eventUpdates: Record<string, unknown> = { updated_at: now };
+  const publicUpdates: Record<string, unknown> = { updated_at: now };
 
   if (parsed.data.title !== undefined) {
     eventUpdates.title = parsed.data.title;
@@ -86,16 +81,16 @@ export async function PATCH(
     publicUpdates.description = parsed.data.description;
   }
   if (parsed.data.projectorTitle !== undefined) {
-    eventUpdates.projectorTitle = parsed.data.projectorTitle;
-    publicUpdates.projectorTitle = parsed.data.projectorTitle;
+    eventUpdates.projector_title = parsed.data.projectorTitle;
+    publicUpdates.projector_title = parsed.data.projectorTitle;
   }
   if (parsed.data.requireLiveCode !== undefined) {
-    eventUpdates.requireLiveCode = parsed.data.requireLiveCode;
-    publicUpdates.requireLiveCode = parsed.data.requireLiveCode;
+    eventUpdates.require_live_code = parsed.data.requireLiveCode;
+    publicUpdates.require_live_code = parsed.data.requireLiveCode;
   }
 
-  await db.doc(`events/${eventId}`).update(eventUpdates);
-  await db.doc(`publicEvents/${eventId}`).set(publicUpdates, { merge: true });
+  await supabase.from("events").update(eventUpdates).eq("id", eventId);
+  await supabase.from("public_events").update(publicUpdates).eq("event_id", eventId);
 
   return NextResponse.json({ success: true });
 }
@@ -108,14 +103,12 @@ export async function DELETE(
   if (!admin) return adminUnauthorized();
 
   const { eventId } = await params;
-  const db = getAdminDb();
-  const eventRef = db.doc(`events/${eventId}`);
-  const eventDoc = await eventRef.get();
-  if (!eventDoc.exists) {
+  const supabase = getSupabaseAdmin();
+  const { data: event } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();
+  if (!event) {
     return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
   }
 
-  const event = eventDoc.data()!;
   if (event.status === "open") {
     return NextResponse.json(
       { error: "Um evento em andamento não pode ser excluído. Encerre-o primeiro." },
@@ -123,59 +116,69 @@ export async function DELETE(
     );
   }
 
-  if (event.sequenceId) {
-    const sequenceSnap = await db
-      .collection("events")
-      .where("sequenceId", "==", event.sequenceId)
-      .get();
-    const remaining = sequenceSnap.docs
-      .filter((doc) => doc.id !== eventId)
-      .sort((a, b) => (a.data().sequenceOrder ?? 0) - (b.data().sequenceOrder ?? 0));
-    const batch = db.batch();
+  if (event.sequence_id) {
+    const { data: sequenceRows } = await supabase
+      .from("events")
+      .select("*")
+      .eq("sequence_id", event.sequence_id);
+
+    const remaining = (sequenceRows ?? [])
+      .filter((row) => row.id !== eventId)
+      .sort((a, b) => (a.sequence_order ?? 0) - (b.sequence_order ?? 0));
 
     if (remaining.length >= 2) {
       const root = remaining[0]!;
-      remaining.forEach((doc, index) => {
+      for (const [index, row] of remaining.entries()) {
         const next = remaining[index + 1] ?? null;
         const sequence = {
-          sequenceId: event.sequenceId,
-          sequenceOrder: index,
-          sequenceSize: remaining.length,
-          sequenceRootEventId: root.id,
-          sequenceRootSlug: root.data().slug,
-          nextEventId: next?.id ?? null,
-          nextEventTitle: next?.data().title ?? null,
-          nextEventSlug: next?.data().slug ?? null,
-          updatedAt: FieldValue.serverTimestamp(),
+          sequence_id: event.sequence_id,
+          sequence_order: index,
+          sequence_size: remaining.length,
+          sequence_root_event_id: root.id,
+          sequence_root_slug: root.slug,
+          next_event_id: next?.id ?? null,
+          next_event_title: next?.title ?? null,
+          next_event_slug: next?.slug ?? null,
+          updated_at: new Date().toISOString(),
         };
-        batch.set(doc.ref, sequence, { merge: true });
-        batch.set(db.doc(`publicEvents/${doc.id}`), sequence, { merge: true });
-      });
+        await supabase.from("events").update(sequence).eq("id", row.id);
+        await supabase
+          .from("public_events")
+          .update({
+            sequence_id: sequence.sequence_id,
+            sequence_order: sequence.sequence_order,
+            sequence_size: sequence.sequence_size,
+            sequence_root_event_id: sequence.sequence_root_event_id,
+            sequence_root_slug: sequence.sequence_root_slug,
+            next_event_id: sequence.next_event_id,
+            next_event_title: sequence.next_event_title,
+            next_event_slug: sequence.next_event_slug,
+            updated_at: sequence.updated_at,
+          })
+          .eq("event_id", row.id);
+      }
     } else {
-      remaining.forEach((doc) => {
-        const cleared = {
-          sequenceId: null,
-          sequenceOrder: null,
-          sequenceSize: null,
-          sequenceRootEventId: null,
-          sequenceRootSlug: null,
-          nextEventId: null,
-          nextEventTitle: null,
-          nextEventSlug: null,
-          updatedAt: FieldValue.serverTimestamp(),
-        };
-        batch.set(doc.ref, cleared, { merge: true });
-        batch.set(db.doc(`publicEvents/${doc.id}`), cleared, { merge: true });
-      });
+      const cleared = {
+        sequence_id: null,
+        sequence_order: null,
+        sequence_size: null,
+        sequence_root_event_id: null,
+        sequence_root_slug: null,
+        next_event_id: null,
+        next_event_title: null,
+        next_event_slug: null,
+        updated_at: new Date().toISOString(),
+      };
+      for (const row of remaining) {
+        await supabase.from("events").update(cleared).eq("id", row.id);
+        await supabase.from("public_events").update(cleared).eq("event_id", row.id);
+      }
     }
-    await batch.commit();
   }
 
-  await Promise.all([
-    db.recursiveDelete(eventRef),
-    db.recursiveDelete(db.doc(`publicStats/${eventId}`)),
-    db.doc(`publicEvents/${eventId}`).delete(),
-  ]);
+  // ON DELETE CASCADE cuida de rounds/questions/participants/participantRounds/submissions/public_round_stats.
+  await supabase.from("events").delete().eq("id", eventId);
+  await supabase.from("public_events").delete().eq("event_id", eventId);
 
   return NextResponse.json({ success: true });
 }

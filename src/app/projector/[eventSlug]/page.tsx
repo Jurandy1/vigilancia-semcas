@@ -3,22 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { doc, onSnapshot } from "firebase/firestore";
-import { getFirestoreDb } from "@/lib/firebase/client";
+import { usePublicEvent } from "@/hooks/use-public-event";
 import { useRoundStats } from "@/hooks/use-round-stats";
 import QRCode from "qrcode";
-
-interface PublicEventData {
-  id: string;
-  title: string;
-  projectorTitle: string | null;
-  slug: string;
-  status: string;
-  currentOpenRoundId: string | null;
-  currentRoundId: string | null;
-  currentRoundTitle: string | null;
-  currentRoundStatus: string | null;
-}
 
 function ProjectorChrome({
   title,
@@ -77,17 +64,11 @@ function ProjectorChrome({
 export default function ProjectorPage() {
   const params = useParams();
   const eventSlug = params.eventSlug as string;
-  const [publicEvent, setPublicEvent] = useState<PublicEventData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
-  const [connectedCount, setConnectedCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [loadError, setLoadError] = useState(false);
 
-  const { stats } = useRoundStats(
-    publicEvent?.id ?? null,
-    publicEvent?.currentRoundId ?? publicEvent?.currentOpenRoundId ?? null,
-    eventSlug
-  );
+  const { publicEvent, loading } = usePublicEvent(null, eventSlug);
+  const { stats } = useRoundStats(publicEvent?.id ?? null, publicEvent?.currentOpenRoundId ?? null);
 
   useEffect(() => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
@@ -95,72 +76,10 @@ export default function ProjectorPage() {
   }, [eventSlug]);
 
   useEffect(() => {
-    const db = getFirestoreDb();
+    setLastUpdate(new Date());
+  }, [publicEvent, stats]);
 
-    async function findEvent() {
-      const { collection, query, where, getDocs } = await import("firebase/firestore");
-      const eventsRef = collection(db, "publicEvents");
-      const q = query(eventsRef, where("slug", "==", eventSlug));
-      const snap = await getDocs(q);
-      if (snap.empty) return undefined;
-
-      const eventDoc = snap.docs[0]!;
-      const eventId = eventDoc.id;
-
-      const unsubscribeEvent = onSnapshot(
-        doc(db, "publicEvents", eventId),
-        (snapshot) => {
-          if (!snapshot.exists()) return;
-          const data = snapshot.data();
-          setPublicEvent({
-            id: snapshot.id,
-            title: data.title,
-            projectorTitle: data.projectorTitle ?? null,
-            slug: data.slug,
-            status: data.status,
-            currentOpenRoundId: data.currentOpenRoundId ?? null,
-            currentRoundId: data.currentRoundId ?? null,
-            currentRoundTitle: data.currentRoundTitle ?? null,
-            currentRoundStatus: data.currentRoundStatus ?? null,
-          });
-          setLastUpdate(new Date());
-          setLoadError(false);
-        },
-        (error) => {
-          console.error("Erro ao acompanhar o evento:", error);
-          setLoadError(true);
-        }
-      );
-      const unsubscribeParticipants = onSnapshot(
-        collection(db, `publicStats/${eventId}/participantShards`),
-        (snapshot) => {
-          setConnectedCount(
-            snapshot.docs.reduce((total, shard) => total + (shard.data().count ?? 0), 0)
-          );
-          setLastUpdate(new Date());
-        },
-        () => setLoadError(true)
-      );
-
-      return () => {
-        unsubscribeEvent();
-        unsubscribeParticipants();
-      };
-    }
-
-    let cleanup: (() => void) | undefined;
-    findEvent()
-      .then((unsub) => {
-        cleanup = unsub;
-      })
-      .catch((error) => {
-        console.error("Erro ao buscar o evento:", error);
-        setLoadError(true);
-      });
-
-    return () => cleanup?.();
-  }, [eventSlug]);
-
+  const connectedCount = publicEvent?.participantCount ?? 0;
   const isRoundOpen = publicEvent?.currentRoundStatus === "open";
   const hasHadRound = Boolean(publicEvent?.currentRoundTitle);
   const isIntermission = Boolean(publicEvent) && !isRoundOpen && hasHadRound;
@@ -173,7 +92,7 @@ export default function ProjectorPage() {
       ? `${window.location.host}/e/${eventSlug}`
       : `localhost:3000/e/${eventSlug}`;
 
-  if (loadError) {
+  if (!loading && !publicEvent) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#f7f9fb] text-center px-6">
         <p className="text-xl text-gray-500">Não foi possível carregar o evento.</p>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore";
-import { getFirestoreDb } from "@/lib/firebase/client";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import type { DashboardRound } from "@/lib/admin/dashboard-state";
 
 interface DashboardEvent {
@@ -20,11 +19,6 @@ interface DashboardEvent {
   nextEventSlug: string | null;
 }
 
-interface TimelinePoint {
-  time: string;
-  count: number;
-}
-
 interface RoundStats {
   registered: number;
   answering: number;
@@ -33,134 +27,119 @@ interface RoundStats {
 
 const EMPTY_STATS: RoundStats = { registered: 0, answering: 0, completed: 0 };
 
+function mapEventRow(d: Record<string, unknown>): DashboardEvent {
+  return {
+    title: d.title as string,
+    slug: d.slug as string,
+    status: d.status as string,
+    openedAt: (d.opened_at as string | null) ?? null,
+    participantCount: (d.participant_count as number) ?? 0,
+    sequenceId: (d.sequence_id as string | null) ?? null,
+    sequenceOrder: (d.sequence_order as number | null) ?? null,
+    sequenceSize: (d.sequence_size as number | null) ?? null,
+    sequenceRootSlug: (d.sequence_root_slug as string | null) ?? null,
+    nextEventId: (d.next_event_id as string | null) ?? null,
+    nextEventTitle: (d.next_event_title as string | null) ?? null,
+    nextEventSlug: (d.next_event_slug as string | null) ?? null,
+  };
+}
+
 /**
- * Assina o Dashboard do evento via Firestore Realtime — 3 listeners no total
- * (doc do evento, coleção de rodadas, coleção participantRounds), nenhum por
- * participante. O admin já autentica com Firebase Auth (claim admin: true),
- * o que libera leitura direta de events/{eventId}/** pelas regras do Firestore.
+ * Assina o Dashboard do evento via Supabase Realtime — 2 canais no total
+ * (tabela events e tabela rounds, filtrados por event_id), sem listener por
+ * participante. Os contadores por rodada (registered/answering/completed) já
+ * vêm como colunas nas linhas de rounds, sem precisar de agregação por shard.
  */
 export function useDashboardRealtime(eventId: string | null) {
   const [event, setEvent] = useState<DashboardEvent | null>(null);
   const [roundsRaw, setRoundsRaw] = useState<
-    Array<{ id: string; title: string; status: string; order: number }>
-  >([]);
-  const [participantRounds, setParticipantRounds] = useState<
-    Array<{ roundId: string; status: string; completedAt: number | null }>
+    Array<{
+      id: string;
+      title: string;
+      status: string;
+      order: number;
+      registered: number;
+      answering: number;
+      completed: number;
+    }>
   >([]);
   const [loading, setLoading] = useState(true);
-  const [eventParticipantCount, setEventParticipantCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!eventId) return;
-    const db = getFirestoreDb();
+    const supabase = getSupabaseClient();
 
-    const unsubEvent = onSnapshot(doc(db, "events", eventId), (snap) => {
-      if (!snap.exists()) return;
-      const d = snap.data();
-      setEvent({
-        title: d.title,
-        slug: d.slug,
-        status: d.status,
-        openedAt: d.openedAt?.toDate?.()?.toISOString?.() ?? null,
-        participantCount: d.participantCount ?? 0,
-        sequenceId: d.sequenceId ?? null,
-        sequenceOrder: d.sequenceOrder ?? null,
-        sequenceSize: d.sequenceSize ?? null,
-        sequenceRootSlug: d.sequenceRootSlug ?? null,
-        nextEventId: d.nextEventId ?? null,
-        nextEventTitle: d.nextEventTitle ?? null,
-        nextEventSlug: d.nextEventSlug ?? null,
-      });
+    function mapRoundRow(r: Record<string, unknown>) {
+      return {
+        id: r.id as string,
+        title: r.title as string,
+        status: r.status as string,
+        order: r.order as number,
+        registered: (r.registered_count as number) ?? 0,
+        answering: (r.answering_count as number) ?? 0,
+        completed: (r.completed_count as number) ?? 0,
+      };
+    }
+
+    async function bootstrap() {
+      const [{ data: eventRow }, { data: roundRows }] = await Promise.all([
+        supabase.from("events").select("*").eq("id", eventId).maybeSingle(),
+        supabase.from("rounds").select("*").eq("event_id", eventId).order("order", { ascending: true }),
+      ]);
+      if (eventRow) setEvent(mapEventRow(eventRow));
+      if (roundRows) setRoundsRaw(roundRows.map(mapRoundRow));
       setLoading(false);
-    });
+    }
 
-    const roundsQuery = query(collection(db, `events/${eventId}/rounds`), orderBy("order"));
-    const unsubRounds = onSnapshot(roundsQuery, (snap) => {
-      setRoundsRaw(
-        snap.docs.map((d) => ({
-          id: d.id,
-          title: d.data().title as string,
-          status: d.data().status as string,
-          order: d.data().order as number,
-        }))
-      );
-    });
+    bootstrap();
 
-    const prQuery = collection(db, `events/${eventId}/participantRounds`);
-    const unsubPr = onSnapshot(prQuery, (snap) => {
-      setParticipantRounds(
-        snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            roundId: data.roundId as string,
-            status: (data.status as string) ?? "waiting",
-            completedAt: data.completedAt?.toDate?.()?.getTime() ?? null,
-          };
-        })
-      );
-    });
+    const eventChannel = supabase
+      .channel(`events:${eventId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "events", filter: `id=eq.${eventId}` },
+        (payload) => setEvent(mapEventRow(payload.new as Record<string, unknown>))
+      )
+      .subscribe();
 
-    const unsubEventParticipants = onSnapshot(
-      collection(db, `publicStats/${eventId}/participantShards`),
-      (snap) => {
-        setEventParticipantCount(
-          snap.docs.reduce((total, shard) => total + (shard.data().count ?? 0), 0)
-        );
-      }
-    );
+    const roundsChannel = supabase
+      .channel(`rounds:${eventId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rounds", filter: `event_id=eq.${eventId}` },
+        () => {
+          supabase
+            .from("rounds")
+            .select("*")
+            .eq("event_id", eventId)
+            .order("order", { ascending: true })
+            .then(({ data }) => {
+              if (data) setRoundsRaw(data.map(mapRoundRow));
+            });
+        }
+      )
+      .subscribe();
 
     return () => {
-      unsubEvent();
-      unsubRounds();
-      unsubPr();
-      unsubEventParticipants();
+      supabase.removeChannel(eventChannel);
+      supabase.removeChannel(roundsChannel);
     };
   }, [eventId]);
 
   const openRoundId = roundsRaw.find((r) => r.status === "open")?.id ?? null;
-
-  const perRoundStats = new Map<string, RoundStats>();
-  participantRounds.forEach((pr) => {
-    const current = perRoundStats.get(pr.roundId) ?? { registered: 0, answering: 0, completed: 0 };
-    current.registered += 1;
-    if (pr.status === "answering") current.answering += 1;
-    if (pr.status === "completed") current.completed += 1;
-    perRoundStats.set(pr.roundId, current);
-  });
 
   const rounds: DashboardRound[] = roundsRaw.map((r) => ({
     id: r.id,
     title: r.title,
     status: r.status,
     order: r.order,
-    submissionCount: perRoundStats.get(r.id)?.completed ?? 0,
+    submissionCount: r.completed,
   }));
 
-  const stats = openRoundId ? perRoundStats.get(openRoundId) ?? EMPTY_STATS : EMPTY_STATS;
+  const openRound = roundsRaw.find((r) => r.id === openRoundId);
+  const stats: RoundStats = openRound
+    ? { registered: openRound.registered, answering: openRound.answering, completed: openRound.completed }
+    : EMPTY_STATS;
 
-  let timeline: TimelinePoint[] = [];
-  const completionTimestamps = participantRounds
-    .map((pr) => pr.completedAt)
-    .filter((v): v is number => v !== null)
-    .sort((a, b) => a - b);
-
-  if (completionTimestamps.length > 0 && event) {
-    const startMs = event.openedAt ? new Date(event.openedAt).getTime() : completionTimestamps[0]!;
-    const endMs = Math.max(Date.now(), completionTimestamps[completionTimestamps.length - 1]!);
-    const BUCKETS = 8;
-    const span = Math.max(endMs - startMs, 60_000);
-    const bucketMs = span / BUCKETS;
-
-    timeline = Array.from({ length: BUCKETS + 1 }, (_, i) => {
-      const bucketEnd = startMs + i * bucketMs;
-      const count = completionTimestamps.filter((t) => t <= bucketEnd).length;
-      return { time: new Date(bucketEnd).toISOString(), count };
-    });
-  }
-
-  const resolvedEvent = event
-    ? { ...event, participantCount: eventParticipantCount ?? event.participantCount }
-    : null;
-
-  return { event: resolvedEvent, rounds, stats, timeline, loading };
+  return { event, rounds, stats, loading };
 }

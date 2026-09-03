@@ -19,7 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { adminLogout } from "@/lib/firebase/auth-client";
+import { adminLogout } from "@/lib/supabase/auth-client";
 
 interface AdminShellProps {
   children: React.ReactNode;

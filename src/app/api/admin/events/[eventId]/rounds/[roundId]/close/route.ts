@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
-import { writeAuditLog } from "@/lib/firebase/helpers";
+import { writeAuditLog } from "@/lib/supabase/helpers";
 
 export const runtime = "nodejs";
+
+const ERROR_MESSAGES: Record<string, { status: number; message: string }> = {
+  ROUND_NOT_FOUND: { status: 404, message: "Rodada não encontrada." },
+  ROUND_NOT_OPEN: { status: 409, message: "Esta rodada não está aberta." },
+};
 
 export async function POST(
   request: NextRequest,
@@ -14,36 +18,13 @@ export async function POST(
   if (!admin) return adminUnauthorized();
 
   const { eventId, roundId } = await params;
-  const db = getAdminDb();
-  const now = Timestamp.now();
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.rpc("close_round", { p_round_id: roundId });
 
-  await db.runTransaction(async (tx) => {
-    // Firestore exige que todas as leituras da transação aconteçam antes de qualquer escrita.
-    const eventRef = db.doc(`events/${eventId}`);
-    const eventDoc = await tx.get(eventRef);
-
-    tx.update(db.doc(`events/${eventId}/rounds/${roundId}`), {
-      status: "closed",
-      closedAt: now,
-    });
-
-    if (eventDoc.data()?.currentOpenRoundId === roundId) {
-      tx.update(eventRef, {
-        currentOpenRoundId: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-
-      tx.set(
-        db.doc(`publicEvents/${eventId}`),
-        {
-          currentOpenRoundId: null,
-          currentRoundStatus: "closed",
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    }
-  });
+  if (error) {
+    const mapped = ERROR_MESSAGES[error.message] ?? { status: 500, message: "Não foi possível encerrar a rodada." };
+    return NextResponse.json({ error: mapped.message }, { status: mapped.status });
+  }
 
   await writeAuditLog({
     eventId,

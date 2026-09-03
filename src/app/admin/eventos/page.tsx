@@ -19,7 +19,7 @@ import {
   UsersRound,
   XCircle,
 } from "lucide-react";
-import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
+import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

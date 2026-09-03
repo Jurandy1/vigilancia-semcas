@@ -7,13 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
-import { useAppCheck } from "@/hooks/use-app-check";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
 import { formatAccessCode } from "@/lib/utils/format";
 
 export default function AccessCodePage() {
-  useAppCheck();
   const router = useRouter();
   const params = useParams();
   const eventSlug = params.eventSlug as string;

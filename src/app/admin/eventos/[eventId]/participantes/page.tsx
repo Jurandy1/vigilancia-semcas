@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
+import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { LiveParticipantList } from "@/components/admin/LiveParticipantList";

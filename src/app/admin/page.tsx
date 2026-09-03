@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { onAdminAuthChange, getAdminIdToken } from "@/lib/firebase/auth-client";
+import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { resolvePostLoginDestination } from "@/lib/admin/post-login-destination";
 
 export default function AdminPage() {

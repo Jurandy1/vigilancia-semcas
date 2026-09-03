@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { getParticipantDisplayName } from "@/lib/utils/participant-display";
 import { formatPercent } from "@/lib/utils/format";
-import { toIsoString } from "@/lib/firebase/helpers";
 import { aggregateChoiceCounts } from "@/lib/reports/aggregate-choice-counts";
 
 export const runtime = "nodejs";
@@ -16,30 +15,28 @@ export async function GET(
   if (!admin) return adminUnauthorized();
 
   const { eventId, roundId } = await params;
-  const db = getAdminDb();
+  const supabase = getSupabaseAdmin();
 
-  // Independent reads — fire them together instead of awaiting one at a time.
-  const [roundDoc, questionsSnap, submissionsSnap, participantsSnap] = await Promise.all([
-    db.doc(`events/${eventId}/rounds/${roundId}`).get(),
-    db.collection(`events/${eventId}/rounds/${roundId}/questions`).orderBy("order").get(),
-    db.collection(`events/${eventId}/submissions`).where("roundId", "==", roundId).get(),
-    db.collection(`events/${eventId}/participants`).get(),
-  ]);
+  const [{ data: round }, { data: questionRows }, { data: submissionRows }, { data: participantRows }] =
+    await Promise.all([
+      supabase.from("rounds").select("*").eq("id", roundId).eq("event_id", eventId).maybeSingle(),
+      supabase.from("questions").select("*").eq("round_id", roundId).order("order", { ascending: true }),
+      supabase.from("submissions").select("*").eq("round_id", roundId),
+      supabase.from("participants").select("*").eq("event_id", eventId),
+    ]);
 
-  if (!roundDoc.exists) {
+  if (!round) {
     return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
   }
 
-  const participantMap = new Map(participantsSnap.docs.map((d) => [d.id, d.data()]));
+  const participantMap = new Map((participantRows ?? []).map((p) => [p.id, p]));
+  const submissions = submissionRows ?? [];
+  const totalSubmissions = submissions.length;
+  const totalParticipants = (participantRows ?? []).length;
 
-  const totalSubmissions = submissionsSnap.size;
-  const totalParticipants = participantsSnap.size;
-  const submissionDatas = submissionsSnap.docs.map((d) => d.data());
-
-  const questions = questionsSnap.docs.map((qDoc) => {
-    const q = qDoc.data();
+  const questions = (questionRows ?? []).map((q) => {
     const questionReport: Record<string, unknown> = {
-      id: qDoc.id,
+      id: q.id,
       order: q.order,
       type: q.type,
       title: q.title,
@@ -48,24 +45,20 @@ export async function GET(
 
     if (q.type === "single_choice" || q.type === "multi_choice") {
       questionReport.options = aggregateChoiceCounts(
-        q.options as string[],
-        submissionDatas,
-        qDoc.id
+        (q.options as string[]) ?? [],
+        submissions.map((s) => ({ answers: s.answers })),
+        q.id
       );
       questionReport.allowsMultiple = q.type === "multi_choice";
-      questionReport.otherAnswers = submissionsSnap.docs
-        .map((subDoc) => {
-          const submission = subDoc.data();
-          const answer = submission.answers?.find(
-            (item: { questionId: string }) => item.questionId === qDoc.id
+      questionReport.otherAnswers = submissions
+        .map((sub) => {
+          const answer = (sub.answers as Array<{ questionId: string; otherText?: string }>)?.find(
+            (item) => item.questionId === q.id
           );
           if (!answer?.otherText) return null;
-          const participant = participantMap.get(submission.participantId);
+          const participant = participantMap.get(sub.participant_id);
           return {
-            displayName: getParticipantDisplayName({
-              mode: submission.mode,
-              name: participant?.name ?? null,
-            }),
+            displayName: getParticipantDisplayName({ mode: sub.mode, name: participant?.name ?? null }),
             value: String(answer.otherText).trim(),
           };
         })
@@ -73,17 +66,14 @@ export async function GET(
     }
 
     if (q.type === "text") {
-      questionReport.answers = submissionsSnap.docs
-        .map((subDoc) => {
-          const p = participantMap.get(subDoc.data().participantId);
-          const answer = subDoc.data().answers?.find(
-            (a: { questionId: string }) => a.questionId === qDoc.id
+      questionReport.answers = submissions
+        .map((sub) => {
+          const p = participantMap.get(sub.participant_id);
+          const answer = (sub.answers as Array<{ questionId: string; value: unknown }>)?.find(
+            (a) => a.questionId === q.id
           );
           return {
-            displayName: getParticipantDisplayName({
-              mode: subDoc.data().mode,
-              name: p?.name ?? null,
-            }),
+            displayName: getParticipantDisplayName({ mode: sub.mode, name: p?.name ?? null }),
             value: typeof answer?.value === "string" ? answer.value.trim() : "",
           };
         })
@@ -93,20 +83,28 @@ export async function GET(
     return questionReport;
   });
 
-  const individual = submissionsSnap.docs.map((subDoc) => {
-    const p = participantMap.get(subDoc.data().participantId);
+  const individual = submissions.map((sub) => {
+    const p = participantMap.get(sub.participant_id);
     return {
-      displayName: getParticipantDisplayName({
-        mode: subDoc.data().mode,
-        name: p?.name ?? null,
-      }),
-      submittedAt: subDoc.data().submittedAt ? toIsoString(subDoc.data().submittedAt) : null,
-      answers: subDoc.data().answers,
+      displayName: getParticipantDisplayName({ mode: sub.mode, name: p?.name ?? null }),
+      submittedAt: sub.submitted_at,
+      answers: sub.answers,
     };
   });
 
   return NextResponse.json({
-    round: { id: roundDoc.id, ...roundDoc.data() },
+    round: {
+      id: round.id,
+      eventId: round.event_id,
+      title: round.title,
+      description: round.description,
+      order: round.order,
+      type: round.type,
+      status: round.status,
+      allowNewParticipants: round.allow_new_participants,
+      resultsVisibility: round.results_visibility,
+      questionCount: round.question_count,
+    },
     summary: {
       totalParticipants,
       totalSubmissions,

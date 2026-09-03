@@ -1,5 +1,4 @@
-import { shouldUseMockData } from "@/lib/dev/config";
-import { getMockEventBySlug } from "@/lib/dev/mock-store";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export interface EventSummary {
   id: string;
@@ -14,56 +13,39 @@ export interface EventSummary {
 }
 
 export async function getEventBySlug(slug: string): Promise<EventSummary | null> {
-  if (shouldUseMockData()) {
-    const mock = getMockEventBySlug(slug);
-    if (!mock) return null;
-    return {
-      id: mock.id,
-      title: mock.title,
-      slug: mock.slug,
-      description: mock.description,
-      status: mock.status,
-      requireLiveCode: mock.requireLiveCode,
-    };
-  }
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
+  if (!data) return null;
 
-  const { getAdminDb } = await import("@/lib/firebase/admin");
-  const db = getAdminDb();
-  const snap = await db.collection("events").where("slug", "==", slug).limit(1).get();
-  if (snap.empty) return null;
-  let doc = snap.docs[0]!;
-  let data = doc.data();
+  let row = data;
 
   // Um QR Code de uma sequência sempre aponta para o evento ativo. Quando o
   // primeiro termina, o mesmo endereço passa a abrir automaticamente o próximo.
-  if (data.sequenceId && data.status !== "open") {
-    const sequenceSnap = await db
-      .collection("events")
-      .where("sequenceId", "==", data.sequenceId)
-      .get();
-    const ordered = sequenceSnap.docs.sort(
-      (a, b) => (a.data().sequenceOrder ?? 0) - (b.data().sequenceOrder ?? 0)
-    );
+  if (row.sequence_id && row.status !== "open") {
+    const { data: sequenceRows } = await supabase
+      .from("events")
+      .select("*")
+      .eq("sequence_id", row.sequence_id)
+      .order("sequence_order", { ascending: true });
+
+    const ordered = sequenceRows ?? [];
     const active =
-      ordered.find((item) => item.data().status === "open") ??
-      ordered.find((item) => item.data().status !== "closed") ??
+      ordered.find((item) => item.status === "open") ??
+      ordered.find((item) => item.status !== "closed") ??
       ordered[ordered.length - 1];
-    if (active) {
-      doc = active;
-      data = active.data();
-    }
+    if (active) row = active;
   }
 
   return {
-    id: doc.id,
-    title: data.title as string,
-    slug: data.slug as string,
-    description: data.description as string | null,
-    status: data.status as string,
-    requireLiveCode: data.requireLiveCode as boolean,
-    sequenceId: (data.sequenceId as string | null) ?? null,
-    sequenceOrder: (data.sequenceOrder as number | null) ?? null,
-    sequenceRootSlug: (data.sequenceRootSlug as string | null) ?? null,
+    id: row.id as string,
+    title: row.title as string,
+    slug: row.slug as string,
+    description: row.description as string | null,
+    status: row.status as string,
+    requireLiveCode: row.require_live_code as boolean,
+    sequenceId: (row.sequence_id as string | null) ?? null,
+    sequenceOrder: (row.sequence_order as number | null) ?? null,
+    sequenceRootSlug: (row.sequence_root_slug as string | null) ?? null,
   };
 }
 

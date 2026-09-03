@@ -3,13 +3,11 @@
 import { useState, Suspense } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ParticipantShell } from "@/components/participant/ParticipantShell";
-import { useAppCheck } from "@/hooks/use-app-check";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
 import type { ParticipantMode } from "@/types/participant";
 
 function ParticiparContent() {
-  useAppCheck();
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();

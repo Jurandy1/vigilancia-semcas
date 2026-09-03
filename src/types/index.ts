@@ -1,15 +1,3 @@
-// 32 fragmentos mantêm a contenção baixa mesmo quando centenas de pessoas
-// entram ou respondem ao mesmo tempo.
-export const NUM_SHARDS = 32;
-
-export interface ShardStats {
-  shardId: number;
-  registered: number;
-  answering: number;
-  completed: number;
-  updatedAt: string;
-}
-
 export interface AggregatedStats {
   registered: number;
   answering: number;

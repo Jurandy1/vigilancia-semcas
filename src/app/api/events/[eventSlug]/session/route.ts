@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getParticipantFromRequest } from "@/lib/sessions/verify";
 import { getEventBySlug } from "@/lib/data/events";
-import { shouldUseMockData } from "@/lib/dev/config";
-import {
-  getMockParticipantRounds,
-  getMockPublicEvent,
-  getParticipantFromRequestMock,
-} from "@/lib/data/mock-participant";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -22,65 +17,32 @@ export async function GET(
     }
 
     const eventId = event.id;
-
-    if (shouldUseMockData()) {
-      const participant = await getParticipantFromRequestMock(request, eventId);
-      if (!participant) {
-        return NextResponse.json({ session: null });
-      }
-
-      const participantRounds = getMockParticipantRounds(participant.id).map((pr) => ({
-        id: pr.id,
-        roundId: pr.roundId,
-        status: pr.status,
-        currentQuestion: pr.currentQuestion,
-        completedAt: pr.completedAt,
-      }));
-
-      const publicEvent = getMockPublicEvent();
-
-      return NextResponse.json({
-        session: {
-          participantId: participant.id,
-          mode: participant.mode,
-          name: participant.name,
-          eventId,
-          participantRounds,
-          currentOpenRoundId: publicEvent.currentOpenRoundId,
-          currentRoundTitle: publicEvent.currentRoundTitle,
-          currentRoundStatus: publicEvent.currentRoundStatus,
-        },
-      });
-    }
-
     const participant = await getParticipantFromRequest(request, eventId);
 
     if (!participant) {
       return NextResponse.json({ session: null });
     }
 
-    const { getAdminDb } = await import("@/lib/firebase/admin");
-    const { toIsoString } = await import("@/lib/firebase/helpers");
-    const db = getAdminDb();
+    const supabase = getSupabaseAdmin();
 
-    const participantRoundsSnap = await db
-      .collection(`events/${eventId}/participantRounds`)
-      .where("participantId", "==", participant.id)
-      .get();
+    const { data: prRows } = await supabase
+      .from("participant_rounds")
+      .select("*")
+      .eq("participant_id", participant.id);
 
-    const participantRounds = participantRoundsSnap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        roundId: d.roundId,
-        status: d.status,
-        currentQuestion: d.currentQuestion,
-        completedAt: d.completedAt ? toIsoString(d.completedAt) : null,
-      };
-    });
+    const participantRounds = (prRows ?? []).map((pr) => ({
+      id: `${pr.round_id}_${pr.participant_id}`,
+      roundId: pr.round_id,
+      status: pr.status,
+      currentQuestion: pr.current_question,
+      completedAt: pr.completed_at ?? null,
+    }));
 
-    const publicEventDoc = await db.doc(`publicEvents/${eventId}`).get();
-    const publicEvent = publicEventDoc.exists ? publicEventDoc.data() : null;
+    const { data: publicEvent } = await supabase
+      .from("public_events")
+      .select("*")
+      .eq("event_id", eventId)
+      .maybeSingle();
 
     return NextResponse.json({
       session: {
@@ -89,9 +51,9 @@ export async function GET(
         name: participant.name,
         eventId,
         participantRounds,
-        currentOpenRoundId: publicEvent?.currentOpenRoundId ?? null,
-        currentRoundTitle: publicEvent?.currentRoundTitle ?? null,
-        currentRoundStatus: publicEvent?.currentRoundStatus ?? null,
+        currentOpenRoundId: publicEvent?.current_open_round_id ?? null,
+        currentRoundTitle: publicEvent?.current_round_title ?? null,
+        currentRoundStatus: publicEvent?.current_round_status ?? null,
       },
     });
   } catch {

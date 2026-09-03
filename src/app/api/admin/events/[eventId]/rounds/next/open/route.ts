@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
-import { writeAuditLog } from "@/lib/firebase/helpers";
+import { writeAuditLog } from "@/lib/supabase/helpers";
 import { openRoundTransaction } from "@/lib/rounds/open-round";
 
 export const runtime = "nodejs";
@@ -14,14 +14,15 @@ export async function POST(
   if (!admin) return adminUnauthorized();
 
   const { eventId } = await params;
-  const db = getAdminDb();
+  const supabase = getSupabaseAdmin();
 
-  const roundsSnap = await db.collection(`events/${eventId}/rounds`).orderBy("order").get();
-  const rounds = roundsSnap.docs.map((d) => ({
-    id: d.id,
-    order: d.data().order as number,
-    status: d.data().status as string,
-  }));
+  const { data: roundRows } = await supabase
+    .from("rounds")
+    .select("id, order, status")
+    .eq("event_id", eventId)
+    .order("order", { ascending: true });
+
+  const rounds = roundRows ?? [];
 
   // Referência: order da última rodada executada (a de maior `order` já encerrada).
   // Se nenhuma foi encerrada ainda, qualquer rodada elegível conta a partir do início.

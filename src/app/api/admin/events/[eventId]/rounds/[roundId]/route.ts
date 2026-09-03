@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { createRoundSchema } from "@/lib/validation/round";
 
 export const runtime = "nodejs";
 
-const ROUND_LOCKED_MESSAGE =
-  "Esta rodada já recebeu respostas e não pode mais ser editada.";
+const ROUND_LOCKED_MESSAGE = "Esta rodada já recebeu respostas e não pode mais ser editada.";
 
 export async function GET(
   request: NextRequest,
@@ -16,30 +15,49 @@ export async function GET(
   if (!admin) return adminUnauthorized();
 
   const { eventId, roundId } = await params;
-  const db = getAdminDb();
+  const supabase = getSupabaseAdmin();
 
-  const [roundDoc, questionsSnap, submissionsCountSnap] = await Promise.all([
-    db.doc(`events/${eventId}/rounds/${roundId}`).get(),
-    db.collection(`events/${eventId}/rounds/${roundId}/questions`).orderBy("order").get(),
-    db
-      .collection(`events/${eventId}/submissions`)
-      .where("roundId", "==", roundId)
-      .count()
-      .get(),
+  const [{ data: round }, { data: questionRows }, { count: submissionCount }] = await Promise.all([
+    supabase.from("rounds").select("*").eq("id", roundId).eq("event_id", eventId).maybeSingle(),
+    supabase.from("questions").select("*").eq("round_id", roundId).order("order", { ascending: true }),
+    supabase.from("submissions").select("id", { count: "exact", head: true }).eq("round_id", roundId),
   ]);
 
-  if (!roundDoc.exists) {
+  if (!round) {
     return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
   }
 
-  const questions = questionsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const submissionCount = submissionsCountSnap.data().count;
+  const questions = (questionRows ?? []).map((q) => ({
+    id: q.id,
+    order: q.order,
+    type: q.type,
+    title: q.title,
+    explanation: q.explanation,
+    required: q.required,
+    options: q.options,
+    maxLength: q.max_length,
+    maxSelections: q.max_selections,
+  }));
 
   return NextResponse.json({
-    round: { id: roundDoc.id, ...roundDoc.data() },
+    round: {
+      id: round.id,
+      eventId: round.event_id,
+      title: round.title,
+      description: round.description,
+      order: round.order,
+      type: round.type,
+      status: round.status,
+      allowNewParticipants: round.allow_new_participants,
+      resultsVisibility: round.results_visibility,
+      questionCount: round.question_count,
+      createdAt: round.created_at,
+      openedAt: round.opened_at,
+      closedAt: round.closed_at,
+    },
     questions,
-    submissionCount,
-    editable: submissionCount === 0,
+    submissionCount: submissionCount ?? 0,
+    editable: (submissionCount ?? 0) === 0,
   });
 }
 
@@ -61,51 +79,51 @@ export async function PATCH(
     );
   }
 
-  const db = getAdminDb();
-  const roundRef = db.doc(`events/${eventId}/rounds/${roundId}`);
-  const questionsRef = db.collection(`events/${eventId}/rounds/${roundId}/questions`);
-
-  const [roundDoc, submissionsCountSnap, questionsSnap] = await Promise.all([
-    roundRef.get(),
-    db.collection(`events/${eventId}/submissions`).where("roundId", "==", roundId).count().get(),
-    questionsRef.get(),
-  ]);
-
-  if (!roundDoc.exists) {
+  const supabase = getSupabaseAdmin();
+  const { data: round } = await supabase
+    .from("rounds")
+    .select("id")
+    .eq("id", roundId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (!round) {
     return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
   }
 
-  if (submissionsCountSnap.data().count > 0) {
+  const { count: submissionCount } = await supabase
+    .from("submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("round_id", roundId);
+  if ((submissionCount ?? 0) > 0) {
     return NextResponse.json({ error: ROUND_LOCKED_MESSAGE }, { status: 409 });
   }
 
-  await db.runTransaction(async (tx) => {
-    // Nenhuma leitura extra necessária aqui — já lemos tudo acima antes de escrever.
-    tx.update(roundRef, {
+  await supabase
+    .from("rounds")
+    .update({
       title: parsed.data.title,
       description: parsed.data.description ?? null,
       type: parsed.data.type,
-      allowNewParticipants: parsed.data.allowNewParticipants,
-      resultsVisibility: parsed.data.resultsVisibility,
-      questionCount: parsed.data.questions.length,
-    });
+      allow_new_participants: parsed.data.allowNewParticipants,
+      results_visibility: parsed.data.resultsVisibility,
+      question_count: parsed.data.questions.length,
+    })
+    .eq("id", roundId);
 
-    questionsSnap.docs.forEach((doc) => tx.delete(doc.ref));
+  await supabase.from("questions").delete().eq("round_id", roundId);
 
-    parsed.data.questions.forEach((q, index) => {
-      const qRef = questionsRef.doc();
-      tx.set(qRef, {
-        order: q.order ?? index + 1,
-        type: q.type,
-        title: q.title,
-        explanation: q.explanation ?? null,
-        required: q.required ?? true,
-        options: q.options ?? null,
-        maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),
-        maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
-      });
-    });
-  });
+  const questions = parsed.data.questions.map((q, index) => ({
+    round_id: roundId,
+    order: q.order ?? index + 1,
+    type: q.type,
+    title: q.title,
+    explanation: q.explanation ?? null,
+    required: q.required ?? true,
+    options: q.options ?? null,
+    max_length: q.maxLength ?? (q.type === "text" ? 2000 : null),
+    max_selections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
+  }));
+  await supabase.from("questions").insert(questions);
 
   return NextResponse.json({ success: true });
 }

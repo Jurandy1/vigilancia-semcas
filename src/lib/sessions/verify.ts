@@ -1,19 +1,30 @@
 import { NextRequest } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Participant } from "@/types/participant";
 import { hashTokenForLookup } from "./cookies";
 import { SESSION_COOKIE_NAME } from "./tokens";
 
-function serializeParticipant(data: FirebaseFirestore.DocumentData, id: string): Participant {
+interface ParticipantRow {
+  id: string;
+  event_id: string;
+  mode: string;
+  name: string | null;
+  session_token_hash: string;
+  session_expires_at: string;
+  created_at: string;
+  last_activity_at: string;
+}
+
+function serializeParticipant(row: ParticipantRow): Participant {
   return {
-    id,
-    eventId: data.eventId,
-    mode: data.mode,
-    name: data.name ?? null,
-    sessionTokenHash: data.sessionTokenHash,
-    sessionExpiresAt: data.sessionExpiresAt?.toDate?.()?.toISOString?.() ?? data.sessionExpiresAt,
-    createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? data.createdAt,
-    lastActivityAt: data.lastActivityAt?.toDate?.()?.toISOString?.() ?? data.lastActivityAt,
+    id: row.id,
+    eventId: row.event_id,
+    mode: row.mode as Participant["mode"],
+    name: row.name ?? null,
+    sessionTokenHash: row.session_token_hash,
+    sessionExpiresAt: row.session_expires_at,
+    createdAt: row.created_at,
+    lastActivityAt: row.last_activity_at,
   };
 }
 
@@ -25,18 +36,19 @@ export async function getParticipantFromRequest(
   if (!token) return null;
 
   const hash = hashTokenForLookup(token);
-  const db = getAdminDb();
+  const supabase = getSupabaseAdmin();
 
-  const snapshot = await db
-    .collection(`events/${eventId}/participants`)
-    .where("sessionTokenHash", "==", hash)
+  const { data } = await supabase
+    .from("participants")
+    .select("*")
+    .eq("event_id", eventId)
+    .eq("session_token_hash", hash)
     .limit(1)
-    .get();
+    .maybeSingle();
 
-  if (snapshot.empty) return null;
+  if (!data) return null;
 
-  const doc = snapshot.docs[0]!;
-  const participant = serializeParticipant(doc.data(), doc.id);
+  const participant = serializeParticipant(data as ParticipantRow);
 
   if (new Date(participant.sessionExpiresAt) < new Date()) {
     return null;
@@ -49,8 +61,13 @@ export async function getParticipantById(
   eventId: string,
   participantId: string
 ): Promise<Participant | null> {
-  const db = getAdminDb();
-  const doc = await db.doc(`events/${eventId}/participants/${participantId}`).get();
-  if (!doc.exists) return null;
-  return serializeParticipant(doc.data()!, doc.id);
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("participants")
+    .select("*")
+    .eq("event_id", eventId)
+    .eq("id", participantId)
+    .maybeSingle();
+  if (!data) return null;
+  return serializeParticipant(data as ParticipantRow);
 }

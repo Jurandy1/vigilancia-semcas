@@ -5,41 +5,27 @@ Sistema web institucional para avaliações, pesquisas, consultas e votações e
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript + Tailwind CSS
-- Firebase (Firestore, Auth, App Check)
+- Supabase (Postgres, Auth, Realtime)
 - Vercel (hospedagem)
 
-## Firebase — vigilancia-c2917
+## Supabase — projeto vigilancia
 
-O projeto Web já está configurado em `.env.local`.
-
-### Para ativar o Firebase real (sair do modo simulado)
-
-1. **Service Account (Admin SDK)**  
-   Firebase Console → Configurações do projeto → Contas de serviço → **Gerar nova chave privada**
+1. Aplique o schema (tabelas, RLS, funções) rodando o conteúdo de
+   `supabase/schema.sql` no SQL Editor do projeto Supabase.
 
 2. Preencha no `.env.local`:
    ```
-   FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@vigilancia-c2917.iam.gserviceaccount.com
-   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+   SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
    ```
 
-3. Desative o mock:
-   ```
-   USE_DEV_MOCK=false
-   NEXT_PUBLIC_USE_DEV_MOCK=false
-   ```
-
-4. Deploy das regras:
-   ```bash
-   firebase deploy --only firestore:rules
-   ```
-
-5. Crie o evento de teste:
+3. Crie o evento de teste:
    ```bash
    npm run seed
    ```
 
-6. Defina um admin:
+4. Defina um admin (já existe um usuário no Supabase Auth):
    ```bash
    npm run set-admin -- seu@email.com
    ```
@@ -61,7 +47,7 @@ npm run dev
 | `npm run test` | Testes unitários |
 | `npm run seed` | Cria evento de teste |
 | `npm run load-test` | Cria um cenário isolado, simula 200 votantes e remove os dados ao terminar |
-| `npm run set-admin` | Define custom claim admin |
+| `npm run set-admin` | Concede acesso de administrador a um usuário do Supabase Auth |
 
 ## Rotas principais
 
@@ -74,7 +60,7 @@ npm run dev
 
 ## Segurança
 
-- Participantes: sessão própria via cookie HttpOnly (sem Firebase Auth)
-- Admin: Firebase Auth + custom claim `admin: true`
-- Gravações: somente via API server-side (Firebase Admin SDK)
-- Firestore Rules: deny-by-default
+- Participantes: sessão própria via cookie HttpOnly (sem Supabase Auth)
+- Admin: Supabase Auth + tabela `admins` (equivalente ao custom claim)
+- Gravações: somente via API server-side (`service_role`, que ignora RLS)
+- RLS: deny-by-default nas tabelas privadas; leitura pública só em `public_events`/`public_round_stats`

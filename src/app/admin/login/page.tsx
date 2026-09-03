@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { adminLogin } from "@/lib/firebase/auth-client";
+import { adminLogin, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { resolvePostLoginDestination } from "@/lib/admin/post-login-destination";
 
 export default function AdminLoginPage() {
@@ -25,9 +25,9 @@ export default function AdminLoginPage() {
 
     setLoading(true);
     try {
-      const user = await adminLogin(email, password);
-      const idToken = await user.getIdToken();
-      const destination = await resolvePostLoginDestination(idToken);
+      await adminLogin(email, password);
+      const idToken = await getAdminIdToken();
+      const destination = await resolvePostLoginDestination(idToken ?? "");
       router.push(destination);
     } catch (err) {
       setError(

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ParticipantShell } from "@/components/participant/ParticipantShell";
-import { useAppCheck } from "@/hooks/use-app-check";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +19,6 @@ interface EventEntryClientProps {
 }
 
 export function EventEntryClient({ event }: EventEntryClientProps) {
-  useAppCheck();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const { setEvent, setParticipant } = useParticipantStore();

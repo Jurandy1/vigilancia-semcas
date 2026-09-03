@@ -3,14 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ParticipantShell } from "@/components/participant/ParticipantShell";
-import { useAppCheck } from "@/hooks/use-app-check";
 import { usePublicEvent } from "@/hooks/use-public-event";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AguardePage() {
-  useAppCheck();
   const router = useRouter();
   const params = useParams();
   const eventSlug = params.eventSlug as string;

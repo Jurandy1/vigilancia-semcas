@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
-import { verifyAppCheck, appCheckUnauthorized } from "@/lib/security/app-check";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getParticipantFromRequest } from "@/lib/sessions/verify";
 import { submitSchema } from "@/lib/validation/submission";
-import { getParticipantRoundId, getSubmissionId } from "@/lib/sessions/tokens";
-import { getShardId, getShardPath } from "@/lib/counters/shard";
-import { writeAuditLog } from "@/lib/firebase/helpers";
+import { writeAuditLog } from "@/lib/supabase/helpers";
 import type { Question } from "@/types/round";
 import { findOtherOption } from "@/lib/questions/other-option";
 
 import { getEventIdFromSlug } from "@/lib/data/events";
-import { shouldUseMockData } from "@/lib/dev/config";
-import {
-  getMockQuestions,
-  getMockRound,
-  getParticipantFromRequestMock,
-  submitMockAnswers,
-} from "@/lib/data/mock-participant";
 
 export const runtime = "nodejs";
 
@@ -81,9 +70,6 @@ export async function POST(
   { params }: { params: Promise<{ eventSlug: string; roundId: string }> }
 ) {
   try {
-    const appCheckOk = await verifyAppCheck(request);
-    if (!appCheckOk) return appCheckUnauthorized();
-
     const { eventSlug, roundId } = await params;
     const eventId = await getEventIdFromSlug(eventSlug);
     if (!eventId) {
@@ -96,147 +82,65 @@ export async function POST(
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
     }
 
-    if (shouldUseMockData()) {
-      const participant = await getParticipantFromRequestMock(request, eventId);
-      if (!participant) {
-        return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
-      }
-
-      const round = getMockRound(eventId, roundId);
-      if (!round || round.status !== "open") {
-        return NextResponse.json({ error: "Esta etapa não está aberta." }, { status: 403 });
-      }
-
-      const questions = getMockQuestions(eventId, roundId);
-      const validationErrors = validateAnswers(questions, parsed.data.answers);
-      if (validationErrors.length > 0) {
-        return NextResponse.json({ error: validationErrors[0] }, { status: 400 });
-      }
-
-      const result = submitMockAnswers({
-        eventId,
-        roundId,
-        participantId: participant.id,
-        mode: participant.mode,
-        answers: parsed.data.answers,
-      });
-
-      return NextResponse.json({
-        success: true,
-        alreadySubmitted: result.alreadySubmitted,
-      });
-    }
-
     const participant = await getParticipantFromRequest(request, eventId);
     if (!participant) {
       return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
     }
 
-    const db = getAdminDb();
+    const supabase = getSupabaseAdmin();
 
-    const eventDoc = await db.doc(`events/${eventId}`).get();
-    if (!eventDoc.exists || eventDoc.data()?.status === "closed") {
+    const { data: event } = await supabase.from("events").select("status").eq("id", eventId).maybeSingle();
+    if (!event || event.status === "closed") {
       return NextResponse.json({ error: "Evento encerrado." }, { status: 403 });
     }
 
-    const roundDoc = await db.doc(`events/${eventId}/rounds/${roundId}`).get();
-    if (!roundDoc.exists || roundDoc.data()?.status !== "open") {
+    const { data: round } = await supabase.from("rounds").select("status").eq("id", roundId).eq("event_id", eventId).maybeSingle();
+    if (!round || round.status !== "open") {
       return NextResponse.json({ error: "Esta etapa não está aberta." }, { status: 403 });
     }
 
-    const questionsSnap = await db
-      .collection(`events/${eventId}/rounds/${roundId}/questions`)
-      .orderBy("order")
-      .get();
+    const { data: questionRows } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("round_id", roundId)
+      .order("order", { ascending: true });
 
-    const questions: Question[] = questionsSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Question[];
+    const questions: Question[] = (questionRows ?? []).map((q) => ({
+      id: q.id,
+      order: q.order,
+      type: q.type,
+      title: q.title,
+      explanation: q.explanation ?? null,
+      required: q.required,
+      options: q.options ?? undefined,
+      maxLength: q.max_length ?? undefined,
+      maxSelections: q.max_selections ?? undefined,
+    }));
 
     const validationErrors = validateAnswers(questions, parsed.data.answers);
     if (validationErrors.length > 0) {
       return NextResponse.json({ error: validationErrors[0] }, { status: 400 });
     }
 
-    const submissionId = getSubmissionId(roundId, participant.id);
-    const prId = getParticipantRoundId(roundId, participant.id);
-    const submissionRef = db.doc(`events/${eventId}/submissions/${submissionId}`);
-    const prRef = db.doc(`events/${eventId}/participantRounds/${prId}`);
-    const shardId = getShardId(participant.id, roundId);
-    const shardPath = getShardPath(eventId, roundId, shardId);
-    const now = Timestamp.now();
+    const { data: rpcResult, error } = await supabase
+      .rpc("submit_answers", {
+        p_event_id: eventId,
+        p_round_id: roundId,
+        p_participant_id: participant.id,
+        p_mode: participant.mode,
+        p_answers: parsed.data.answers,
+      })
+      .single<{ already_submitted: boolean }>();
 
-    let alreadySubmitted = false;
-
-    await db.runTransaction(async (tx) => {
-      // Firestore exige que todas as leituras da transação aconteçam antes de qualquer escrita.
-      const existingSubmission = await tx.get(submissionRef);
-      if (existingSubmission.exists) {
-        alreadySubmitted = true;
-        return;
-      }
-
-      const prDoc = await tx.get(prRef);
-      if (prDoc.exists && prDoc.data()?.status === "completed") {
-        alreadySubmitted = true;
-        return;
-      }
-
-      const shardRef = db.doc(shardPath);
-      const shardDoc = await tx.get(shardRef);
-      const wasNew = !prDoc.exists;
-
-      tx.set(submissionRef, {
-        id: submissionId,
-        eventId,
-        roundId,
-        participantId: participant.id,
-        mode: participant.mode,
-        answers: parsed.data.answers,
-        submittedAt: now,
-      });
-
-      tx.set(
-        prRef,
-        {
-          id: prId,
-          eventId,
-          roundId,
-          participantId: participant.id,
-          status: "completed",
-          currentQuestion: questions.length,
-          startedAt: prDoc.data()?.startedAt ?? now,
-          lastActivityAt: now,
-          completedAt: now,
-        },
-        { merge: true }
+    if (error) {
+      console.error("Erro ao enviar respostas:", error);
+      return NextResponse.json(
+        { error: "Não foi possível concluir esta operação. Tente novamente." },
+        { status: 500 }
       );
+    }
 
-      tx.update(db.doc(`events/${eventId}/participants/${participant.id}`), {
-        lastActivityAt: now,
-      });
-
-      if (!shardDoc.exists) {
-        tx.set(shardRef, {
-          shardId,
-          registered: wasNew ? 1 : 0,
-          answering: 0,
-          completed: 1,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      } else {
-        const updates: Record<string, unknown> = {
-          completed: FieldValue.increment(1),
-          answering: FieldValue.increment(-1),
-          updatedAt: FieldValue.serverTimestamp(),
-        };
-        if (wasNew) updates.registered = FieldValue.increment(1);
-        const currentAnswering = shardDoc.data()?.answering ?? 0;
-        if (currentAnswering <= 0) delete updates.answering;
-        tx.update(shardRef, updates);
-      }
-    });
+    const alreadySubmitted = rpcResult?.already_submitted ?? false;
 
     if (!alreadySubmitted) {
       await writeAuditLog({
@@ -248,10 +152,7 @@ export async function POST(
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      alreadySubmitted,
-    });
+    return NextResponse.json({ success: true, alreadySubmitted });
   } catch (error) {
     console.error("Erro ao enviar respostas:", error);
     return NextResponse.json(

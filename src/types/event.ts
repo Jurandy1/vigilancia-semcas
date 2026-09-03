@@ -36,8 +36,10 @@ export interface PublicEvent {
   slug: string;
   title: string;
   description: string | null;
+  projectorTitle?: string | null;
   status: EventStatus;
   requireLiveCode: boolean;
+  participantCount: number;
   currentOpenRoundId: string | null;
   currentRoundTitle: string | null;
   currentRoundStatus: RoundStatus | null;

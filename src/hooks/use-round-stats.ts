@@ -2,18 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { AggregatedStats } from "@/types/index";
-import { aggregateShardStats } from "@/lib/counters/aggregate";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import { useParticipantStore } from "@/stores/participant-store";
 
-const IS_MOCK =
-  typeof window !== "undefined" &&
-  process.env.NEXT_PUBLIC_USE_DEV_MOCK === "true";
-
-export function useRoundStats(
-  eventId: string | null,
-  roundId: string | null,
-  eventSlug?: string | null
-) {
+export function useRoundStats(_eventId: string | null, roundId: string | null) {
   const [stats, setStats] = useState<AggregatedStats>({
     registered: 0,
     answering: 0,
@@ -28,72 +20,50 @@ export function useRoundStats(
       return;
     }
 
-    if (IS_MOCK && eventSlug) {
-      async function poll() {
-        try {
-          const res = await fetch(`/api/dev/public-event/${eventSlug}`);
-          const data = await res.json();
-          if (data.stats) {
-            setStats({
-              registered: data.stats.registered ?? 0,
-              answering: data.stats.answering ?? 0,
-              completed: data.stats.completed ?? 0,
-            });
-            setConnectionState("connected");
-          }
-        } catch {
-          setConnectionState("error");
-        } finally {
-          setLoading(false);
-        }
-      }
+    const supabase = getSupabaseClient();
+    setConnectionState("connecting");
 
-      poll();
-      const interval = setInterval(poll, 3000);
-      return () => clearInterval(interval);
+    function applyRow(row: {
+      registered_count: number;
+      answering_count: number;
+      completed_count: number;
+    }) {
+      setStats({
+        registered: row.registered_count ?? 0,
+        answering: row.answering_count ?? 0,
+        completed: row.completed_count ?? 0,
+      });
     }
 
-    if (!eventId) {
-      setLoading(false);
-      return;
-    }
+    supabase
+      .from("public_round_stats")
+      .select("registered_count, answering_count, completed_count")
+      .eq("round_id", roundId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) applyRow(data);
+        setLoading(false);
+      });
 
-    let unsubscribe: (() => void) | undefined;
-
-    async function subscribe() {
-      const { collection, onSnapshot, query } = await import("firebase/firestore");
-      const { getFirestoreDb } = await import("@/lib/firebase/client");
-      const db = getFirestoreDb();
-      const shardsRef = collection(db, `publicStats/${eventId}/rounds/${roundId}/shards`);
-      const q = query(shardsRef);
-
-      unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const shards = snapshot.docs.map((doc) => ({
-            shardId: doc.data().shardId ?? 0,
-            registered: doc.data().registered ?? 0,
-            answering: doc.data().answering ?? 0,
-            completed: doc.data().completed ?? 0,
-            updatedAt: "",
-          }));
-          setStats(aggregateShardStats(shards));
-          setLoading(false);
+    const channel = supabase
+      .channel(`public_round_stats:${roundId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "public_round_stats", filter: `round_id=eq.${roundId}` },
+        (payload) => {
+          applyRow(payload.new as never);
           setConnectionState("connected");
-        },
-        () => {
-          setConnectionState("error");
-          setLoading(false);
         }
-      );
-    }
-
-    subscribe();
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setConnectionState("connected");
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setConnectionState("error");
+      });
 
     return () => {
-      unsubscribe?.();
+      supabase.removeChannel(channel);
     };
-  }, [eventId, roundId, eventSlug, setConnectionState]);
+  }, [roundId, setConnectionState]);
 
   return { stats, loading };
 }

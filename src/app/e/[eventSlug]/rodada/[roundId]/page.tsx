@@ -6,7 +6,6 @@ import {
   ParticipantOptionButton,
   ParticipantShell,
 } from "@/components/participant/ParticipantShell";
-import { useAppCheck } from "@/hooks/use-app-check";
 import { apiFetch } from "@/lib/api-client";
 import {
   useParticipantStore,
@@ -17,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { findOtherOption, getOtherDraftKey } from "@/lib/questions/other-option";
 
 export default function RoundPage() {
-  useAppCheck();
   const router = useRouter();
   const params = useParams();
   const eventSlug = params.eventSlug as string;

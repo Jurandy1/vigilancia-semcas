@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEventIdFromSlug } from "@/lib/data/events";
-import { shouldUseMockData } from "@/lib/dev/config";
-import { getMockQuestions, getMockRound } from "@/lib/data/mock-participant";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -12,42 +11,47 @@ export async function GET(
   try {
     const { eventSlug, roundId } = await params;
 
-    if (shouldUseMockData()) {
-      const eventId = (await getEventIdFromSlug(eventSlug))!;
-      const round = getMockRound(eventId, roundId);
-      if (!round) {
-        return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
-      }
-      return NextResponse.json({
-        round,
-        questions: getMockQuestions(eventId, roundId),
-      });
-    }
-
     const eventId = await getEventIdFromSlug(eventSlug);
     if (!eventId) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }
 
-    const { getAdminDb } = await import("@/lib/firebase/admin");
-    const db = getAdminDb();
-    const roundDoc = await db.doc(`events/${eventId}/rounds/${roundId}`).get();
-    if (!roundDoc.exists) {
+    const supabase = getSupabaseAdmin();
+    const { data: round } = await supabase
+      .from("rounds")
+      .select("*")
+      .eq("id", roundId)
+      .eq("event_id", eventId)
+      .maybeSingle();
+    if (!round) {
       return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
     }
 
-    const questionsSnap = await db
-      .collection(`events/${eventId}/rounds/${roundId}/questions`)
-      .orderBy("order")
-      .get();
+    const { data: questionRows } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("round_id", roundId)
+      .order("order", { ascending: true });
 
-    const questions = questionsSnap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
+    const questions = (questionRows ?? []).map((q) => ({
+      id: q.id,
+      order: q.order,
+      type: q.type,
+      title: q.title,
+      explanation: q.explanation ?? null,
+      required: q.required,
+      options: q.options ?? undefined,
+      maxLength: q.max_length ?? undefined,
+      maxSelections: q.max_selections ?? undefined,
     }));
 
     return NextResponse.json({
-      round: { id: roundDoc.id, ...roundDoc.data() },
+      round: {
+        id: round.id,
+        title: round.title,
+        status: round.status,
+        order: round.order,
+      },
       questions,
     });
   } catch {

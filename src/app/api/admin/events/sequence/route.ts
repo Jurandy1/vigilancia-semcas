@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 
 export const runtime = "nodejs";
@@ -15,14 +14,14 @@ const sequenceSchema = z.object({
 });
 
 const EMPTY_SEQUENCE = {
-  sequenceId: null,
-  sequenceOrder: null,
-  sequenceSize: null,
-  sequenceRootEventId: null,
-  sequenceRootSlug: null,
-  nextEventId: null,
-  nextEventTitle: null,
-  nextEventSlug: null,
+  sequence_id: null,
+  sequence_order: null,
+  sequence_size: null,
+  sequence_root_event_id: null,
+  sequence_root_slug: null,
+  next_event_id: null,
+  next_event_title: null,
+  next_event_slug: null,
 };
 
 export async function POST(request: NextRequest) {
@@ -37,17 +36,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const db = getAdminDb();
-  const docs = await Promise.all(parsed.data.eventIds.map((id) => db.doc(`events/${id}`).get()));
-  const missing = docs.find((doc) => !doc.exists);
+  const supabase = getSupabaseAdmin();
+  const { data: rows } = await supabase.from("events").select("*").in("id", parsed.data.eventIds);
+  const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+
+  const missing = parsed.data.eventIds.find((id) => !byId.has(id));
   if (missing) {
     return NextResponse.json({ error: "Um dos eventos selecionados não existe mais." }, { status: 404 });
   }
 
-  const unavailable = docs.find((doc) => {
-    const status = doc.data()!.status;
-    return status === "open" || status === "closed";
-  });
+  const docs = parsed.data.eventIds.map((id) => byId.get(id)!);
+  const unavailable = docs.find((row) => row.status === "open" || row.status === "closed");
   if (unavailable) {
     return NextResponse.json(
       { error: "Organize a sequência antes de iniciar os eventos. Eventos iniciados ou encerrados não podem ser reordenados." },
@@ -56,59 +55,48 @@ export async function POST(request: NextRequest) {
   }
 
   const previousSequenceIds = Array.from(
-    new Set(docs.map((doc) => doc.data()!.sequenceId as string | undefined).filter(Boolean))
+    new Set(docs.map((row) => row.sequence_id as string | null).filter(Boolean))
   ) as string[];
-  const previousMembers = (
-    await Promise.all(
-      previousSequenceIds.map((sequenceId) =>
-        db.collection("events").where("sequenceId", "==", sequenceId).get()
-      )
-    )
-  ).flatMap((snapshot) => snapshot.docs);
+
+  const previousMembers = previousSequenceIds.length
+    ? ((await supabase.from("events").select("*").in("sequence_id", previousSequenceIds)).data ?? [])
+    : [];
 
   const sequenceId = crypto.randomUUID();
   const root = docs[0]!;
-  const rootData = root.data()!;
-  const batch = db.batch();
-  const touched = new Set<string>();
   const selectedIds = new Set(parsed.data.eventIds);
+  const touched = new Set<string>();
 
   for (const member of previousMembers) {
     if (touched.has(member.id) || selectedIds.has(member.id)) continue;
     touched.add(member.id);
-    batch.set(member.ref, { ...EMPTY_SEQUENCE, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    batch.set(
-      db.doc(`publicEvents/${member.id}`),
-      { ...EMPTY_SEQUENCE, updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
+    const cleared = { ...EMPTY_SEQUENCE, updated_at: new Date().toISOString() };
+    await supabase.from("events").update(cleared).eq("id", member.id);
+    await supabase.from("public_events").update(cleared).eq("event_id", member.id);
   }
 
-  docs.forEach((doc, index) => {
+  for (const [index, row] of docs.entries()) {
     const next = docs[index + 1] ?? null;
-    const nextData = next?.data();
     const sequence = {
-      sequenceId,
-      sequenceOrder: index,
-      sequenceSize: docs.length,
-      sequenceRootEventId: root.id,
-      sequenceRootSlug: rootData.slug as string,
-      nextEventId: next?.id ?? null,
-      nextEventTitle: (nextData?.title as string | undefined) ?? null,
-      nextEventSlug: (nextData?.slug as string | undefined) ?? null,
-      updatedAt: FieldValue.serverTimestamp(),
+      sequence_id: sequenceId,
+      sequence_order: index,
+      sequence_size: docs.length,
+      sequence_root_event_id: root.id,
+      sequence_root_slug: root.slug as string,
+      next_event_id: next?.id ?? null,
+      next_event_title: next?.title ?? null,
+      next_event_slug: next?.slug ?? null,
+      updated_at: new Date().toISOString(),
     };
-    batch.set(doc.ref, sequence, { merge: true });
-    batch.set(db.doc(`publicEvents/${doc.id}`), sequence, { merge: true });
-  });
-
-  await batch.commit();
+    await supabase.from("events").update(sequence).eq("id", row.id);
+    await supabase.from("public_events").update(sequence).eq("event_id", row.id);
+  }
 
   return NextResponse.json({
     success: true,
     sequenceId,
     rootEventId: root.id,
-    rootSlug: rootData.slug,
+    rootSlug: root.slug,
     count: docs.length,
   });
 }

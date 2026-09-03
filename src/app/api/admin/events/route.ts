@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Timestamp } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { createEventSchema } from "@/lib/validation/event";
 import { slugify } from "@/lib/utils/format";
-import { toIsoString } from "@/lib/firebase/helpers";
 
 export const runtime = "nodejs";
 
@@ -12,40 +10,43 @@ export async function GET(request: NextRequest) {
   const admin = await verifyAdminRequest(request);
   if (!admin) return adminUnauthorized();
 
-  const db = getAdminDb();
-  const snapshot = await db.collection("events").orderBy("createdAt", "desc").get();
+  const supabase = getSupabaseAdmin();
+  const { data: rows } = await supabase
+    .from("events")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   const events = await Promise.all(
-    snapshot.docs.map(async (doc) => {
-      const d = doc.data();
-
-      const [submissionsCount, participantsCount, currentRoundDoc] = await Promise.all([
-        db.collection(`events/${doc.id}/submissions`).count().get(),
-        db.collection(`events/${doc.id}/participants`).count().get(),
-        d.currentOpenRoundId
-          ? db.doc(`events/${doc.id}/rounds/${d.currentOpenRoundId}`).get()
-          : Promise.resolve(null),
+    (rows ?? []).map(async (d) => {
+      const [{ count: submissionCount }, currentRound] = await Promise.all([
+        supabase
+          .from("submissions")
+          .select("id", { count: "exact", head: true })
+          .eq("event_id", d.id),
+        d.current_open_round_id
+          ? supabase.from("rounds").select("title").eq("id", d.current_open_round_id).maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
 
       return {
-        id: doc.id,
+        id: d.id,
         title: d.title,
         slug: d.slug,
         status: d.status,
-        isTest: d.isTest,
+        isTest: d.is_test,
         order: d.order ?? 0,
-        participantCount: participantsCount.data().count,
-        submissionCount: submissionsCount.data().count,
-        currentRoundTitle: currentRoundDoc?.exists ? (currentRoundDoc.data()!.title as string) : null,
-        createdAt: d.createdAt ? toIsoString(d.createdAt) : null,
-        sequenceId: d.sequenceId ?? null,
-        sequenceOrder: d.sequenceOrder ?? null,
-        sequenceSize: d.sequenceSize ?? null,
-        sequenceRootEventId: d.sequenceRootEventId ?? null,
-        sequenceRootSlug: d.sequenceRootSlug ?? null,
-        nextEventId: d.nextEventId ?? null,
-        nextEventTitle: d.nextEventTitle ?? null,
-        nextEventSlug: d.nextEventSlug ?? null,
+        participantCount: d.participant_count ?? 0,
+        submissionCount: submissionCount ?? 0,
+        currentRoundTitle: currentRound.data?.title ?? null,
+        createdAt: d.created_at,
+        sequenceId: d.sequence_id ?? null,
+        sequenceOrder: d.sequence_order ?? null,
+        sequenceSize: d.sequence_size ?? null,
+        sequenceRootEventId: d.sequence_root_event_id ?? null,
+        sequenceRootSlug: d.sequence_root_slug ?? null,
+        nextEventId: d.next_event_id ?? null,
+        nextEventTitle: d.next_event_title ?? null,
+        nextEventSlug: d.next_event_slug ?? null,
       };
     })
   );
@@ -66,71 +67,50 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const db = getAdminDb();
+  const supabase = getSupabaseAdmin();
   const slug = parsed.data.slug || slugify(parsed.data.title);
 
-  const existing = await db.collection("events").where("slug", "==", slug).limit(1).get();
-  if (!existing.empty) {
+  const { data: existing } = await supabase.from("events").select("id").eq("slug", slug).maybeSingle();
+  if (existing) {
     return NextResponse.json({ error: "Já existe um evento com este slug." }, { status: 409 });
   }
 
-  const lastEvent = await db.collection("events").orderBy("order", "desc").limit(1).get();
-  const nextOrder = lastEvent.empty ? 1 : (lastEvent.docs[0]!.data().order ?? 0) + 1;
+  const { data: lastEvent } = await supabase
+    .from("events")
+    .select("order")
+    .order("order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (lastEvent?.order ?? 0) + 1;
 
-  const now = Timestamp.now();
-  const eventRef = db.collection("events").doc();
-
-  await db.runTransaction(async (tx) => {
-    tx.set(eventRef, {
+  const { data: inserted, error } = await supabase
+    .from("events")
+    .insert({
       title: parsed.data.title,
       slug,
       description: parsed.data.description ?? null,
-      projectorTitle: parsed.data.projectorTitle ?? null,
+      projector_title: parsed.data.projectorTitle ?? null,
       order: nextOrder,
       status: "draft",
-      isTest: parsed.data.isTest,
-      requireLiveCode: parsed.data.requireLiveCode,
-      currentOpenRoundId: null,
-      participantCount: 0,
-      createdAt: now,
-      updatedAt: now,
-      openedAt: null,
-      closedAt: null,
-      accessCodeHash: null,
-      accessCodeExpiresAt: null,
-      sequenceId: null,
-      sequenceOrder: null,
-      sequenceSize: null,
-      sequenceRootEventId: null,
-      sequenceRootSlug: null,
-      nextEventId: null,
-      nextEventTitle: null,
-      nextEventSlug: null,
-    });
+      is_test: parsed.data.isTest,
+      require_live_code: parsed.data.requireLiveCode,
+    })
+    .select("id")
+    .single();
 
-    tx.set(db.doc(`publicEvents/${eventRef.id}`), {
-      id: eventRef.id,
-      slug,
-      title: parsed.data.title,
-      description: parsed.data.description ?? null,
-      projectorTitle: parsed.data.projectorTitle ?? null,
-      status: "draft",
-      requireLiveCode: parsed.data.requireLiveCode,
-      currentOpenRoundId: null,
-      currentRoundTitle: null,
-      currentRoundStatus: null,
-      accessChallenge: null,
-      sequenceId: null,
-      sequenceOrder: null,
-      sequenceSize: null,
-      sequenceRootEventId: null,
-      sequenceRootSlug: null,
-      nextEventId: null,
-      nextEventTitle: null,
-      nextEventSlug: null,
-      updatedAt: now,
-    });
+  if (error || !inserted) {
+    return NextResponse.json({ error: "Não foi possível criar o evento." }, { status: 500 });
+  }
+
+  await supabase.from("public_events").insert({
+    event_id: inserted.id,
+    slug,
+    title: parsed.data.title,
+    description: parsed.data.description ?? null,
+    projector_title: parsed.data.projectorTitle ?? null,
+    status: "draft",
+    require_live_code: parsed.data.requireLiveCode,
   });
 
-  return NextResponse.json({ success: true, eventId: eventRef.id, slug });
+  return NextResponse.json({ success: true, eventId: inserted.id, slug });
 }

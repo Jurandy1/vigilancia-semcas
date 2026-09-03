@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
-import { writeAuditLog } from "@/lib/firebase/helpers";
+import { writeAuditLog } from "@/lib/supabase/helpers";
 
 export const runtime = "nodejs";
+
+const ERROR_MESSAGES: Record<string, { status: number; message: string }> = {
+  EVENT_NOT_FOUND: { status: 404, message: "Evento não encontrado." },
+  EVENT_NOT_OPEN: { status: 409, message: "Somente um evento em andamento pode ser finalizado." },
+  ROUND_STILL_OPEN: {
+    status: 409,
+    message: "Existe uma rodada em andamento. Encerre a rodada antes de finalizar o evento.",
+  },
+};
 
 export async function POST(
   request: NextRequest,
@@ -14,66 +22,15 @@ export async function POST(
   if (!admin) return adminUnauthorized();
 
   const { eventId } = await params;
-  const db = getAdminDb();
-  const now = Timestamp.now();
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.rpc("close_event", { p_event_id: eventId });
 
-  const result = await db.runTransaction(async (tx) => {
-    // Firestore exige que todas as leituras da transação aconteçam antes de qualquer escrita.
-    const eventRef = db.doc(`events/${eventId}`);
-    const eventDoc = await tx.get(eventRef);
-    if (!eventDoc.exists) {
-      return { ok: false as const, status: 404, error: "Evento não encontrado." };
-    }
-    if (eventDoc.data()!.status !== "open") {
-      return {
-        ok: false as const,
-        status: 409,
-        error: "Somente um evento em andamento pode ser finalizado.",
-      };
-    }
-
-    const openRoundsSnap = await tx.get(
-      db.collection(`events/${eventId}/rounds`).where("status", "==", "open")
-    );
-    if (!openRoundsSnap.empty) {
-      return {
-        ok: false as const,
-        status: 409,
-        error: "Existe uma rodada em andamento. Encerre a rodada antes de finalizar o evento.",
-      };
-    }
-
-    tx.update(eventRef, {
-      status: "closed",
-      closedAt: now,
-      currentOpenRoundId: null,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-
-    tx.set(
-      db.doc(`publicEvents/${eventId}`),
-      {
-        status: "closed",
-        currentOpenRoundId: null,
-        currentRoundStatus: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    return { ok: true as const };
-  });
-
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: result.status });
+  if (error) {
+    const mapped = ERROR_MESSAGES[error.message] ?? { status: 500, message: "Não foi possível encerrar o evento." };
+    return NextResponse.json({ error: mapped.message }, { status: mapped.status });
   }
 
-  await writeAuditLog({
-    eventId,
-    action: "event_closed",
-    actorType: "admin",
-    actorId: admin.uid,
-  });
+  await writeAuditLog({ eventId, action: "event_closed", actorType: "admin", actorId: admin.uid });
 
   return NextResponse.json({ success: true });
 }

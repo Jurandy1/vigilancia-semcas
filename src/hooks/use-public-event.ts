@@ -2,11 +2,42 @@
 
 import { useEffect, useState } from "react";
 import type { PublicEvent } from "@/types/event";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import { useParticipantStore } from "@/stores/participant-store";
 
-const IS_MOCK =
-  typeof window !== "undefined" &&
-  process.env.NEXT_PUBLIC_USE_DEV_MOCK === "true";
+interface PublicEventRow {
+  event_id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  projector_title: string | null;
+  status: string;
+  require_live_code: boolean;
+  participant_count: number;
+  current_open_round_id: string | null;
+  current_round_title: string | null;
+  current_round_status: string | null;
+  access_challenge: { code: string; expiresAt: string; rotationSeconds: number } | null;
+  updated_at: string;
+}
+
+function mapRow(row: PublicEventRow): PublicEvent {
+  return {
+    id: row.event_id,
+    slug: row.slug,
+    title: row.title,
+    description: row.description ?? null,
+    projectorTitle: row.projector_title ?? null,
+    status: row.status as PublicEvent["status"],
+    requireLiveCode: row.require_live_code,
+    participantCount: row.participant_count ?? 0,
+    currentOpenRoundId: row.current_open_round_id ?? null,
+    currentRoundTitle: row.current_round_title ?? null,
+    currentRoundStatus: (row.current_round_status as PublicEvent["currentRoundStatus"]) ?? null,
+    accessChallenge: row.access_challenge,
+    updatedAt: row.updated_at,
+  };
+}
 
 export function usePublicEvent(eventId: string | null, eventSlug?: string | null) {
   const [publicEvent, setPublicEvent] = useState<PublicEvent | null>(null);
@@ -19,87 +50,62 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
       return;
     }
 
-    if (IS_MOCK && eventSlug) {
-      setConnectionState("connecting");
-
-      async function poll() {
-        try {
-          const res = await fetch(`/api/dev/public-event/${eventSlug}`);
-          const data = await res.json();
-          if (data.publicEvent) {
-            setPublicEvent(data.publicEvent);
-            setConnectionState("connected");
-          }
-        } catch {
-          setConnectionState("error");
-        } finally {
-          setLoading(false);
-        }
-      }
-
-      poll();
-      const interval = setInterval(poll, 5000);
-      return () => clearInterval(interval);
-    }
-
-    if (!eventId) {
-      setLoading(false);
-      return;
-    }
-
-    const resolvedEventId = eventId;
+    const supabase = getSupabaseClient();
     setConnectionState("connecting");
 
-    let unsubscribe: (() => void) | undefined;
+    let resolvedEventId = eventId;
 
-    async function subscribe() {
-      const { doc, onSnapshot } = await import("firebase/firestore");
-      const { getFirestoreDb } = await import("@/lib/firebase/client");
-      const db = getFirestoreDb();
-      const ref = doc(db, "publicEvents", resolvedEventId);
-
-      unsubscribe = onSnapshot(
-        ref,
-        (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data();
-            setPublicEvent({
-              id: snapshot.id,
-              slug: data.slug,
-              title: data.title,
-              description: data.description ?? null,
-              status: data.status,
-              requireLiveCode: data.requireLiveCode,
-              currentOpenRoundId: data.currentOpenRoundId ?? null,
-              currentRoundTitle: data.currentRoundTitle ?? null,
-              currentRoundStatus: data.currentRoundStatus ?? null,
-              accessChallenge: data.accessChallenge
-                ? {
-                    code: data.accessChallenge.code,
-                    expiresAt:
-                      data.accessChallenge.expiresAt?.toDate?.()?.toISOString?.() ??
-                      data.accessChallenge.expiresAt,
-                    rotationSeconds: data.accessChallenge.rotationSeconds ?? 60,
-                  }
-                : null,
-              updatedAt:
-                data.updatedAt?.toDate?.()?.toISOString?.() ?? new Date().toISOString(),
-            });
-          }
-          setLoading(false);
-          setConnectionState("connected");
-        },
-        () => {
-          setConnectionState("error");
-          setLoading(false);
+    async function bootstrap() {
+      if (!resolvedEventId && eventSlug) {
+        const { data } = await supabase
+          .from("public_events")
+          .select("*")
+          .eq("slug", eventSlug)
+          .maybeSingle();
+        if (data) {
+          resolvedEventId = data.event_id;
+          setPublicEvent(mapRow(data as PublicEventRow));
         }
-      );
+      } else if (resolvedEventId) {
+        const { data } = await supabase
+          .from("public_events")
+          .select("*")
+          .eq("event_id", resolvedEventId)
+          .maybeSingle();
+        if (data) setPublicEvent(mapRow(data as PublicEventRow));
+      }
+      setLoading(false);
+
+      if (!resolvedEventId) {
+        setConnectionState("error");
+        return;
+      }
+
+      const channel = supabase
+        .channel(`public_events:${resolvedEventId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "public_events", filter: `event_id=eq.${resolvedEventId}` },
+          (payload) => {
+            setPublicEvent(mapRow(payload.new as PublicEventRow));
+            setConnectionState("connected");
+          }
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") setConnectionState("connected");
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setConnectionState("error");
+        });
+
+      return channel;
     }
 
-    subscribe();
+    let channelRef: Awaited<ReturnType<typeof bootstrap>> | undefined;
+    bootstrap().then((channel) => {
+      channelRef = channel;
+    });
 
     return () => {
-      unsubscribe?.();
+      if (channelRef) supabase.removeChannel(channelRef);
     };
   }, [eventId, eventSlug, setConnectionState]);
 
