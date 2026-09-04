@@ -70,6 +70,8 @@ export function useDashboardRealtime(eventId: string | null) {
   useEffect(() => {
     if (!eventId) return;
     const supabase = getSupabaseClient();
+    let latestEventUpdatedAt: string | null = null;
+    let latestRoundUpdatedAt: string | null = null;
 
     function mapRoundRow(r: Record<string, unknown>) {
       return {
@@ -87,17 +89,38 @@ export function useDashboardRealtime(eventId: string | null) {
       const [{ data: eventRow }, { data: roundRows }] = await Promise.all([
         supabase
           .from("events")
-          .select("title,slug,status,opened_at,participant_count,sequence_id,sequence_order,sequence_size,sequence_root_slug,next_event_id,next_event_title,next_event_slug")
+          .select("title,slug,status,opened_at,participant_count,sequence_id,sequence_order,sequence_size,sequence_root_slug,next_event_id,next_event_title,next_event_slug,updated_at")
           .eq("id", eventId)
           .maybeSingle(),
         supabase
           .from("rounds")
-          .select("id,title,status,order,registered_count,answering_count,completed_count")
+          .select("id,title,status,order,registered_count,answering_count,completed_count,updated_at")
           .eq("event_id", eventId)
           .order("order", { ascending: true }),
       ]);
-      if (eventRow) setEvent(mapEventRow(eventRow));
-      if (roundRows) setRoundsRaw(roundRows.map(mapRoundRow));
+      
+      if (eventRow) {
+        const rowUpdatedAt = eventRow.updated_at as string | undefined;
+        if (!rowUpdatedAt || !latestEventUpdatedAt || rowUpdatedAt >= latestEventUpdatedAt) {
+          if (rowUpdatedAt) latestEventUpdatedAt = rowUpdatedAt;
+          setEvent(mapEventRow(eventRow));
+        }
+      }
+      
+      if (roundRows) {
+        // Encontra o max updated_at entre as rodadas recebidas
+        const maxUpdated = roundRows.reduce((max, r) => {
+          const d = r.updated_at as string | undefined;
+          if (!d) return max;
+          return max === null || d > max ? d : max;
+        }, null as string | null);
+        
+        if (!maxUpdated || !latestRoundUpdatedAt || maxUpdated >= latestRoundUpdatedAt) {
+          if (maxUpdated) latestRoundUpdatedAt = maxUpdated;
+          setRoundsRaw(roundRows.map(mapRoundRow));
+        }
+      }
+      
       if (eventRow || roundRows) {
         setConnectionIssue(false);
         setLastSyncedAt(new Date());
@@ -114,7 +137,15 @@ export function useDashboardRealtime(eventId: string | null) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "events", filter: `id=eq.${eventId}` },
-        (payload) => setEvent(mapEventRow(payload.new as Record<string, unknown>))
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const rowUpdatedAt = row.updated_at as string | undefined;
+          if (rowUpdatedAt) {
+            if (latestEventUpdatedAt && rowUpdatedAt < latestEventUpdatedAt) return;
+            latestEventUpdatedAt = rowUpdatedAt;
+          }
+          setEvent(mapEventRow(row));
+        }
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") setConnectionIssue(false);
@@ -126,7 +157,13 @@ export function useDashboardRealtime(eventId: string | null) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "rounds", filter: `event_id=eq.${eventId}` },
-        () => {
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const rowUpdatedAt = row.updated_at as string | undefined;
+          if (rowUpdatedAt) {
+            if (latestRoundUpdatedAt && rowUpdatedAt < latestRoundUpdatedAt) return;
+            latestRoundUpdatedAt = rowUpdatedAt;
+          }
           supabase
             .from("rounds")
             .select("id,title,status,order,registered_count,answering_count,completed_count")

@@ -16,9 +16,16 @@ export function useRoundStats(_eventId: string | null, roundId: string | null) {
     if (!roundId) { setStats(EMPTY); setLoading(false); return; }
     const supabase = getSupabaseClient();
     let disposed = false;
+    let latestUpdatedAt: string | null = null;
 
-    function apply(row: { registered_count: number; answering_count: number; completed_count: number }) {
+    function apply(row: { registered_count: number; answering_count: number; completed_count: number; updated_at?: string }) {
       if (disposed) return;
+      if (row.updated_at) {
+        if (latestUpdatedAt && row.updated_at < latestUpdatedAt) {
+          return;
+        }
+        latestUpdatedAt = row.updated_at;
+      }
       setStats({ registered: row.registered_count ?? 0, answering: row.answering_count ?? 0, completed: row.completed_count ?? 0 });
       setConnectionIssue(false);
       setLastSyncedAt(new Date());
@@ -26,7 +33,7 @@ export function useRoundStats(_eventId: string | null, roundId: string | null) {
 
     async function refresh() {
       try {
-        const { data, error } = await supabase.from("public_round_stats").select("registered_count,answering_count,completed_count").eq("round_id", roundId).maybeSingle();
+        const { data, error } = await supabase.from("public_round_stats").select("registered_count,answering_count,completed_count,updated_at").eq("round_id", roundId).maybeSingle();
         if (error) throw error;
         if (data) apply(data);
       } catch { if (!disposed) setConnectionIssue(true); }

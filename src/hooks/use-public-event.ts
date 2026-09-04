@@ -47,14 +47,23 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
     const cacheKey = `${CACHE_PREFIX}${eventId ?? eventSlug}`;
     let resolvedId = eventId;
     let disposed = false;
+    let latestUpdatedAt: string | null = null;
 
     try {
       const cached = window.localStorage.getItem(cacheKey);
-      if (cached) setPublicEvent(JSON.parse(cached) as PublicEvent);
+      if (cached) {
+        const parsed = JSON.parse(cached) as PublicEvent;
+        setPublicEvent(parsed);
+        latestUpdatedAt = parsed.updatedAt;
+      }
     } catch { /* cache is best-effort */ }
 
     function apply(row: PublicEventRow) {
       if (disposed) return;
+      if (latestUpdatedAt && row.updated_at < latestUpdatedAt) {
+        return; // Prevents stale HTTP responses from overwriting newer realtime updates
+      }
+      latestUpdatedAt = row.updated_at;
       const mapped = mapRow(row);
       resolvedId = mapped.id;
       setPublicEvent(mapped);

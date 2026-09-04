@@ -575,7 +575,7 @@ begin
   if v_event_status is null then
     raise exception 'EVENT_NOT_FOUND';
   end if;
-  if v_event_status <> 'open' then
+  if v_event_status not in ('open', 'waiting') then
     raise exception 'EVENT_NOT_OPEN';
   end if;
 

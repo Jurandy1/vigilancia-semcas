@@ -246,24 +246,16 @@ export default function ProjectorPage() {
     );
   }
 
-  if (isIntermission) {
-    return (
-      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
-        <div>
-          <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Intervalo</p>
-          <p style={{ margin: "24px auto 0", fontSize: "46px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Aguarde a próxima atividade</p>
-          <p style={{ margin: "22px 0 0", fontSize: "20px", color: "#5b6b7f" }}>Mantenha o celular à mão — a próxima rodada abre em instantes.</p>
-        </div>
-      </ProjectorChrome>
-    );
-  }
-
   if (!isRoundOpen) {
     return (
       <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
         <div>
-          <p style={{ margin: 0, fontSize: "52px", fontWeight: 800, letterSpacing: "-.02em", color: "#0B3A6E", lineHeight: 1 }}>PARTICIPE</p>
-          <p style={{ margin: "16px 0 30px", fontSize: "20px", color: "#33415c" }}>Escaneie o QR Code ou acesse pelo link abaixo</p>
+          <p style={{ margin: 0, fontSize: "52px", fontWeight: 800, letterSpacing: "-.02em", color: "#0B3A6E", lineHeight: 1 }}>
+            {hasHadRound ? "INTERVALO" : "PARTICIPE"}
+          </p>
+          <p style={{ margin: "16px 0 30px", fontSize: "20px", color: "#33415c" }}>
+            {hasHadRound ? "Aguarde a próxima rodada. Escaneie para entrar na sala:" : "Escaneie o QR Code para participar"}
+          </p>
           
           <div aria-hidden="true" style={{ width: "230px", height: "230px", margin: "0 auto", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             {qrDataUrl ? (
@@ -273,7 +265,6 @@ export default function ProjectorPage() {
             )}
           </div>
           
-          <p style={{ margin: "22px 0 0", fontSize: "22px", fontFamily: "ui-monospace,Consolas,monospace", color: "#0B3A6E" }}>{eventUrl}</p>
           <p style={{ margin: "26px 0 0", fontSize: "32px", fontWeight: 700, color: "#11243c" }}>{connectedCount} participantes conectados</p>
         </div>
       </ProjectorChrome>
