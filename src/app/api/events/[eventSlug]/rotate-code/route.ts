@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEventBySlugExact } from "@/lib/data/events";
-import { rotateAccessCode } from "@/lib/security/access-code";
+import { rotateAccessChallenge } from "@/lib/security/access-code";
 
 export const runtime = "nodejs";
 
@@ -26,8 +26,8 @@ export async function POST(
       return NextResponse.json({ error: "Este evento não usa código de acesso agora." }, { status: 409 });
     }
 
-    await rotateAccessCode(event.id);
-    return NextResponse.json({ success: true });
+    const challenge = await rotateAccessChallenge(event.id);
+    return NextResponse.json({ success: true, ...challenge });
   } catch {
     return NextResponse.json({ error: "Não foi possível renovar o código." }, { status: 500 });
   }

@@ -4,25 +4,31 @@ import { generateAccessCode, hashAccessCode } from "@/lib/sessions/tokens";
 const ROTATION_SECONDS = 60;
 
 export async function rotateAccessCode(eventId: string): Promise<string> {
+  return (await rotateAccessChallenge(eventId)).code;
+}
+
+export async function rotateAccessChallenge(eventId: string) {
   const supabase = getSupabaseAdmin();
   const code = generateAccessCode();
   const hash = hashAccessCode(code);
   const expiresAt = new Date(Date.now() + ROTATION_SECONDS * 1000);
 
-  await supabase
+  const { error: eventError } = await supabase
     .from("events")
     .update({ access_code_hash: hash, access_code_expires_at: expiresAt.toISOString(), updated_at: new Date().toISOString() })
     .eq("id", eventId);
+  if (eventError) throw eventError;
 
-  await supabase
+  const { error: publicError } = await supabase
     .from("public_events")
     .update({
       access_challenge: { code, expiresAt: expiresAt.toISOString(), rotationSeconds: ROTATION_SECONDS },
       updated_at: new Date().toISOString(),
     })
     .eq("event_id", eventId);
+  if (publicError) throw publicError;
 
-  return code;
+  return { code, expiresAt: expiresAt.toISOString(), rotationSeconds: ROTATION_SECONDS };
 }
 
 export async function validateAccessCode(eventId: string, inputCode: string): Promise<boolean> {

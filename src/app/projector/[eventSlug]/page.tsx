@@ -9,6 +9,7 @@ import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 import { ORG_SHORT, SECTOR_NAME } from "@/lib/branding";
 import { formatAccessCode } from "@/lib/utils/format";
 import QRCode from "qrcode";
+import { getAccessCodeRenewalDelay } from "@/lib/projector/access-code-timing";
 
 function ProjectorChrome({
   lastUpdate,
@@ -88,16 +89,22 @@ export default function ProjectorPage() {
     // telão já aberto, antes ele ficava travado no evento antigo até alguém
     // recarregar a página manualmente — agora acompanha sozinho.
     let cancelled = false;
+    let resolvedRoot: string | null | undefined;
     const supabase = getSupabaseClient();
 
     async function resolveDailyActiveSlug() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("public_events")
         .select("slug")
         .eq("is_daily_active", true)
         .maybeSingle();
-      if (cancelled) return;
-      setActiveSlug((current) => (data?.slug ?? null) !== current ? (data?.slug ?? null) : current);
+      if (cancelled || error) return;
+      const nextRoot = data?.slug ?? null;
+      // Só uma troca da raiz deve interromper o avanço local da sequência.
+      if (nextRoot !== resolvedRoot) {
+        resolvedRoot = nextRoot;
+        setActiveSlug(nextRoot);
+      }
       setResolvingDailyActive(false);
     }
 
@@ -111,7 +118,7 @@ export default function ProjectorPage() {
       .channel("projector-daily-active")
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "public_events", filter: "is_daily_active=eq.true" },
+        { event: "*", schema: "public", table: "public_events" },
         () => void resolveDailyActiveSlug()
       )
       .subscribe();
@@ -128,9 +135,9 @@ export default function ProjectorPage() {
   const connectionIssue = eventConnectionIssue || statsConnectionIssue;
 
   useEffect(() => {
-    if (publicEvent?.status !== "closed" || !publicEvent.nextEventSlug) return;
+    if (publicEvent?.slug !== activeSlug || publicEvent.status !== "closed" || !publicEvent.nextEventSlug) return;
     setActiveSlug(publicEvent.nextEventSlug);
-  }, [publicEvent]);
+  }, [publicEvent, activeSlug]);
 
   useEffect(() => {
     // Preferir sempre a origem real do navegador: se NEXT_PUBLIC_APP_URL for
@@ -145,20 +152,47 @@ export default function ProjectorPage() {
     setLastUpdate(new Date());
   }, [publicEvent, stats]);
 
-  // Renova o código de acesso um pouco antes dele expirar (60s), enquanto o
-  // evento estiver aberto e usando código — sem isso, o código gerado na
-  // abertura da rodada expirava e ninguém mais conseguia entrar até o admin
-  // rotacionar manualmente em Configurações.
+  // Agenda pela validade real, inclusive quando o telão é aberto tarde.
   useEffect(() => {
-    if (!publicEvent?.requireLiveCode || publicEvent.status !== "open" || !activeSlug) return;
-    const rotate = () => {
-      void fetch(`/api/events/${activeSlug}/rotate-code`, { method: "POST" }).catch(() => {});
+    if (!publicEvent?.requireLiveCode || publicEvent.status !== "open" || publicEvent.slug !== activeSlug) return;
+    let cancelled = false;
+    let inFlight = false;
+    let expiresAt = Date.parse(publicEvent.accessChallenge?.expiresAt ?? "");
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      timer = setTimeout(renew, getAccessCodeRenewalDelay(expiresAt));
     };
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") rotate();
-    }, 50_000);
-    return () => window.clearInterval(interval);
-  }, [publicEvent?.requireLiveCode, publicEvent?.status, activeSlug]);
+    async function renew() {
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      try {
+        const response = await fetch(`/api/events/${activeSlug}/rotate-code`, { method: "POST", signal: AbortSignal.timeout(10_000) });
+        if (!response.ok) throw new Error("Falha na renovação");
+        const result = await response.json();
+        expiresAt = Date.parse(result.expiresAt);
+        if (!Number.isFinite(expiresAt)) throw new Error("Validade inválida");
+        if (!cancelled) schedule();
+      } catch {
+        if (!cancelled) timer = setTimeout(renew, 5_000);
+      } finally {
+        inFlight = false;
+      }
+    }
+    function resume() {
+      if (document.visibilityState !== "visible" || inFlight) return;
+      clearTimeout(timer);
+      schedule();
+    }
+    schedule();
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", resume);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", resume);
+    };
+  }, [publicEvent?.requireLiveCode, publicEvent?.status, publicEvent?.slug, publicEvent?.accessChallenge?.expiresAt, activeSlug]);
 
   const connectedCount = publicEvent?.participantCount ?? 0;
   const isRoundOpen = publicEvent?.currentRoundStatus === "open";

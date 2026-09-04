@@ -90,10 +90,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
   }
 
-  // Valida e substitui as perguntas ANTES de tocar nos metadados da rodada.
-  // Antes, o título/config eram salvos primeiro e só depois o RPC checava se
-  // dava para trocar as perguntas — se recusasse (rodada aberta ou já com
-  // respostas), a edição ficava aplicada pela metade mesmo com erro na tela.
+  // Uma única transação valida e grava perguntas e configurações.
   const questionsPayload = parsed.data.questions.map((q, index) => ({
     order: q.order ?? index + 1,
     type: q.type,
@@ -105,9 +102,17 @@ export async function PATCH(
     maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
   }));
 
-  const { error } = await supabase.rpc("replace_round_questions", {
+  const { error } = await supabase.rpc("update_round_content", {
+    p_event_id: eventId,
     p_round_id: roundId,
     p_questions: questionsPayload,
+    p_settings: {
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
+      type: parsed.data.type,
+      allowNewParticipants: parsed.data.allowNewParticipants,
+      resultsVisibility: parsed.data.resultsVisibility,
+    },
   });
   if (error) {
     if (error.message === "ROUND_HAS_SUBMISSIONS") {
@@ -128,17 +133,6 @@ export async function PATCH(
       { status: 500 }
     );
   }
-
-  await supabase
-    .from("rounds")
-    .update({
-      title: parsed.data.title,
-      description: parsed.data.description ?? null,
-      type: parsed.data.type,
-      allow_new_participants: parsed.data.allowNewParticipants,
-      results_visibility: parsed.data.resultsVisibility,
-    })
-    .eq("id", roundId);
 
   return NextResponse.json({ success: true });
 }
