@@ -10,9 +10,12 @@ export default function ConcluidoPage() {
   const eventSlug = params.eventSlug as string;
 
   useEffect(() => {
+    // 6s dá tempo do participante ler "Resposta registrada" antes de ir para
+    // a tela de espera. Antes eram 2s — o usuário relatou que mal via a
+    // confirmação e já estava na próxima tela.
     const timer = setTimeout(() => {
       router.replace(`/e/${eventSlug}/aguarde`);
-    }, 2000);
+    }, 6000);
     return () => clearTimeout(timer);
   }, [eventSlug, router]);
 

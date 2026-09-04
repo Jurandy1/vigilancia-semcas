@@ -41,8 +41,16 @@ export default function AguardePage() {
   }, [eventSlug, resolvedEventId, router]);
 
   useEffect(() => {
-    if (!publicEvent?.currentOpenRoundId) return;
-    if (publicEvent.currentRoundStatus !== "open") return;
+    // Se a rodada que estava "disponível" foi encerrada pelo admin, limpa o
+    // botão fantasma "Responder agora" que apontaria para uma rodada morta.
+    if (
+      !publicEvent?.currentOpenRoundId ||
+      publicEvent.currentRoundStatus !== "open"
+    ) {
+      setNewRoundAvailable(false);
+      setNewRoundId(null);
+      return;
+    }
 
     async function checkRoundStatus() {
       const res = await apiFetch(`/api/events/${eventSlug}/session`);
@@ -55,6 +63,9 @@ export default function AguardePage() {
       if (!pr || pr.status !== "completed") {
         setNewRoundAvailable(true);
         setNewRoundId(publicEvent!.currentOpenRoundId);
+      } else {
+        setNewRoundAvailable(false);
+        setNewRoundId(null);
       }
     }
 

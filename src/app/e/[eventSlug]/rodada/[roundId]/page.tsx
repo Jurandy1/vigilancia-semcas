@@ -37,6 +37,11 @@ export default function RoundPage() {
   const [offline, setOffline] = useState(false);
   const lastProgressAt = useRef(0);
   const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Só reporta progresso depois que o participante interagiu com a rodada de
+  // fato — abrir a URL sozinho não conta como "respondendo". Antes esse
+  // useEffect disparava na montagem e inflava registered_count/answering_count
+  // no painel do admin e no projetor com pessoas que só espiaram a URL.
+  const hasInteracted = useRef(false);
 
   const draft = getDraftAnswers(roundId);
   const currentQuestion = questions[currentIndex];
@@ -93,6 +98,7 @@ export default function RoundPage() {
 
   useEffect(() => {
     if (!currentQuestion) return;
+    if (!hasInteracted.current) return;
     const elapsed = Date.now() - lastProgressAt.current;
     const send = () => {
       lastProgressAt.current = Date.now();
@@ -106,8 +112,16 @@ export default function RoundPage() {
     return () => { if (progressTimer.current) clearTimeout(progressTimer.current); };
   }, [currentIndex, currentQuestion, reportProgress]);
 
+  function markInteracted() {
+    if (hasInteracted.current) return;
+    hasInteracted.current = true;
+    lastProgressAt.current = Date.now();
+    void reportProgress(currentIndex + 1);
+  }
+
   function handleAnswer(value: string) {
     if (!currentQuestion) return;
+    markInteracted();
     saveDraftAnswer(roundId, currentQuestion.id, value);
     const otherOption = findOtherOption(currentQuestion.options);
     if (otherOption && value !== otherOption) {
@@ -117,6 +131,7 @@ export default function RoundPage() {
 
   function toggleMultiChoice(option: string) {
     if (!currentQuestion) return;
+    markInteracted();
     const selected: string[] = draft[currentQuestion.id]
       ? (JSON.parse(draft[currentQuestion.id]!) as string[])
       : [];
@@ -204,7 +219,31 @@ export default function RoundPage() {
       const data = await res.json();
 
       if (res.status === 409) {
+        // Já registrado nesse round — vai para a espera sem alarme.
         router.replace(`/e/${eventSlug}/aguarde`);
+        return;
+      }
+
+      if (res.status === 401) {
+        // Sessão perdida (cookie expirado ou evento resetado pelo organizador,
+        // que apaga participants). Devolvemos para a entrada para o
+        // participante reidentificar-se e não fica olhando erro genérico.
+        setSubmissionState("error");
+        setError(
+          "Sua sessão foi encerrada pelo organizador. Recarregue a página para participar de novo."
+        );
+        setTimeout(() => router.replace(`/e/${eventSlug}`), 3500);
+        return;
+      }
+
+      if (res.status === 403) {
+        // Rodada foi encerrada enquanto o participante clicava enviar.
+        setSubmissionState("error");
+        setError(
+          data.error ??
+            "Esta etapa foi encerrada pelo organizador. Suas respostas não foram registradas."
+        );
+        setTimeout(() => router.replace(`/e/${eventSlug}/aguarde`), 3500);
         return;
       }
 

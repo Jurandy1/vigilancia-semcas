@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEventIdFromSlug } from "@/lib/data/events";
+import { getEventIdFromSlugExact } from "@/lib/data/events";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ export async function GET(
   try {
     const { eventSlug, roundId } = await params;
 
-    const eventId = await getEventIdFromSlug(eventSlug);
+    const eventId = await getEventIdFromSlugExact(eventSlug);
     if (!eventId) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }

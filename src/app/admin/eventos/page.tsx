@@ -668,6 +668,14 @@ export default function AdminEventosPage() {
               ser votado de novo do zero.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {resettingEvent?.status === "open" && (
+            <div className="mt-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+              <strong>Atenção:</strong> este evento está <strong>em andamento</strong>. Se há gente
+              respondendo agora, os votos em curso podem ser perdidos e a tela do participante pode
+              mostrar erro. Encerre o evento antes de resetar, ou avise os presentes para
+              recarregarem a página depois.
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmResetEvent} disabled={actionLoading} className="bg-red-600 hover:bg-red-700">

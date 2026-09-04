@@ -6,7 +6,7 @@ import { writeAuditLog } from "@/lib/supabase/helpers";
 import type { Question } from "@/types/round";
 import { findOtherOption } from "@/lib/questions/other-option";
 
-import { getEventIdFromSlug } from "@/lib/data/events";
+import { getEventIdFromSlugExact } from "@/lib/data/events";
 
 export const runtime = "nodejs";
 
@@ -71,7 +71,7 @@ export async function POST(
 ) {
   try {
     const { eventSlug, roundId } = await params;
-    const eventId = await getEventIdFromSlug(eventSlug);
+    const eventId = await getEventIdFromSlugExact(eventSlug);
     if (!eventId) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }

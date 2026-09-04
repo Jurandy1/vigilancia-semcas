@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { PublicEvent } from "@/types/event";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useParticipantStore } from "@/stores/participant-store";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 
 interface PublicEventRow {
   event_id: string; slug: string; title: string; description: string | null; projector_title: string | null;
@@ -63,10 +64,23 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
       try { window.localStorage.setItem(cacheKey, JSON.stringify(mapped)); } catch { /* ignore */ }
     }
 
-    async function refresh() {
+    // O slug reservado "atual" não existe como row em public_events; o
+    // realtime precisa filtrar pelo slug real do evento marcado como do dia,
+    // senão o canal nunca dispara e o participante fica preso em "Aguarde…".
+    // Fazemos uma primeira busca por is_daily_active para descobrir o slug
+    // real e usamos ele daí pra frente. Se depois mudar o evento do dia, um
+    // reload da tela do participante pega o novo — realtime cross-slug fica
+    // fora de escopo.
+    const isDailyAlias = !eventId && eventSlug === DAILY_ACTIVE_SLUG;
+
+    async function refresh(explicitSlug?: string) {
       try {
         let query = supabase.from("public_events").select(FIELDS);
-        query = resolvedId ? query.eq("event_id", resolvedId) : query.eq("slug", eventSlug!);
+        const slugToUse = explicitSlug ?? (isDailyAlias ? null : eventSlug);
+        if (resolvedId) query = query.eq("event_id", resolvedId);
+        else if (slugToUse) query = query.eq("slug", slugToUse);
+        else if (isDailyAlias) query = query.eq("is_daily_active", true);
+        else return;
         const { data, error } = await query.maybeSingle();
         if (error) throw error;
         if (data) apply(data as PublicEventRow);
@@ -78,16 +92,30 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
     }
 
     setConnectionState("connecting");
-    void refresh();
-    const poll = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 15_000);
-    const channel = supabase.channel(`public_events:${eventId ?? eventSlug}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "public_events", filter: eventId ? `event_id=eq.${eventId}` : `slug=eq.${eventSlug}` }, (payload) => apply(payload.new as PublicEventRow))
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") { setConnectionIssue(false); setConnectionState("connected"); }
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") { setConnectionIssue(true); setConnectionState("error"); void refresh(); }
-      });
 
-    return () => { disposed = true; window.clearInterval(poll); void supabase.removeChannel(channel); };
+    async function bootstrap() {
+      // Faz um refresh primeiro pra descobrir o event_id real (via
+      // is_daily_active se for /atual), e só depois monta o canal realtime
+      // com o filtro correto.
+      await refresh();
+      if (disposed) return;
+      const filter = resolvedId
+        ? `event_id=eq.${resolvedId}`
+        : `slug=eq.${eventSlug}`;
+      const channel = supabase.channel(`public_events:${resolvedId ?? eventSlug}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "public_events", filter }, (payload) => apply(payload.new as PublicEventRow))
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") { setConnectionIssue(false); setConnectionState("connected"); }
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") { setConnectionIssue(true); setConnectionState("error"); void refresh(); }
+        });
+      cleanupChannel = () => { void supabase.removeChannel(channel); };
+    }
+
+    let cleanupChannel: (() => void) | null = null;
+    void bootstrap();
+    const poll = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 15_000);
+
+    return () => { disposed = true; window.clearInterval(poll); cleanupChannel?.(); };
   }, [eventId, eventSlug, setConnectionState]);
 
   return { publicEvent, loading, connectionIssue, lastSyncedAt };
