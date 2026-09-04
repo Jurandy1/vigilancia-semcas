@@ -71,7 +71,6 @@ export function useDashboardRealtime(eventId: string | null) {
     if (!eventId) return;
     const supabase = getSupabaseClient();
     let latestEventUpdatedAt: string | null = null;
-    let latestRoundUpdatedAt: string | null = null;
 
     function mapRoundRow(r: Record<string, unknown>) {
       return {
