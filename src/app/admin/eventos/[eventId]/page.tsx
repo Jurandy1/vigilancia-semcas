@@ -34,7 +34,7 @@ interface QuestionSummary {
 }
 
 interface ReadinessSnapshot {
-  stats: { registered: number; answering: number; completed: number; notStarted: number };
+  stats: { completed: number; notStarted: number };
   round: { id: string; title: string; status: string; questionCount: number } | null;
   nextRound: { id: string; title: string; questionCount: number } | null;
   nextEvent: { id: string; title: string | null } | null;
@@ -129,13 +129,7 @@ export default function EventDashboardPage() {
 
   const total = event?.participantCount ?? 0;
   const completed = currentRound ? stats.completed : (dashboardState.lastClosedRound?.submissionCount ?? 0);
-  const answering = Math.max(0, stats.answering);
-  const waiting = Math.max(0, total - completed - answering);
-  const participantsPending = {
-    answering,
-    waiting: Math.max(0, stats.registered - stats.answering - stats.completed),
-    completed: stats.completed,
-  };
+  const waiting = Math.max(0, total - completed);
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
   const openedTime = event?.openedAt
     ? new Date(event.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
@@ -316,9 +310,8 @@ export default function EventDashboardPage() {
 
           <div className="border-t border-white/14 px-[22px] py-4 flex items-center gap-7 flex-wrap">
             {[
-              { label: "Conectados", value: String(total), accent: false },
-              { label: "Responderam", value: String(completed), accent: true },
-              { label: "Respondendo", value: String(answering), accent: false },
+              { label: "Registrados", value: String(total), accent: false },
+              { label: "Finalizaram", value: String(completed), accent: true },
               { label: "Conclusão", value: `${percent}%`, accent: false },
             ].map((m) => (
               <div key={m.label} className="min-w-[104px]">
@@ -468,23 +461,18 @@ export default function EventDashboardPage() {
             <div className="flex flex-col gap-5 min-w-0">
               <div className="bg-white border border-[#dde4ee] rounded-lg p-5">
                 <h2 className="m-0 mb-3.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-                  Quem ainda falta
+                  Participação
                 </h2>
                 <div className="flex flex-col">
                   {[
                     {
-                      label: "Respondendo agora",
-                      value: participantsPending.answering || answering,
-                      className: "text-[#8a5a00] font-semibold",
-                    },
-                    {
-                      label: "Ainda não iniciaram",
-                      value: participantsPending.waiting,
+                      label: "Ainda não responderam",
+                      value: Math.max(0, total - completed),
                       className: "text-[#5b6b7f] font-semibold",
                     },
                     {
                       label: "Já finalizaram",
-                      value: participantsPending.completed || completed,
+                      value: completed,
                       className: "text-[#1a7f4b] font-semibold",
                     },
                   ].map((row) => (
@@ -586,7 +574,6 @@ export default function EventDashboardPage() {
                         showLegend={false}
                         segments={[
                           { label: "Concluíram", value: completed, color: "#18754a" },
-                          { label: "Respondendo", value: answering, color: "#dba514" },
                           { label: "Não iniciaram", value: waiting, color: "#cbd5e1" },
                         ]}
                       />
@@ -594,7 +581,6 @@ export default function EventDashboardPage() {
                     <ul className="list-none m-0 p-0 flex-1 min-w-[180px] flex flex-col gap-px bg-[#eef2f7] border border-[#eef2f7] rounded-lg overflow-hidden">
                       {[
                         { label: "Concluíram", value: completed, color: "#18754a" },
-                        { label: "Respondendo", value: answering, color: "#dba514" },
                         { label: "Não iniciaram", value: waiting, color: "#cbd5e1" },
                       ].map((seg) => (
                         <li key={seg.label} className="bg-white px-3 py-2.5 flex items-center gap-2.5 text-[13px]">
@@ -667,11 +653,11 @@ export default function EventDashboardPage() {
       <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{readiness?.stats.answering ? "Pessoas ainda estão respondendo" : "Encerrar rodada?"}</AlertDialogTitle>
+            <AlertDialogTitle>Encerrar rodada?</AlertDialogTitle>
             <AlertDialogDescription>
-              {readiness?.stats.answering
-                ? `${readiness.stats.answering} participante(s) ainda estão respondendo e ${readiness.stats.notStarted} ainda não iniciaram. Ao encerrar, novas respostas serão bloqueadas.`
-                : `Foram recebidas ${readiness?.stats.completed ?? completed} respostas. Após o encerramento, novas respostas não serão aceitas nesta rodada.`}
+              Foram recebidas {readiness?.stats.completed ?? completed} respostas
+              {readiness?.stats.notStarted ? ` · ${readiness.stats.notStarted} ainda não responderam` : ""}.
+              Após o encerramento, novas respostas não serão aceitas nesta rodada.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -681,11 +667,10 @@ export default function EventDashboardPage() {
               onClick={() => {
                 if (!currentRound) return;
                 setConfirmClose(false);
-                void runAction(`/rounds/${currentRound.id}/close`, { force: Boolean(readiness?.stats.answering) });
+                void runAction(`/rounds/${currentRound.id}/close`);
               }}
-              className={readiness?.stats.answering ? "bg-[#b42318] hover:bg-[#8f1c13]" : undefined}
             >
-              {readiness?.stats.answering ? "Encerrar mesmo assim" : "Encerrar rodada"}
+              Encerrar rodada
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -721,11 +706,11 @@ export default function EventDashboardPage() {
           </AlertDialogHeader>
           <div className="grid grid-cols-2 gap-2 rounded-lg border border-[#dbe4ef] bg-[#f7f9fc] p-3 text-center text-xs text-[#64748b]">
             <div><strong className="block text-lg text-[#18754a]">{readiness?.stats.completed ?? 0}</strong>concluíram</div>
-            <div><strong className="block text-lg text-[#9a6700]">{(readiness?.stats.answering ?? 0) + (readiness?.stats.notStarted ?? 0)}</strong>ainda pendentes</div>
+            <div><strong className="block text-lg text-[#9a6700]">{readiness?.stats.notStarted ?? 0}</strong>ainda não responderam</div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction disabled={actionLoading} onClick={() => { setConfirmNextEvent(false); void runAction("/next"); }} className={readiness?.stats.answering ? "bg-[#b42318] hover:bg-[#8f1c13]" : "bg-[#18754a] hover:bg-[#12633e]"}>{readiness?.stats.answering ? "Avançar mesmo assim" : "Confirmar próximo evento"}</AlertDialogAction>
+            <AlertDialogAction disabled={actionLoading} onClick={() => { setConfirmNextEvent(false); void runAction("/next"); }} className="bg-[#18754a] hover:bg-[#12633e]">Confirmar próximo evento</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

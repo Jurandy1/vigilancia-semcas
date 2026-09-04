@@ -19,19 +19,6 @@ export async function POST(
 
   const { eventId, roundId } = await params;
   const supabase = getSupabaseAdmin();
-  const body = await request.json().catch(() => ({})) as { force?: boolean };
-  const { data: snapshot } = await supabase
-    .from("rounds")
-    .select("answering_count")
-    .eq("id", roundId)
-    .eq("event_id", eventId)
-    .maybeSingle();
-  if ((snapshot?.answering_count ?? 0) > 0 && !body.force) {
-    return NextResponse.json(
-      { error: `${snapshot!.answering_count} participante(s) ainda estão respondendo. Confirme o encerramento forçado.`, code: "PARTICIPANTS_STILL_ANSWERING", answering: snapshot!.answering_count },
-      { status: 409 }
-    );
-  }
   const { error } = await supabase.rpc("close_round", { p_round_id: roundId });
 
   if (error) {
@@ -45,7 +32,7 @@ export async function POST(
     actorType: "admin",
     actorId: admin.uid,
     roundId,
-    metadata: { forced: Boolean(body.force), answeringAtClose: snapshot?.answering_count ?? 0 },
+    metadata: {},
   });
 
   return NextResponse.json({ success: true });

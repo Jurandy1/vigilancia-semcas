@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ParticipantOptionButton,
   ParticipantShell,
 } from "@/components/participant/ParticipantShell";
-import { apiFetch, reliableApiFetch } from "@/lib/api-client";
+import { reliableApiFetch } from "@/lib/api-client";
 import {
   useParticipantStore,
   buildAnswersFromDraft,
@@ -35,13 +35,6 @@ export default function RoundPage() {
   const [error, setError] = useState("");
   const [showReview, setShowReview] = useState(false);
   const [offline, setOffline] = useState(false);
-  const lastProgressAt = useRef(0);
-  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Só reporta progresso depois que o participante interagiu com a rodada de
-  // fato — abrir a URL sozinho não conta como "respondendo". Antes esse
-  // useEffect disparava na montagem e inflava registered_count/answering_count
-  // no painel do admin e no projetor com pessoas que só espiaram a URL.
-  const hasInteracted = useRef(false);
 
   const draft = getDraftAnswers(roundId);
   const currentQuestion = questions[currentIndex];
@@ -79,49 +72,8 @@ export default function RoundPage() {
     loadRound();
   }, [eventSlug, roundId]);
 
-  const reportProgress = useCallback(
-    async (questionNum: number) => {
-      try {
-        await apiFetch(`/api/events/${eventSlug}/rounds/${roundId}/progress`, {
-          method: "POST",
-          body: JSON.stringify({
-            currentQuestion: questionNum,
-            status: "answering",
-          }),
-        });
-      } catch {
-        // non-blocking
-      }
-    },
-    [eventSlug, roundId]
-  );
-
-  useEffect(() => {
-    if (!currentQuestion) return;
-    if (!hasInteracted.current) return;
-    const elapsed = Date.now() - lastProgressAt.current;
-    const send = () => {
-      lastProgressAt.current = Date.now();
-      void reportProgress(currentIndex + 1);
-    };
-    if (elapsed >= 5_000) send();
-    else {
-      if (progressTimer.current) clearTimeout(progressTimer.current);
-      progressTimer.current = setTimeout(send, 5_000 - elapsed);
-    }
-    return () => { if (progressTimer.current) clearTimeout(progressTimer.current); };
-  }, [currentIndex, currentQuestion, reportProgress]);
-
-  function markInteracted() {
-    if (hasInteracted.current) return;
-    hasInteracted.current = true;
-    lastProgressAt.current = Date.now();
-    void reportProgress(currentIndex + 1);
-  }
-
   function handleAnswer(value: string) {
     if (!currentQuestion) return;
-    markInteracted();
     saveDraftAnswer(roundId, currentQuestion.id, value);
     const otherOption = findOtherOption(currentQuestion.options);
     if (otherOption && value !== otherOption) {
@@ -131,7 +83,6 @@ export default function RoundPage() {
 
   function toggleMultiChoice(option: string) {
     if (!currentQuestion) return;
-    markInteracted();
     const selected: string[] = draft[currentQuestion.id]
       ? (JSON.parse(draft[currentQuestion.id]!) as string[])
       : [];
