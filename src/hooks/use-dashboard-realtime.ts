@@ -94,7 +94,7 @@ export function useDashboardRealtime(eventId: string | null) {
           .maybeSingle(),
         supabase
           .from("rounds")
-          .select("id,title,status,order,registered_count,answering_count,completed_count,updated_at")
+          .select("id,title,status,order,registered_count,answering_count,completed_count")
           .eq("event_id", eventId)
           .order("order", { ascending: true }),
       ]);
@@ -108,17 +108,7 @@ export function useDashboardRealtime(eventId: string | null) {
       }
       
       if (roundRows) {
-        // Encontra o max updated_at entre as rodadas recebidas
-        const maxUpdated = roundRows.reduce((max, r) => {
-          const d = r.updated_at as string | undefined;
-          if (!d) return max;
-          return max === null || d > max ? d : max;
-        }, null as string | null);
-        
-        if (!maxUpdated || !latestRoundUpdatedAt || maxUpdated >= latestRoundUpdatedAt) {
-          if (maxUpdated) latestRoundUpdatedAt = maxUpdated;
-          setRoundsRaw(roundRows.map(mapRoundRow));
-        }
+        setRoundsRaw(roundRows.map(mapRoundRow));
       }
       
       if (eventRow || roundRows) {
@@ -158,12 +148,6 @@ export function useDashboardRealtime(eventId: string | null) {
         "postgres_changes",
         { event: "*", schema: "public", table: "rounds", filter: `event_id=eq.${eventId}` },
         (payload) => {
-          const row = payload.new as Record<string, unknown>;
-          const rowUpdatedAt = row.updated_at as string | undefined;
-          if (rowUpdatedAt) {
-            if (latestRoundUpdatedAt && rowUpdatedAt < latestRoundUpdatedAt) return;
-            latestRoundUpdatedAt = rowUpdatedAt;
-          }
           supabase
             .from("rounds")
             .select("id,title,status,order,registered_count,answering_count,completed_count")
