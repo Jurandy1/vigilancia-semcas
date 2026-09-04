@@ -140,7 +140,7 @@ export default function RoundPage() {
       currentQuestion.maxSelections &&
       selected.length >= currentQuestion.maxSelections
     ) {
-      setError(`Selecione no máximo ${currentQuestion.maxSelections} opções.`);
+      setError(`Selecione no máximo ${currentQuestion.maxSelections} ${currentQuestion.maxSelections === 1 ? "opção" : "opções"}.`);
       return;
     }
     setError("");
@@ -416,7 +416,7 @@ export default function RoundPage() {
           )}
           {currentQuestion.type === "multi_choice" && currentQuestion.maxSelections && (
             <p style={{ margin: "8px 0 0", fontSize: "11.5px", color: "#5b6b7f" }}>
-              Selecione até {currentQuestion.maxSelections} opções.
+              Selecione até {currentQuestion.maxSelections} {currentQuestion.maxSelections === 1 ? "opção" : "opções"}.
             </p>
           )}
         </div>
@@ -471,7 +471,7 @@ export default function RoundPage() {
                 maxLength={500}
                 autoFocus
                 placeholder="Escreva aqui..."
-                style={{ width: "100%", height: "42px", border: "1px solid #9fb8cf", borderRadius: "8px", padding: "0 12px", fontSize: "14px", background: "#fff", color: "#11243c", outline: "none" }}
+                style={{ width: "100%", height: "42px", border: "1px solid #9fb8cf", borderRadius: "8px", padding: "0 12px", fontSize: "16px", background: "#fff", color: "#11243c", outline: "none" }}
               />
             </div>
           )}
@@ -485,7 +485,7 @@ export default function RoundPage() {
                 aria-label={currentQuestion.title}
                 maxLength={currentQuestion.maxLength ?? 2000}
                 rows={7}
-                style={{ width: "100%", border: "1px solid #c9d4e2", borderRadius: "8px", padding: "12px", fontSize: "14px", lineHeight: 1.5, resize: "vertical", color: "#11243c", outline: "none" }}
+                style={{ width: "100%", border: "1px solid #c9d4e2", borderRadius: "8px", padding: "12px", fontSize: "16px", lineHeight: 1.5, resize: "vertical", color: "#11243c", outline: "none" }}
               />
               <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#8a97a8" }}>
                 Até {currentQuestion.maxLength ?? 2000} caracteres.
