@@ -13,7 +13,7 @@ export function useRoundStats(_eventId: string | null, roundId: string | null) {
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
   useEffect(() => {
-    if (!roundId) { setStats(EMPTY); setLoading(false); return; }
+    if (!roundId) { setStats(EMPTY); setLoading(false); setConnectionIssue(false); return; }
     const supabase = getSupabaseClient();
     let disposed = false;
     let latestUpdatedAt: string | null = null;
