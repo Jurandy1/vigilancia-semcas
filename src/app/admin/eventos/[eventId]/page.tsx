@@ -128,7 +128,7 @@ export default function EventDashboardPage() {
   );
 
   const total = event?.participantCount ?? 0;
-  const completed = stats.completed;
+  const completed = currentRound ? stats.completed : (dashboardState.lastClosedRound?.submissionCount ?? 0);
   const answering = Math.max(0, stats.answering);
   const waiting = Math.max(0, total - completed - answering);
   const participantsPending = {
