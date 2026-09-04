@@ -570,7 +570,7 @@ export default function AdminEventosPage() {
                           </a>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <a href={`/projector/${event.sequenceRootSlug ?? event.slug}`} target="_blank" rel="noreferrer">
+                          <a href={`/projector/${DAILY_ACTIVE_SLUG}`} target="_blank" rel="noreferrer">
                             <MonitorUp className="w-4 h-4" />
                             Abrir projetor
                           </a>

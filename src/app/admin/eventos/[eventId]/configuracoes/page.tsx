@@ -6,6 +6,7 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { EventQrDialog } from "@/components/admin/EventQrDialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -492,7 +493,7 @@ export default function EventConfiguracoesPage() {
                     </p>
                   </div>
                   <Link
-                    href={`/projector/${event.sequenceRootSlug ?? event.slug}`}
+                    href={`/projector/${DAILY_ACTIVE_SLUG}`}
                     target="_blank"
                     style={{ display: "inline-flex", alignItems: "center", marginTop: "16px", height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, color: "#0b3a6e", border: "1px solid #c9d4e2", borderRadius: "6px", textDecoration: "none" }}
                   >
