@@ -133,6 +133,14 @@ export async function POST(
       .single<{ already_submitted: boolean }>();
 
     if (error) {
+      // Race: rodada fechou entre a checagem web (linha 97) e o RPC. O RPC
+      // agora bloqueia com ROUND_NOT_OPEN — não corrompe contadores.
+      if (error.message === "ROUND_NOT_OPEN" || error.message === "ROUND_NOT_FOUND") {
+        return NextResponse.json(
+          { error: "Esta etapa foi encerrada pelo organizador." },
+          { status: 403 }
+        );
+      }
       console.error("Erro ao enviar respostas:", error);
       return NextResponse.json(
         { error: "Não foi possível concluir esta operação. Tente novamente." },

@@ -90,14 +90,6 @@ export async function PATCH(
     return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
   }
 
-  const { count: submissionCount } = await supabase
-    .from("submissions")
-    .select("id", { count: "exact", head: true })
-    .eq("round_id", roundId);
-  if ((submissionCount ?? 0) > 0) {
-    return NextResponse.json({ error: ROUND_LOCKED_MESSAGE }, { status: 409 });
-  }
-
   await supabase
     .from("rounds")
     .update({
@@ -106,24 +98,47 @@ export async function PATCH(
       type: parsed.data.type,
       allow_new_participants: parsed.data.allowNewParticipants,
       results_visibility: parsed.data.resultsVisibility,
-      question_count: parsed.data.questions.length,
     })
     .eq("id", roundId);
 
-  await supabase.from("questions").delete().eq("round_id", roundId);
-
-  const questions = parsed.data.questions.map((q, index) => ({
-    round_id: roundId,
+  // Substitui as perguntas atomicamente via RPC. O RPC recusa se a rodada
+  // esta aberta ou ja tem submissoes, o que fecha a corrida antiga
+  // "checou submissoes = 0 -> DELETE -> submit concorrente entra -> INSERT
+  // vira orfao" que existia com DELETE+INSERT em statements separados.
+  const questionsPayload = parsed.data.questions.map((q, index) => ({
     order: q.order ?? index + 1,
     type: q.type,
     title: q.title,
     explanation: q.explanation ?? null,
     required: q.required ?? true,
     options: q.options ?? null,
-    max_length: q.maxLength ?? (q.type === "text" ? 2000 : null),
-    max_selections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
+    maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),
+    maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
   }));
-  await supabase.from("questions").insert(questions);
+
+  const { error } = await supabase.rpc("replace_round_questions", {
+    p_round_id: roundId,
+    p_questions: questionsPayload,
+  });
+  if (error) {
+    if (error.message === "ROUND_HAS_SUBMISSIONS") {
+      return NextResponse.json({ error: ROUND_LOCKED_MESSAGE }, { status: 409 });
+    }
+    if (error.message === "ROUND_IS_OPEN") {
+      return NextResponse.json(
+        { error: "Encerre a rodada antes de editar as perguntas." },
+        { status: 409 }
+      );
+    }
+    if (error.message === "ROUND_NOT_FOUND") {
+      return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
+    }
+    console.error("Erro ao substituir perguntas:", error);
+    return NextResponse.json(
+      { error: "Não foi possível salvar as perguntas." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ success: true });
 }

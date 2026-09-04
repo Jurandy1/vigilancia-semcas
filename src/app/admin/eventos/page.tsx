@@ -93,6 +93,7 @@ export default function AdminEventosPage() {
   const [closingEvent, setClosingEvent] = useState<EventItem | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<EventItem | null>(null);
   const [resettingEvent, setResettingEvent] = useState<EventItem | null>(null);
+  const [resetForceRequired, setResetForceRequired] = useState(false);
   const [sequenceOpen, setSequenceOpen] = useState(false);
   const [sequenceIds, setSequenceIds] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
@@ -299,7 +300,7 @@ export default function AdminEventosPage() {
     }
   }
 
-  async function confirmResetEvent() {
+  async function confirmResetEvent(force = false) {
     if (!resettingEvent) return;
     setActionLoading(true);
     setError(null);
@@ -308,12 +309,21 @@ export default function AdminEventosPage() {
       if (!token) return;
       const res = await adminFetch(`/api/admin/events/${resettingEvent.id}/reset`, token, {
         method: "POST",
+        body: JSON.stringify({ force }),
       });
       const data = await res.json();
       if (!res.ok) {
+        if (data.code === "PARTICIPANTS_ANSWERING") {
+          // Marca o dialog como "precisa força" — o usuário confirma de novo
+          // com o botão vermelho "Apagar mesmo assim".
+          setResetForceRequired(true);
+          setError(null);
+          return;
+        }
         setError(data.error ?? "Não foi possível resetar o evento.");
         return;
       }
+      setResetForceRequired(false);
       setResettingEvent(null);
       await load();
     } catch {
@@ -656,19 +666,29 @@ export default function AdminEventosPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={resettingEvent !== null} onOpenChange={(open) => !open && setResettingEvent(null)}>
+      <AlertDialog
+        open={resettingEvent !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResettingEvent(null);
+            setResetForceRequired(false);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Resetar evento e apagar respostas?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {resetForceRequired
+                ? "Há gente respondendo agora — apagar mesmo assim?"
+                : "Resetar evento e apagar respostas?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Isso apaga permanentemente os {resettingEvent?.participantCount ?? 0} participante(s) e{" "}
-              {resettingEvent?.submissionCount ?? 0} resposta(s) de “{resettingEvent?.title}”, e volta o
-              evento ao estado inicial (rascunho) — mesmo que já esteja encerrado. As perguntas continuam
-              intactas. Esta ação não pode ser desfeita — use apenas se algo deu errado e o evento precisa
-              ser votado de novo do zero.
+              {resetForceRequired
+                ? `Existe participante com resposta em andamento em “${resettingEvent?.title}”. Se você seguir agora, essa pessoa vê erro ao clicar Enviar e o voto dela não é registrado. Recomendo encerrar o evento ou aguardar; use "Apagar mesmo assim" só se tiver certeza.`
+                : `Isso apaga permanentemente os ${resettingEvent?.participantCount ?? 0} participante(s) e ${resettingEvent?.submissionCount ?? 0} resposta(s) de “${resettingEvent?.title}”, e volta o evento ao estado inicial (rascunho) — mesmo que já esteja encerrado. As perguntas continuam intactas. Esta ação não pode ser desfeita — use apenas se algo deu errado e o evento precisa ser votado de novo do zero.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {resettingEvent?.status === "open" && (
+          {resettingEvent?.status === "open" && !resetForceRequired && (
             <div className="mt-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
               <strong>Atenção:</strong> este evento está <strong>em andamento</strong>. Se há gente
               respondendo agora, os votos em curso podem ser perdidos e a tela do participante pode
@@ -678,8 +698,16 @@ export default function AdminEventosPage() {
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmResetEvent} disabled={actionLoading} className="bg-red-600 hover:bg-red-700">
-              {actionLoading ? "Resetando..." : "Apagar e resetar"}
+            <AlertDialogAction
+              onClick={() => confirmResetEvent(resetForceRequired)}
+              disabled={actionLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {actionLoading
+                ? "Resetando..."
+                : resetForceRequired
+                  ? "Apagar mesmo assim"
+                  : "Apagar e resetar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

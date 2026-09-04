@@ -76,6 +76,15 @@ export async function POST(
     });
 
     if (error || !participantId) {
+      if (error?.message === "EVENT_NOT_OPEN") {
+        return NextResponse.json(
+          { error: "Este evento ainda não foi iniciado pelo organizador." },
+          { status: 409 }
+        );
+      }
+      if (error?.message === "EVENT_NOT_FOUND") {
+        return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
+      }
       return NextResponse.json(
         { error: "Não foi possível concluir esta operação. Tente novamente." },
         { status: 500 }

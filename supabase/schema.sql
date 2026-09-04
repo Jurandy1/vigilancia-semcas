@@ -417,11 +417,25 @@ $$;
 -- uma vez, para o caso de precisar votar tudo de novo do zero mesmo depois
 -- de encerrado. Mantém sequence_id/next_event_* e is_daily_active intactos —
 -- só o conteúdo/progresso do evento reseta, não sua posição na sequência.
-create or replace function reset_event(p_event_id uuid) returns void
+-- p_force = false (default) recusa se há participantes com status = 'answering'
+-- (evita derrubar submits em voo). UI passa force=true na segunda confirmação.
+create or replace function reset_event(p_event_id uuid, p_force boolean default false) returns void
 language plpgsql security definer set search_path = public as $$
+declare
+  v_answering integer;
 begin
   if not exists (select 1 from events where id = p_event_id for update) then
     raise exception 'EVENT_NOT_FOUND';
+  end if;
+
+  if not p_force then
+    select count(*) into v_answering
+    from participant_rounds pr
+    join rounds r on r.id = pr.round_id
+    where r.event_id = p_event_id and pr.status = 'answering';
+    if v_answering > 0 then
+      raise exception 'PARTICIPANTS_ANSWERING';
+    end if;
   end if;
 
   delete from participants where event_id = p_event_id;
@@ -442,6 +456,54 @@ begin
   set status = 'draft', participant_count = 0, current_open_round_id = null,
       current_round_title = null, current_round_status = null, updated_at = now()
   where event_id = p_event_id;
+end;
+$$;
+
+-- Substitui atomicamente as perguntas de uma rodada. Recusa se a rodada
+-- está aberta ou já tem submissoes — fecha a corrida antiga de DELETE +
+-- INSERT em statements separados. UI usa PATCH /rounds/[roundId].
+create or replace function replace_round_questions(
+  p_round_id uuid, p_questions jsonb
+) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_status text;
+  v_has_submissions boolean;
+  v_count integer;
+begin
+  select status into v_status from rounds where id = p_round_id for update;
+  if v_status is null then
+    raise exception 'ROUND_NOT_FOUND';
+  end if;
+  if v_status = 'open' then
+    raise exception 'ROUND_IS_OPEN';
+  end if;
+
+  select exists (select 1 from submissions where round_id = p_round_id) into v_has_submissions;
+  if v_has_submissions then
+    raise exception 'ROUND_HAS_SUBMISSIONS';
+  end if;
+
+  delete from questions where round_id = p_round_id;
+
+  insert into questions (round_id, "order", type, title, explanation, required, options, max_length, max_selections)
+  select
+    p_round_id,
+    coalesce((q->>'order')::int, ordinality),
+    q->>'type',
+    q->>'title',
+    nullif(q->>'explanation', ''),
+    coalesce((q->>'required')::boolean, true),
+    case when q ? 'options' and jsonb_typeof(q->'options') = 'array'
+      then array(select jsonb_array_elements_text(q->'options'))
+      else null
+    end,
+    nullif(q->>'maxLength', '')::int,
+    nullif(q->>'maxSelections', '')::int
+  from jsonb_array_elements(p_questions) with ordinality as t(q, ordinality);
+
+  select count(*) into v_count from questions where round_id = p_round_id;
+  update rounds set question_count = v_count where id = p_round_id;
 end;
 $$;
 
@@ -507,7 +569,16 @@ create or replace function join_event_participant(
 language plpgsql security definer set search_path = public as $$
 declare
   v_participant_id uuid;
+  v_event_status text;
 begin
+  select status into v_event_status from events where id = p_event_id for update;
+  if v_event_status is null then
+    raise exception 'EVENT_NOT_FOUND';
+  end if;
+  if v_event_status <> 'open' then
+    raise exception 'EVENT_NOT_OPEN';
+  end if;
+
   insert into participants (event_id, mode, name, session_token_hash, session_expires_at)
   values (p_event_id, p_mode, p_name, p_session_token_hash, p_session_expires_at)
   returning id into v_participant_id;
@@ -553,7 +624,20 @@ declare
   v_inserted_id uuid;
   v_pr_status text;
   v_was_new boolean;
+  v_round_status text;
 begin
+  -- Defesa em profundidade: só aceita respostas se a rodada está aberta.
+  -- A rota web já checa, mas se falhar (race, deploy inconsistente), o RPC
+  -- ainda rejeita em vez de gravar voto pós-fechamento.
+  select status into v_round_status
+  from rounds where id = p_round_id and event_id = p_event_id for update;
+  if v_round_status is null then
+    raise exception 'ROUND_NOT_FOUND';
+  end if;
+  if v_round_status <> 'open' then
+    raise exception 'ROUND_NOT_OPEN';
+  end if;
+
   select status into v_pr_status
   from participant_rounds where round_id = p_round_id and participant_id = p_participant_id for update;
 
