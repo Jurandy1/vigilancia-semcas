@@ -7,15 +7,18 @@ import { useRoundStats } from "@/hooks/use-round-stats";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 import { ORG_SHORT, SECTOR_NAME } from "@/lib/branding";
+import { formatAccessCode } from "@/lib/utils/format";
 import QRCode from "qrcode";
 
 function ProjectorChrome({
   lastUpdate,
   connectionIssue,
+  accessCode,
   children,
 }: {
   lastUpdate: Date;
   connectionIssue?: boolean;
+  accessCode?: string | null;
   children: React.ReactNode;
 }) {
   return (
@@ -33,7 +36,13 @@ function ProjectorChrome({
               <p style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: 600, color: "#11243c" }}>{SECTOR_NAME.toUpperCase()}</p>
             </div>
             
-            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 600, color: connectionIssue ? "#9a6700" : "#18754A" }}>
+            {accessCode && (
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "10px", borderRadius: "8px", border: "1px solid #b9d5ed", background: "#edf6fd", padding: "6px 14px" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#0b4a83" }}>Código de acesso</span>
+                <span style={{ fontSize: "22px", fontWeight: 800, letterSpacing: ".08em", fontFamily: "ui-monospace,Consolas,monospace", color: "#0b3a6e" }}>{formatAccessCode(accessCode)}</span>
+              </div>
+            )}
+            <span style={{ marginLeft: accessCode ? undefined : "auto", display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 600, color: connectionIssue ? "#9a6700" : "#18754A" }}>
               <span style={{ width: "8px", height: "8px", borderRadius: "99px", background: connectionIssue ? "#dba514" : "#1a7f4b", animation: connectionIssue ? "none" : "semcasPulse 2.4s ease-in-out infinite" }}></span>
               {connectionIssue ? "Conexão instável" : "Atualização em tempo real"}
             </span>
@@ -75,20 +84,42 @@ export default function ProjectorPage() {
     }
     // Link fixo: descobre qual evento está marcado como "o de hoje" antes de
     // assinar os dados ao vivo — a URL/QR exibidos continuam mostrando /atual.
+    // Continua ouvindo depois: se o admin trocar o evento do dia com esse
+    // telão já aberto, antes ele ficava travado no evento antigo até alguém
+    // recarregar a página manualmente — agora acompanha sozinho.
     let cancelled = false;
+    const supabase = getSupabaseClient();
+
+    async function resolveDailyActiveSlug() {
+      const { data } = await supabase
+        .from("public_events")
+        .select("slug")
+        .eq("is_daily_active", true)
+        .maybeSingle();
+      if (cancelled) return;
+      setActiveSlug((current) => (data?.slug ?? null) !== current ? (data?.slug ?? null) : current);
+      setResolvingDailyActive(false);
+    }
+
     setResolvingDailyActive(true);
-    getSupabaseClient()
-      .from("public_events")
-      .select("slug")
-      .eq("is_daily_active", true)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        setActiveSlug(data?.slug ?? null);
-        setResolvingDailyActive(false);
-      });
+    void resolveDailyActiveSlug();
+
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void resolveDailyActiveSlug();
+    }, 20_000);
+    const channel = supabase
+      .channel("projector-daily-active")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "public_events", filter: "is_daily_active=eq.true" },
+        () => void resolveDailyActiveSlug()
+      )
+      .subscribe();
+
     return () => {
       cancelled = true;
+      window.clearInterval(poll);
+      void supabase.removeChannel(channel);
     };
   }, [rootSlug]);
 
@@ -114,14 +145,36 @@ export default function ProjectorPage() {
     setLastUpdate(new Date());
   }, [publicEvent, stats]);
 
+  // Renova o código de acesso um pouco antes dele expirar (60s), enquanto o
+  // evento estiver aberto e usando código — sem isso, o código gerado na
+  // abertura da rodada expirava e ninguém mais conseguia entrar até o admin
+  // rotacionar manualmente em Configurações.
+  useEffect(() => {
+    if (!publicEvent?.requireLiveCode || publicEvent.status !== "open" || !activeSlug) return;
+    const rotate = () => {
+      void fetch(`/api/events/${activeSlug}/rotate-code`, { method: "POST" }).catch(() => {});
+    };
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") rotate();
+    }, 50_000);
+    return () => window.clearInterval(interval);
+  }, [publicEvent?.requireLiveCode, publicEvent?.status, activeSlug]);
+
   const connectedCount = publicEvent?.participantCount ?? 0;
   const isRoundOpen = publicEvent?.currentRoundStatus === "open";
-  const hasHadRound = Boolean(publicEvent?.currentRoundTitle);
+  // currentRoundTitle é limpo pelo close_round no banco, então não serve
+  // pra saber se "já houve uma rodada" — currentRoundStatus fica 'closed'
+  // (não volta a null) até a próxima abrir, e é isso que usamos aqui.
+  const hasHadRound = publicEvent?.currentRoundStatus != null;
   const isFinished = publicEvent?.status === "closed" && !publicEvent.nextEventSlug;
   const isIntermission = Boolean(publicEvent) && !isRoundOpen && hasHadRound && !isFinished;
   const total = Math.max(connectedCount, stats.registered, stats.completed + stats.answering);
   const completed = stats.completed;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const accessCode =
+    publicEvent?.requireLiveCode && publicEvent.status === "open"
+      ? publicEvent.accessChallenge?.code ?? null
+      : null;
 
   if (!resolvingDailyActive && rootSlug === DAILY_ACTIVE_SLUG && !activeSlug) {
     return (
@@ -149,7 +202,7 @@ export default function ProjectorPage() {
 
   if (isFinished) {
     return (
-      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
         <div>
           <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Encerrado</p>
           <p style={{ margin: "24px auto 0", fontSize: "46px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Obrigado pela participação</p>
@@ -161,7 +214,7 @@ export default function ProjectorPage() {
 
   if (isIntermission) {
     return (
-      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
         <div>
           <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Intervalo</p>
           <p style={{ margin: "24px auto 0", fontSize: "46px", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Aguarde a próxima atividade</p>
@@ -173,7 +226,7 @@ export default function ProjectorPage() {
 
   if (!isRoundOpen) {
     return (
-      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
         <div>
           <p style={{ margin: 0, fontSize: "52px", fontWeight: 800, letterSpacing: "-.02em", color: "#0B3A6E", lineHeight: 1 }}>PARTICIPE</p>
           <p style={{ margin: "16px 0 30px", fontSize: "20px", color: "#33415c" }}>Escaneie o QR Code ou acesse pelo link abaixo</p>
@@ -194,7 +247,7 @@ export default function ProjectorPage() {
   }
 
   return (
-    <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue}>
+    <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
       <div>
         <p style={{ margin: "0 0 30px", fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Votação em andamento</p>
         

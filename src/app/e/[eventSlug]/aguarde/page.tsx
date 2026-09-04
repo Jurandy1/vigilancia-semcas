@@ -83,19 +83,46 @@ export default function AguardePage() {
     );
   }
 
+  // currentRoundTitle é limpo pelo close_round no banco, então não serve pra
+  // saber se "já houve uma rodada" — currentRoundStatus fica 'closed' (não
+  // volta a null) até a próxima abrir, e é isso que usamos aqui.
+  const hasHadRound = publicEvent?.currentRoundStatus != null;
+  const isEventFinished = publicEvent?.status === "closed" && !publicEvent?.nextEventSlug;
+
+  if (isEventFinished) {
+    return (
+      <ParticipantShell eventTitle={publicEvent?.title}>
+        <section
+          aria-label="Evento encerrado"
+          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "26px" }}
+        >
+          <span aria-hidden="true" style={{ width: "56px", height: "56px", borderRadius: "99px", background: "#e8f5ee", border: "1px solid #c3e4d1", color: "#18754A", fontSize: "24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            ✓
+          </span>
+          <h2 style={{ margin: "18px 0 0", fontSize: "19px", fontWeight: 700, color: "#11243c" }}>Evento encerrado</h2>
+          <p style={{ margin: "9px 0 0", fontSize: "14.5px", color: "#5b6b7f" }}>Obrigado pela sua participação.</p>
+        </section>
+      </ParticipantShell>
+    );
+  }
+
   if (!publicEvent?.currentOpenRoundId) {
     return (
       <ParticipantShell eventTitle={publicEvent?.title}>
         <section
-          aria-label="Aguardando início do evento"
+          aria-label={hasHadRound ? "Aguardando próxima atividade" : "Aguardando início do evento"}
           style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "26px" }}
         >
           <span aria-hidden="true" style={{ width: "56px", height: "56px", borderRadius: "99px", background: "#eef3f9", border: "1px solid #d6e0ec", color: "#0B3A6E", fontSize: "24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
             ⏳
           </span>
-          <h2 style={{ margin: "18px 0 0", fontSize: "19px", fontWeight: 700, color: "#11243c" }}>Você entrou no evento</h2>
+          <h2 style={{ margin: "18px 0 0", fontSize: "19px", fontWeight: 700, color: "#11243c" }}>
+            {hasHadRound ? "Aguarde a próxima atividade" : "Você entrou no evento"}
+          </h2>
           <p style={{ margin: "9px 0 0", fontSize: "14.5px", color: "#5b6b7f" }}>
-            Aguarde o organizador iniciar a primeira atividade.
+            {hasHadRound
+              ? "O organizador ainda vai abrir a próxima etapa."
+              : "Aguarde o organizador iniciar a primeira atividade."}
           </p>
           <p style={{ margin: "22px 0 0", fontSize: "11.5px", color: "#8a97a8", display: "inline-flex", alignItems: "center", gap: "7px" }}>
             <span style={{ width: "7px", height: "7px", borderRadius: "99px", background: "#8a97a8" }}></span>Atualiza sozinha quando a atividade abrir

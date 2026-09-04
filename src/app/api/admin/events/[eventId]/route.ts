@@ -177,6 +177,15 @@ export async function DELETE(
         await supabase.from("public_events").update(cleared).eq("event_id", row.id);
       }
     }
+
+    // O QR/link fixo (/e/atual, /projector/atual) segue quem estiver marcado
+    // como is_daily_active. Isso ficava preso na linha do evento raiz — se
+    // essa linha for excluída, a marca sumia com ela e o link fixo parava
+    // de encontrar qualquer evento. Transfere para o novo primeiro evento
+    // da sequência (ou para o único que sobrar, se a sequência acabou).
+    if (event.is_daily_active && remaining.length > 0) {
+      await supabase.rpc("set_daily_active_event", { p_event_id: remaining[0]!.id });
+    }
   }
 
   // Zera a referência circular (events.current_open_round_id -> rounds.id) antes de excluir,

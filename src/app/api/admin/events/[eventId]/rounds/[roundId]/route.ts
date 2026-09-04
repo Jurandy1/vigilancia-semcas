@@ -90,21 +90,10 @@ export async function PATCH(
     return NextResponse.json({ error: "Rodada não encontrada." }, { status: 404 });
   }
 
-  await supabase
-    .from("rounds")
-    .update({
-      title: parsed.data.title,
-      description: parsed.data.description ?? null,
-      type: parsed.data.type,
-      allow_new_participants: parsed.data.allowNewParticipants,
-      results_visibility: parsed.data.resultsVisibility,
-    })
-    .eq("id", roundId);
-
-  // Substitui as perguntas atomicamente via RPC. O RPC recusa se a rodada
-  // esta aberta ou ja tem submissoes, o que fecha a corrida antiga
-  // "checou submissoes = 0 -> DELETE -> submit concorrente entra -> INSERT
-  // vira orfao" que existia com DELETE+INSERT em statements separados.
+  // Valida e substitui as perguntas ANTES de tocar nos metadados da rodada.
+  // Antes, o título/config eram salvos primeiro e só depois o RPC checava se
+  // dava para trocar as perguntas — se recusasse (rodada aberta ou já com
+  // respostas), a edição ficava aplicada pela metade mesmo com erro na tela.
   const questionsPayload = parsed.data.questions.map((q, index) => ({
     order: q.order ?? index + 1,
     type: q.type,
@@ -139,6 +128,17 @@ export async function PATCH(
       { status: 500 }
     );
   }
+
+  await supabase
+    .from("rounds")
+    .update({
+      title: parsed.data.title,
+      description: parsed.data.description ?? null,
+      type: parsed.data.type,
+      allow_new_participants: parsed.data.allowNewParticipants,
+      results_visibility: parsed.data.resultsVisibility,
+    })
+    .eq("id", roundId);
 
   return NextResponse.json({ success: true });
 }

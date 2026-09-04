@@ -79,6 +79,7 @@ export async function POST(
     .maybeSingle();
 
   let openedRoundId: string | null = null;
+  let roundOpenWarning: string | null = null;
   if (firstRound) {
     const roundResult = await openRoundTransaction(nextEventId as string, firstRound.id);
     if (roundResult.ok) {
@@ -90,6 +91,12 @@ export async function POST(
         actorId: admin.uid,
         roundId: firstRound.id,
       });
+    } else {
+      // Evento já avançou (não dá pra desfazer sem reabrir o anterior), mas
+      // a rodada não abriu — antes isso ficava mudo e o admin só descobria
+      // quando um participante reclamasse de tela travada. Agora o front
+      // recebe o aviso e mostra "abra a rodada manualmente".
+      roundOpenWarning = roundResult.error;
     }
   }
 
@@ -99,5 +106,6 @@ export async function POST(
     nextEventSlug: nextEvent?.slug ?? null,
     nextEventTitle: nextEvent?.title ?? null,
     openedRoundId,
+    roundOpenWarning,
   });
 }

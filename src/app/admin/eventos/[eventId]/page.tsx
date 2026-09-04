@@ -72,6 +72,21 @@ export default function EventDashboardPage() {
   }, [router]);
 
   useEffect(() => {
+    if (!authReady) return;
+    try {
+      const warning = window.sessionStorage.getItem("semcas-round-open-warning");
+      if (warning) {
+        window.sessionStorage.removeItem("semcas-round-open-warning");
+        setActionError(
+          `O evento avançou, mas a primeira rodada não abriu automaticamente (${warning}). Abra-a manualmente abaixo.`
+        );
+      }
+    } catch {
+      /* best-effort */
+    }
+  }, [authReady]);
+
+  useEffect(() => {
     if (!authReady || !currentRoundId) {
       setQuestions([]);
       setSelectedQuestionId(null);
@@ -161,6 +176,16 @@ export default function EventDashboardPage() {
         return;
       }
       if (path === "/next" && json.nextEventId) {
+        if (json.roundOpenWarning) {
+          // A navegação troca de página, então guardamos o aviso para o
+          // destino ler ao montar — senão o admin nunca veria que a
+          // primeira rodada do próximo evento não abriu sozinha.
+          try {
+            window.sessionStorage.setItem("semcas-round-open-warning", String(json.roundOpenWarning));
+          } catch {
+            /* best-effort */
+          }
+        }
         router.push(`/admin/eventos/${json.nextEventId}`);
       }
     } catch {
