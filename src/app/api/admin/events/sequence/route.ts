@@ -99,6 +99,15 @@ export async function POST(request: NextRequest) {
     await supabase.from("public_events").update(sequence).eq("event_id", row.id);
   }
 
+  // Se algum evento da sequência (que não seja a raiz) está marcado como "o
+  // de hoje", o sinalizador fica órfão assim que a raiz muda — set_daily_active_event
+  // sempre resolveu para a raiz no momento em que foi chamado, mas nada aqui
+  // reagia a reorganizações posteriores da sequência. Realinha para a raiz atual.
+  const staleDailyActive = docs.find((row) => row.is_daily_active && row.id !== root.id);
+  if (staleDailyActive) {
+    await supabase.rpc("set_daily_active_event", { p_event_id: root.id });
+  }
+
   return NextResponse.json({
     success: true,
     sequenceId,
