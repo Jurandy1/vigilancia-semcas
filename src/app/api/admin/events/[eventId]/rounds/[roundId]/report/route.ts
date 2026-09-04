@@ -32,7 +32,11 @@ export async function GET(
   const participantMap = new Map((participantRows ?? []).map((p) => [p.id, p]));
   const submissions = submissionRows ?? [];
   const totalSubmissions = submissions.length;
-  const totalParticipants = (participantRows ?? []).length;
+  // Denominador correto é quem se registrou NESSA rodada (rounds.registered_count),
+  // não o total de participantes do evento inteiro — esse total cresce conforme
+  // pessoas entram depois, o que fazia a participação de rodadas já encerradas
+  // parecer cair com o tempo mesmo com 100% de resposta na hora.
+  const totalParticipants = round.registered_count ?? 0;
 
   const questions = (questionRows ?? []).map((q) => {
     const questionReport: Record<string, unknown> = {

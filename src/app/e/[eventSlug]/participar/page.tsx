@@ -29,11 +29,28 @@ function ParticiparContent() {
     setLoading(true);
 
     try {
+      // Gerado uma vez por evento e reaproveitado em qualquer retry (mesmo
+      // depois de recarregar a página) — deixa o /join idempotente quando a
+      // resposta se perde na rede e a pessoa toca "Continuar" de novo, em vez
+      // de criar um segundo participante.
+      let clientToken: string | undefined;
+      try {
+        const key = `semcas-join-token:${eventSlug}`;
+        clientToken = window.localStorage.getItem(key) ?? undefined;
+        if (!clientToken) {
+          clientToken = crypto.randomUUID();
+          window.localStorage.setItem(key, clientToken);
+        }
+      } catch {
+        /* localStorage indisponível — segue sem token, comportamento anterior */
+      }
+
       const res = await apiFetch(`/api/events/${eventSlug}/join`, {
         method: "POST",
         body: JSON.stringify({
           mode,
           name: mode === "identified" ? name : null,
+          clientToken,
         }),
       });
 

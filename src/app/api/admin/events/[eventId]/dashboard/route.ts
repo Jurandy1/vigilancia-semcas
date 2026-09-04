@@ -62,7 +62,7 @@ export async function GET(
       : Promise.resolve({ data: null }),
     supabase
       .from("rounds")
-      .select("id,title,status,order,completed_count")
+      .select("id,title,status,order,completed_count,registered_count")
       .eq("event_id", eventId)
       .order("order", { ascending: true }),
     roundId
@@ -100,6 +100,7 @@ export async function GET(
     status: r.status,
     order: r.order,
     submissionCount: r.completed_count ?? 0,
+    registeredCount: r.registered_count ?? 0,
   }));
 
   const currentRoundRow = roundResult.data;

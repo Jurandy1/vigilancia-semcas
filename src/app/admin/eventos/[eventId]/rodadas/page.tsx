@@ -25,17 +25,16 @@ interface RoundItem {
   order: number;
   questionCount?: number;
   submissionCount: number;
+  registeredCount: number;
 }
 
 type PendingAction = { type: "open" | "close"; round: RoundItem } | null;
 
 function RoundCard({
   round,
-  participantCount,
   actions,
 }: {
   round: RoundItem;
-  participantCount: number;
   actions: React.ReactNode;
 }) {
   const num = String(round.order).padStart(2, "0");
@@ -67,7 +66,7 @@ function RoundCard({
           </span>
           <span style={{ fontSize: "13px", color: "#5b6b7f" }}>
             {isOpen || round.status === "closed"
-              ? `${round.submissionCount} de ${participantCount} respostas`
+              ? `${round.submissionCount} de ${round.registeredCount} respostas`
               : `${round.questionCount ?? 0} perguntas`}
             {isOpen ? ` · ${round.questionCount ?? 0} perguntas` : ""}
           </span>
@@ -113,7 +112,6 @@ export default function RodadasPage() {
   }, [load]);
 
   const hasOpenRound = rounds.some((r) => r.status === "open");
-  const participantCount = event?.participantCount ?? 0;
 
   async function confirmAction() {
     if (!pending) return;
@@ -214,7 +212,6 @@ export default function RodadasPage() {
               <RoundCard
                 key={round.id}
                 round={round}
-                participantCount={participantCount}
                 actions={
                   <>
                     <Link
@@ -267,7 +264,6 @@ export default function RodadasPage() {
               <RoundCard
                 key={round.id}
                 round={round}
-                participantCount={participantCount}
                 actions={
                   <>
                     {round.submissionCount === 0 && (
@@ -311,7 +307,6 @@ export default function RodadasPage() {
               <RoundCard
                 key={round.id}
                 round={round}
-                participantCount={participantCount}
                 actions={
                   <Link
                     href={`/admin/eventos/${eventId}/rodadas/${round.id}/resultados`}

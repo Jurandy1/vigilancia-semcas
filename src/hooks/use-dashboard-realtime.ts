@@ -184,6 +184,7 @@ export function useDashboardRealtime(eventId: string | null) {
     status: r.status,
     order: r.order,
     submissionCount: r.completed,
+    registeredCount: r.registered,
   }));
 
   const openRound = roundsRaw.find((r) => r.id === openRoundId);

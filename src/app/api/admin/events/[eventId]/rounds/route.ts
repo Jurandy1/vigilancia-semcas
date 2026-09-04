@@ -36,6 +36,7 @@ export async function GET(
     openedAt: r.opened_at,
     closedAt: r.closed_at,
     submissionCount: r.completed_count ?? 0,
+    registeredCount: r.registered_count ?? 0,
   }));
 
   return NextResponse.json({ rounds });

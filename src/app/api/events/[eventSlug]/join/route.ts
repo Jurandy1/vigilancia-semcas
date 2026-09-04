@@ -72,6 +72,7 @@ export async function POST(
       p_name: name,
       p_session_token_hash: sessionTokenHash,
       p_session_expires_at: sessionExpiresAt.toISOString(),
+      p_client_token: parsed.data.clientToken ?? null,
     });
 
     if (error || !participantId) {

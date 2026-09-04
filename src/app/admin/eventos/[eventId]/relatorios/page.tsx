@@ -20,7 +20,7 @@ export default function RelatoriosPage() {
   const params = useParams();
   const eventId = params.eventId as string;
   const [rounds, setRounds] = useState<
-    Array<{ id: string; title: string; status: string; submissionCount: number; order?: number }>
+    Array<{ id: string; title: string; status: string; submissionCount: number; registeredCount: number; order?: number }>
   >([]);
   const [eventTitle, setEventTitle] = useState("");
   const [eventSlug, setEventSlug] = useState("");
@@ -68,10 +68,12 @@ export default function RelatoriosPage() {
   const totalResponses = rounds.reduce((sum, r) => sum + (r.submissionCount ?? 0), 0);
   const roundsWithResponses = rounds.filter((round) => round.submissionCount > 0).length;
   const averageResponses = rounds.length > 0 ? Math.round(totalResponses / rounds.length) : 0;
-  const participationRate =
-    participantCount > 0 && rounds.length > 0
-      ? Math.min(100, Math.round((totalResponses / (participantCount * rounds.length)) * 100))
-      : 0;
+  // Cada rodada tem seu próprio total de registrados (rounds.registered_count) —
+  // usar o participantCount do evento inteiro como denominador fixo fazia a
+  // participação de rodadas já encerradas parecer cair conforme mais gente
+  // entrava no evento depois.
+  const totalRegistered = rounds.reduce((sum, r) => sum + (r.registeredCount ?? 0), 0);
+  const participationRate = totalRegistered > 0 ? Math.min(100, Math.round((totalResponses / totalRegistered) * 100)) : 0;
 
   async function exportSummaryExcel() {
     const XLSX = await import("xlsx");
@@ -87,8 +89,8 @@ export default function RelatoriosPage() {
         round.title,
         statusLabel[round.status] ?? round.status,
         round.submissionCount ?? 0,
-        participantCount > 0
-          ? `${Math.min(100, Math.round(((round.submissionCount ?? 0) / participantCount) * 100))}%`
+        round.registeredCount > 0
+          ? `${Math.min(100, Math.round(((round.submissionCount ?? 0) / round.registeredCount) * 100))}%`
           : "0%",
       ]),
     ];
@@ -170,7 +172,7 @@ export default function RelatoriosPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {rounds.map((round, i) => {
-                const pct = participantCount > 0 ? Math.min(100, Math.round(((round.submissionCount ?? 0) / participantCount) * 100)) : 0;
+                const pct = round.registeredCount > 0 ? Math.min(100, Math.round(((round.submissionCount ?? 0) / round.registeredCount) * 100)) : 0;
                 return (
                   <Link
                     key={round.id}

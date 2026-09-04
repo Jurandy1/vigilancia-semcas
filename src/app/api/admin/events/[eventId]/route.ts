@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { updateEventSettingsSchema } from "@/lib/validation/event";
+import { rotateAccessChallenge } from "@/lib/security/access-code";
 
 export const runtime = "nodejs";
 
@@ -54,7 +55,11 @@ export async function PATCH(
 
   const { eventId } = await params;
   const supabase = getSupabaseAdmin();
-  const { data: existing } = await supabase.from("events").select("id").eq("id", eventId).maybeSingle();
+  const { data: existing } = await supabase
+    .from("events")
+    .select("id, status, require_live_code, access_code_expires_at")
+    .eq("id", eventId)
+    .maybeSingle();
   if (!existing) {
     return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
   }
@@ -94,6 +99,19 @@ export async function PATCH(
 
   await supabase.from("events").update(eventUpdates).eq("id", eventId);
   await supabase.from("public_events").update(publicUpdates).eq("event_id", eventId);
+
+  // Ligar "Exigir código temporário" não gerava código nenhum — o campo só
+  // era populado ao abrir uma rodada ou pelo telão se autorrenovando. Se o
+  // admin ligasse o switch fora desses momentos, todo mundo ficava sem
+  // conseguir entrar até alguém clicar "Gerar novo código agora" manualmente.
+  // Gera na hora se está ligando o requisito num evento já em andamento e não
+  // existe um código ainda válido.
+  const turningOn = parsed.data.requireLiveCode === true && !existing.require_live_code;
+  const codeStillValid =
+    existing.access_code_expires_at && new Date(existing.access_code_expires_at) > new Date();
+  if (turningOn && existing.status === "open" && !codeStillValid) {
+    await rotateAccessChallenge(eventId);
+  }
 
   return NextResponse.json({ success: true });
 }

@@ -714,7 +714,9 @@ export default function EventDashboardPage() {
                   </h2>
                   <div className="flex flex-col gap-3.5">
                     {rounds.map((round) => {
-                      const roundPercent = total ? Math.min(100, Math.round((round.submissionCount / total) * 100)) : 0;
+                      const roundPercent = round.registeredCount
+                        ? Math.min(100, Math.round((round.submissionCount / round.registeredCount) * 100))
+                        : 0;
                       return (
                         <div key={round.id} className="grid gap-1.5">
                           <div className="flex justify-between gap-3.5 text-[13px]">

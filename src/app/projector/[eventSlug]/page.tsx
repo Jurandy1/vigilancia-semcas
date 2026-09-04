@@ -15,11 +15,13 @@ function ProjectorChrome({
   lastUpdate,
   connectionIssue,
   accessCode,
+  title,
   children,
 }: {
   lastUpdate: Date;
   connectionIssue?: boolean;
   accessCode?: string | null;
+  title: string;
   children: React.ReactNode;
 }) {
   return (
@@ -34,7 +36,7 @@ function ProjectorChrome({
             <span aria-hidden="true" style={{ width: "1px", height: "40px", background: "#e2e8f0" }}></span>
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: "clamp(9px,1.8vw,10.5px)", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>{ORG_SHORT}</p>
-              <p style={{ margin: "4px 0 0", fontSize: "clamp(13px,3vw,20px)", fontWeight: 600, color: "#11243c" }}>{SECTOR_NAME.toUpperCase()}</p>
+              <p style={{ margin: "4px 0 0", fontSize: "clamp(13px,3vw,20px)", fontWeight: 600, color: "#11243c" }}>{title.toUpperCase()}</p>
             </div>
 
             {accessCode && (
@@ -234,9 +236,11 @@ export default function ProjectorPage() {
     );
   }
 
+  const projectorTitle = publicEvent.projectorTitle || publicEvent.title || SECTOR_NAME;
+
   if (isFinished) {
     return (
-      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode} title={projectorTitle}>
         <div>
           <p style={{ margin: 0, fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Encerrado</p>
           <p style={{ margin: "24px auto 0", fontSize: "clamp(28px,7vw,46px)", fontWeight: 700, lineHeight: 1.2, letterSpacing: "-.02em", color: "#11243c", maxWidth: "24ch", textWrap: "pretty" }}>Obrigado pela participação</p>
@@ -248,7 +252,7 @@ export default function ProjectorPage() {
 
   if (!isRoundOpen) {
     return (
-      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
+      <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode} title={projectorTitle}>
         <div>
           <p style={{ margin: 0, fontSize: "clamp(32px,8vw,52px)", fontWeight: 800, letterSpacing: "-.02em", color: "#0B3A6E", lineHeight: 1 }}>
             {hasHadRound ? "INTERVALO" : "PARTICIPE"}
@@ -272,7 +276,7 @@ export default function ProjectorPage() {
   }
 
   return (
-    <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode}>
+    <ProjectorChrome lastUpdate={lastUpdate} connectionIssue={connectionIssue} accessCode={accessCode} title={projectorTitle}>
       <div>
         <p style={{ margin: "0 0 30px", fontSize: "15px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "#5b6b7f" }}>Votação em andamento</p>
         

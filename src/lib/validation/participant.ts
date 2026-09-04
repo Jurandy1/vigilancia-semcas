@@ -7,6 +7,11 @@ export const joinEventSchema = z
     mode: participantModeSchema,
     name: z.string().trim().max(120).optional().nullable(),
     accessCode: z.string().trim().max(10).optional().nullable(),
+    // Gerado e guardado no navegador antes do primeiro POST — deixa o join
+    // idempotente: se a resposta se perder na rede (comum em wifi/3G lotado
+    // de evento) e o participante tocar "Continuar" de novo, o mesmo token
+    // volta a apontar pro mesmo participante em vez de criar um duplicado.
+    clientToken: z.string().uuid().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.mode === "identified") {

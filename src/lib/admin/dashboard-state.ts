@@ -4,6 +4,7 @@ export interface DashboardRound {
   status: string;
   order: number;
   submissionCount: number;
+  registeredCount: number;
 }
 
 export type DashboardCase =
