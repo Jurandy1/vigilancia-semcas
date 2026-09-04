@@ -11,6 +11,7 @@ import {
   Clock,
   FileText,
   Flag,
+  List,
   MapPin,
   Monitor,
   QrCode,
@@ -27,6 +28,13 @@ import { EventQrDialog } from "@/components/admin/EventQrDialog";
 import { HorizontalBarChart } from "@/components/admin/HorizontalBarChart";
 import { DonutChart } from "@/components/admin/DonutChart";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,6 +76,7 @@ export default function EventDashboardPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+  const [questionListOpen, setQuestionListOpen] = useState(false);
 
   const { event, rounds, stats, loading, connectionIssue, lastSyncedAt } = useDashboardRealtime(authReady ? eventId : null);
   const dashboardState = resolveDashboardState(event?.status ?? "draft", rounds);
@@ -151,23 +160,6 @@ export default function EventDashboardPage() {
   const openedDate = event?.openedAt
     ? new Date(event.openedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
     : "—";
-
-  const [elapsedMs, setElapsedMs] = useState(0);
-  useEffect(() => {
-    if (!event?.openedAt || event.status !== "open") return;
-    const startedAt = new Date(event.openedAt).getTime();
-    const tick = () => setElapsedMs(Math.max(0, Date.now() - startedAt));
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [event?.openedAt, event?.status]);
-  const elapsedLabel = (() => {
-    const totalSeconds = Math.floor(elapsedMs / 1000);
-    const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-    const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-    const s = String(totalSeconds % 60).padStart(2, "0");
-    return `${h}:${m}:${s}`;
-  })();
 
   async function prepareAction(kind: "close" | "round" | "event") {
     setActionLoading(true);
@@ -276,7 +268,7 @@ export default function EventDashboardPage() {
                 "repeating-linear-gradient(135deg, #fff 0px, #fff 1px, transparent 1px, transparent 34px)",
             }}
           />
-          <div className="relative flex items-start justify-between gap-5 p-[22px] flex-wrap">
+          <div className="relative flex items-start justify-between gap-5 p-4 sm:p-[22px] flex-wrap">
             <div className="min-w-0">
               <p className="m-0 inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.1em] uppercase bg-white/12 border border-white/20 rounded-full px-2.5 py-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#5ecf92] animate-pulse" />
@@ -293,10 +285,10 @@ export default function EventDashboardPage() {
                   {event.nextEventTitle ? ` · próximo: ${event.nextEventTitle}` : " · último evento"}
                 </p>
               )}
-              <h1 className="mt-2.5 mb-0 text-2xl font-bold leading-snug max-w-[46ch] text-pretty">
+              <h1 className="mt-2.5 mb-0 text-xl sm:text-2xl font-bold leading-snug max-w-[46ch] text-pretty text-balance">
                 {event.title}
               </h1>
-              <div className="mt-4 flex items-center gap-5 flex-wrap text-[13px] text-[#c7d9ec]">
+              <div className="mt-3 sm:mt-4 flex items-center gap-3 sm:gap-5 flex-wrap text-[12.5px] sm:text-[13px] text-[#c7d9ec]">
                 <span className="inline-flex items-center gap-1.5">
                   <Calendar size={15} className="text-[#8fb6e0]" /> {openedDate}
                 </span>
@@ -308,75 +300,81 @@ export default function EventDashboardPage() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-2 flex-wrap shrink-0 w-full sm:w-auto">
+            <div className="flex flex-col gap-2 w-full sm:contents">
               <EventQrDialog
                 eventSlug={rootSlug}
                 eventTitle={event.title}
                 trigger={
                   <button
                     type="button"
-                    className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold bg-white text-[#0a2d55] border border-white rounded-md hover:bg-[#e6edf6]"
+                    className="inline-flex items-center justify-center gap-2 h-11 sm:h-10 px-4 text-sm font-semibold bg-white text-[#0a2d55] border border-white rounded-md hover:bg-[#e6edf6] w-full sm:w-auto"
                   >
                     <QrCode size={16} /> Acesso dos participantes
                   </button>
                 }
               />
-              <Link
-                href={`/projector/${DAILY_ACTIVE_SLUG}`}
-                target="_blank"
-                className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold text-white border border-white/45 rounded-md hover:bg-white/10 no-underline"
-              >
-                <Monitor size={16} /> Abrir projetor
-              </Link>
-              {currentRound ? (
-                <button
-                  type="button"
-                  onClick={() => void prepareAction("close")}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold text-[#ffc9c2] border border-[rgba(255,201,194,.5)] rounded-md hover:bg-[rgba(180,35,24,.28)] hover:text-white disabled:opacity-50"
+              <div className="flex gap-2 flex-wrap w-full sm:contents">
+                <Link
+                  href={`/projector/${DAILY_ACTIVE_SLUG}`}
+                  target="_blank"
+                  className="inline-flex items-center justify-center gap-2 h-11 sm:h-10 px-4 text-sm font-semibold text-white border border-white/45 rounded-md hover:bg-white/10 no-underline flex-1 min-w-[140px] sm:flex-none sm:min-w-0"
                 >
-                  <XCircle size={16} /> Encerrar rodada
-                </button>
-              ) : event.status === "waiting" || event.status === "draft" ? (
-                <button
-                  type="button"
-                  onClick={() => runAction("/open")}
-                  disabled={actionLoading}
-                  className="h-10 px-4 text-sm font-semibold bg-white text-[#0a2d55] border border-white rounded-md hover:bg-[#e6edf6] disabled:opacity-50"
-                >
-                  Iniciar evento
-                </button>
-              ) : nextRound ? (
-                <button
-                  type="button"
-                  onClick={() => void prepareAction("round")}
-                  disabled={actionLoading}
-                  className="h-10 px-4 text-sm font-semibold bg-white text-[#0a2d55] border border-white rounded-md hover:bg-[#e6edf6] disabled:opacity-50"
-                >
-                  Iniciar próxima rodada
-                </button>
-              ) : event.nextEventId && (event.status === "open" || event.status === "closed") ? (
-                <button
-                  type="button"
-                  onClick={() => void prepareAction("event")}
-                  disabled={actionLoading}
-                  className="h-10 px-4 text-sm font-semibold bg-[#5ecf92] text-[#082f57] border border-[#5ecf92] rounded-md hover:bg-[#7bdda7] disabled:opacity-50"
-                >
-                  Próximo evento
-                </button>
-              ) : null}
+                  <Monitor size={16} /> Abrir projetor
+                </Link>
+                {currentRound ? (
+                  <button
+                    type="button"
+                    onClick={() => void prepareAction("close")}
+                    disabled={actionLoading}
+                    className="inline-flex items-center justify-center gap-2 h-11 sm:h-10 px-4 text-sm font-semibold text-[#ffc9c2] border border-[rgba(255,201,194,.5)] rounded-md hover:bg-[rgba(180,35,24,.28)] hover:text-white disabled:opacity-50 flex-1 min-w-[140px] sm:flex-none sm:min-w-0"
+                  >
+                    <XCircle size={16} /> Encerrar rodada
+                  </button>
+                ) : event.status === "waiting" || event.status === "draft" ? (
+                  <button
+                    type="button"
+                    onClick={() => runAction("/open")}
+                    disabled={actionLoading}
+                    className="h-11 sm:h-10 px-4 text-sm font-semibold bg-white text-[#0a2d55] border border-white rounded-md hover:bg-[#e6edf6] disabled:opacity-50 flex-1 min-w-[140px] sm:flex-none sm:min-w-0"
+                  >
+                    Iniciar evento
+                  </button>
+                ) : nextRound ? (
+                  <button
+                    type="button"
+                    onClick={() => void prepareAction("round")}
+                    disabled={actionLoading}
+                    className="h-11 sm:h-10 px-4 text-sm font-semibold bg-white text-[#0a2d55] border border-white rounded-md hover:bg-[#e6edf6] disabled:opacity-50 flex-1 min-w-[140px] sm:flex-none sm:min-w-0"
+                  >
+                    Iniciar próxima rodada
+                  </button>
+                ) : event.nextEventId && (event.status === "open" || event.status === "closed") ? (
+                  <button
+                    type="button"
+                    onClick={() => void prepareAction("event")}
+                    disabled={actionLoading}
+                    className="h-11 sm:h-10 px-4 text-sm font-semibold bg-[#5ecf92] text-[#082f57] border border-[#5ecf92] rounded-md hover:bg-[#7bdda7] disabled:opacity-50 flex-1 min-w-[140px] sm:flex-none sm:min-w-0"
+                  >
+                    Próximo evento
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-4 sm:mt-5 grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
           {[
             { label: "Registrados", value: String(total), sub: "participante" + (total === 1 ? "" : "s"), icon: Users, iconBg: "#e7effa", iconColor: "#0b3a6e" },
             { label: "Finalizaram", value: String(completed), sub: `${percent}% do total`, icon: CheckCircle2, iconBg: "#e4f5ea", iconColor: "#18754a" },
             { label: "Conclusão", value: `${percent}%`, sub: "da rodada", icon: BarChart3, iconBg: "#e7effa", iconColor: "#0b3a6e" },
-            { label: "Tempo de evento", value: event.status === "open" ? elapsedLabel : "—", sub: event.status === "open" ? "em andamento" : "não iniciado", icon: Clock, iconBg: "#f1eafb", iconColor: "#6b3fa0" },
-          ].map((m) => (
-            <div key={m.label} className="bg-white border border-[#dde4ee] rounded-lg p-4 flex items-start gap-3">
+          ].map((m, idx) => (
+            <div
+              key={m.label}
+              className={`bg-white border border-[#dde4ee] rounded-lg p-3.5 sm:p-4 flex items-start gap-3 ${
+                idx === 2 ? "col-span-2 md:col-span-1" : ""
+              }`}
+            >
               <span
                 className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ background: m.iconBg, color: m.iconColor }}
@@ -397,60 +395,122 @@ export default function EventDashboardPage() {
         </div>
 
         {currentRound ? (
-          <div className="mt-5 grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_280px] gap-5">
-            <div className="bg-white border border-[#dde4ee] rounded-lg p-4 min-w-0">
-              <div className="flex items-center justify-between gap-2.5 mb-3">
-                <h2 className="m-0 inline-flex items-center gap-1.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
-                  <Monitor size={14} /> Fluxo da sessão
-                </h2>
-                <span className="text-[11.5px] text-[#8a97a8]">
-                  Rodada {String(currentRound.order).padStart(2, "0")} de{" "}
-                  {String(rounds.length).padStart(2, "0")}
-                </span>
-              </div>
-              <p className="m-0 mb-2 text-[13.5px] font-semibold text-[#33415c]">
-                {String(currentRound.order).padStart(2, "0")} · {currentRound.title}
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {questions.map((q, idx) => {
-                  const active = selectedQuestion?.id === q.id;
-                  return (
-                    <button
-                      key={q.id}
-                      type="button"
-                      onClick={() => setSelectedQuestionId(q.id)}
-                      aria-current={active ? "true" : undefined}
-                      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors ${
-                        active ? "bg-[#eef3f9]" : "hover:bg-[#f7f9fc]"
-                      }`}
-                    >
-                      <span
-                        className={`w-6 h-6 rounded text-[11px] font-bold flex items-center justify-center shrink-0 ${
-                          active
-                            ? "bg-[#0b3a6e] text-white"
-                            : "bg-[#eef1f5] text-[#5b6b7f]"
-                        }`}
-                      >
-                        {String(idx + 1).padStart(2, "0")}
-                      </span>
-                      <span className="flex-1 text-[13px] leading-snug text-[#33415c] line-clamp-2">
-                        {q.title}
-                      </span>
-                      <ChevronRight size={15} className="shrink-0 text-[#b7c2cf]" />
-                    </button>
-                  );
-                })}
-                {questions.length === 0 && (
-                  <p className="text-[12.5px] text-[#8a97a8]">Carregando perguntas…</p>
+          <div className="mt-4 sm:mt-5 grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_280px] gap-4 sm:gap-5">
+            <div className="bg-white border border-[#dde4ee] rounded-lg p-3.5 sm:p-4 min-w-0">
+              {/* Mobile/tablet: compact question navigator (reuses questions/selectedQuestionId state) */}
+              <div className="lg:hidden">
+                <div className="flex items-center justify-between gap-2.5 mb-3">
+                  <h2 className="m-0 inline-flex items-center gap-1.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+                    <Monitor size={14} /> Fluxo da sessão
+                  </h2>
+                  <span className="text-[11.5px] text-[#8a97a8] shrink-0">
+                    {questions.length > 0
+                      ? `${Math.max(1, questions.findIndex((q) => q.id === selectedQuestion?.id) + 1)} de ${questions.length}`
+                      : "—"}
+                  </span>
+                </div>
+
+                {selectedQuestion ? (
+                  <div className="rounded-md bg-[#eef3f9] border border-[#cfdcea] px-3 py-2.5 mb-3">
+                    <p className="m-0 text-[10.5px] font-bold tracking-[0.08em] uppercase text-[#0b3a6e]">
+                      Pergunta atual
+                    </p>
+                    <p className="mt-1 mb-0 text-[13.5px] font-semibold text-[#1a2c44] leading-snug text-pretty">
+                      {selectedQuestion.title}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[12.5px] text-[#8a97a8] mb-3">Carregando perguntas…</p>
+                )}
+
+                {questions.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    {questions.map((q, idx) => {
+                      const active = selectedQuestion?.id === q.id;
+                      return (
+                        <button
+                          key={q.id}
+                          type="button"
+                          onClick={() => setSelectedQuestionId(q.id)}
+                          aria-current={active ? "true" : undefined}
+                          aria-label={`Pergunta ${idx + 1} de ${questions.length}`}
+                          className={`shrink-0 w-11 h-11 rounded text-[13px] font-bold flex items-center justify-center ${
+                            active ? "bg-[#0b3a6e] text-white" : "bg-[#eef1f5] text-[#5b6b7f]"
+                          }`}
+                        >
+                          {String(idx + 1).padStart(2, "0")}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {questions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setQuestionListOpen(true)}
+                    className="mt-3 inline-flex items-center gap-1.5 h-11 text-[12.5px] font-semibold text-[#0b3a6e]"
+                  >
+                    <List size={14} /> Ver todas as perguntas
+                  </button>
                 )}
               </div>
-              <p className="mt-3.5 mb-0 pt-3 border-t border-[#eef1f5] text-[11.5px] text-[#8a97a8] leading-relaxed">
-                A rodada é respondida por inteiro no celular. Selecionar uma pergunta aqui muda
-                apenas a análise exibida ao operador.
-              </p>
+
+              {/* Desktop: full question list */}
+              <div className="hidden lg:block">
+                <div className="flex items-center justify-between gap-2.5 mb-3">
+                  <h2 className="m-0 inline-flex items-center gap-1.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
+                    <Monitor size={14} /> Fluxo da sessão
+                  </h2>
+                  <span className="text-[11.5px] text-[#8a97a8]">
+                    Rodada {String(currentRound.order).padStart(2, "0")} de{" "}
+                    {String(rounds.length).padStart(2, "0")}
+                  </span>
+                </div>
+                <p className="m-0 mb-2 text-[13.5px] font-semibold text-[#33415c]">
+                  {String(currentRound.order).padStart(2, "0")} · {currentRound.title}
+                </p>
+                <div className="flex flex-col gap-0.5">
+                  {questions.map((q, idx) => {
+                    const active = selectedQuestion?.id === q.id;
+                    return (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() => setSelectedQuestionId(q.id)}
+                        aria-current={active ? "true" : undefined}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors ${
+                          active ? "bg-[#eef3f9]" : "hover:bg-[#f7f9fc]"
+                        }`}
+                      >
+                        <span
+                          className={`w-6 h-6 rounded text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                            active
+                              ? "bg-[#0b3a6e] text-white"
+                              : "bg-[#eef1f5] text-[#5b6b7f]"
+                          }`}
+                        >
+                          {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <span className="flex-1 text-[13px] leading-snug text-[#33415c] line-clamp-2">
+                          {q.title}
+                        </span>
+                        <ChevronRight size={15} className="shrink-0 text-[#b7c2cf]" />
+                      </button>
+                    );
+                  })}
+                  {questions.length === 0 && (
+                    <p className="text-[12.5px] text-[#8a97a8]">Carregando perguntas…</p>
+                  )}
+                </div>
+                <p className="mt-3.5 mb-0 pt-3 border-t border-[#eef1f5] text-[11.5px] text-[#8a97a8] leading-relaxed">
+                  A rodada é respondida por inteiro no celular. Selecionar uma pergunta aqui muda
+                  apenas a análise exibida ao operador.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-white border border-[#dde4ee] rounded-lg p-[22px] min-w-0">
+            <div className="bg-white border border-[#dde4ee] rounded-lg p-4 sm:p-[22px] min-w-0">
               <div className="flex items-start justify-between gap-3.5 flex-wrap">
                 <div className="min-w-0">
                   <h2 className="m-0 inline-flex items-center gap-1.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
@@ -510,8 +570,8 @@ export default function EventDashboardPage() {
               )}
             </div>
 
-            <div className="flex flex-col gap-5 min-w-0">
-              <div className="bg-white border border-[#dde4ee] rounded-lg p-5">
+            <div className="flex flex-col gap-4 sm:gap-5 min-w-0">
+              <div className="bg-white border border-[#dde4ee] rounded-lg p-4 sm:p-5">
                 <h2 className="m-0 mb-3.5 inline-flex items-center gap-1.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
                   <Users size={14} /> Participação
                 </h2>
@@ -547,7 +607,7 @@ export default function EventDashboardPage() {
                 </Link>
               </div>
 
-              <div className="bg-white border border-[#dde4ee] rounded-lg p-5">
+              <div className="bg-white border border-[#dde4ee] rounded-lg p-4 sm:p-5">
                 <h2 className="m-0 mb-3 inline-flex items-center gap-1.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
                   <Monitor size={14} /> No telão agora
                 </h2>
@@ -567,7 +627,7 @@ export default function EventDashboardPage() {
                 </Link>
               </div>
 
-              <div className="bg-white border border-[#dde4ee] rounded-lg p-5">
+              <div className="bg-white border border-[#dde4ee] rounded-lg p-4 sm:p-5">
                 <h2 className="m-0 mb-3 inline-flex items-center gap-1.5 text-xs font-bold tracking-[0.09em] uppercase text-[#8a97a8]">
                   <Flag size={14} /> Ao encerrar
                 </h2>
@@ -701,6 +761,48 @@ export default function EventDashboardPage() {
           </div>
         )}
       </section>
+
+      {currentRound && (
+        <Dialog open={questionListOpen} onOpenChange={setQuestionListOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Todas as perguntas</DialogTitle>
+              <DialogDescription>
+                {String(currentRound.order).padStart(2, "0")} · {currentRound.title}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-0.5 max-h-[60vh] overflow-y-auto">
+              {questions.map((q, idx) => {
+                const active = selectedQuestion?.id === q.id;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedQuestionId(q.id);
+                      setQuestionListOpen(false);
+                    }}
+                    aria-current={active ? "true" : undefined}
+                    className={`flex items-center gap-2.5 px-2.5 py-2.5 rounded-md text-left transition-colors ${
+                      active ? "bg-[#eef3f9]" : "hover:bg-[#f7f9fc]"
+                    }`}
+                  >
+                    <span
+                      className={`w-7 h-7 rounded text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                        active ? "bg-[#0b3a6e] text-white" : "bg-[#eef1f5] text-[#5b6b7f]"
+                      }`}
+                    >
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="flex-1 text-[13.5px] leading-snug text-[#33415c]">{q.title}</span>
+                    {active && <ChevronRight size={15} className="shrink-0 text-[#0b3a6e]" />}
+                  </button>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
         <AlertDialogContent>

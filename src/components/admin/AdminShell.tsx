@@ -395,7 +395,7 @@ export function AdminShell({
           </div>
         </header>
 
-        <main className="pb-[88px] lg:pb-11" style={{ flex: 1, paddingTop: "26px", paddingLeft: "22px", paddingRight: "22px" }}>
+        <main className="pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-11" style={{ flex: 1, paddingTop: "26px", paddingLeft: "22px", paddingRight: "22px" }}>
           <div style={{ maxWidth: "1320px", margin: "0 auto" }}>
             {children}
           </div>
