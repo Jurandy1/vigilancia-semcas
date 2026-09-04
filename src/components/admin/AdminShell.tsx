@@ -12,6 +12,7 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  Monitor,
   Settings2,
   UsersRound,
   X,
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { adminLogout } from "@/lib/supabase/auth-client";
 import { SemcasBrand } from "@/components/branding/SemcasBrand";
 import { ORG_TAGLINE } from "@/lib/branding";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 
 interface AdminShellProps {
   children: React.ReactNode;
@@ -318,10 +320,10 @@ export function AdminShell({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 transition-transform lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 transition-transform lg:sticky lg:top-0 lg:translate-x-0",
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         )}
-        style={{ width: "244px", flexShrink: 0, background: "#082F57", color: "#fff", display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh", zIndex: 50 }}
+        style={{ width: "244px", flexShrink: 0, background: "#082F57", color: "#fff", display: "flex", flexDirection: "column", height: "100vh", zIndex: 50 }}
       >
         <div className="lg:hidden flex justify-end p-3">
           <button
@@ -393,12 +395,59 @@ export function AdminShell({
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: "26px 22px 44px" }}>
+        <main className="pb-[88px] lg:pb-11" style={{ flex: 1, paddingTop: "26px", paddingLeft: "22px", paddingRight: "22px" }}>
           <div style={{ maxWidth: "1320px", margin: "0 auto" }}>
             {children}
           </div>
         </main>
       </div>
+
+      {selectedEventId && (
+        <nav
+          aria-label="Navegação do evento"
+          className="lg:hidden fixed inset-x-0 bottom-0 z-30 flex items-stretch bg-white border-t border-[#dde4ee]"
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
+          {(
+            [
+              { href: base, label: "Painel", icon: LayoutDashboard, active: pathname === base },
+              { href: `${base}/participantes`, label: "Participantes", icon: UsersRound, active: pathname.startsWith(`${base}/participantes`) },
+              { href: `/projector/${DAILY_ACTIVE_SLUG}`, label: "Projetor", icon: Monitor, active: false, external: true },
+              { href: "#menu", label: "Menu", icon: Menu, active: drawerOpen, onClick: () => setDrawerOpen(true) },
+            ] as const
+          ).map((item) => {
+            const content = (
+              <>
+                <item.icon size={20} strokeWidth={2} />
+                <span style={{ fontSize: "11px", fontWeight: 600 }}>{item.label}</span>
+              </>
+            );
+            const className = cn(
+              "flex-1 flex flex-col items-center justify-center gap-1 py-2",
+              item.active ? "text-[#0b3a6e]" : "text-[#8a97a8]"
+            );
+            if ("onClick" in item && item.onClick) {
+              return (
+                <button key={item.label} type="button" onClick={item.onClick} className={className}>
+                  {content}
+                </button>
+              );
+            }
+            if ("external" in item && item.external) {
+              return (
+                <a key={item.label} href={item.href} target="_blank" rel="noreferrer" className={className}>
+                  {content}
+                </a>
+              );
+            }
+            return (
+              <Link key={item.label} href={item.href} className={className}>
+                {content}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
     </div>
   );
 }

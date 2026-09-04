@@ -308,7 +308,7 @@ export default function EventDashboardPage() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-2 flex-wrap shrink-0">
+            <div className="flex gap-2 flex-wrap shrink-0 w-full sm:w-auto">
               <EventQrDialog
                 eventSlug={rootSlug}
                 eventTitle={event.title}
