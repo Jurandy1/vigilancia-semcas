@@ -6,7 +6,7 @@ import { writeAuditLog } from "@/lib/supabase/helpers";
 import type { Question } from "@/types/round";
 import { findOtherOption } from "@/lib/questions/other-option";
 
-import { getEventIdFromSlugExact } from "@/lib/data/events";
+import { getEventBySlugExact } from "@/lib/data/events";
 
 export const runtime = "nodejs";
 
@@ -71,39 +71,38 @@ export async function POST(
 ) {
   try {
     const { eventSlug, roundId } = await params;
-    const eventId = await getEventIdFromSlugExact(eventSlug);
-    if (!eventId) {
+    const [event, body] = await Promise.all([getEventBySlugExact(eventSlug), request.json()]);
+    if (!event) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }
+    if (event.status === "closed") {
+      return NextResponse.json({ error: "Evento encerrado." }, { status: 403 });
+    }
+    const eventId = event.id;
 
-    const body = await request.json();
     const parsed = submitSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
     }
 
-    const participant = await getParticipantFromRequest(request, eventId);
+    const supabase = getSupabaseAdmin();
+
+    const [participant, roundResult, questionsResult] = await Promise.all([
+      getParticipantFromRequest(request, eventId),
+      supabase.from("rounds").select("status").eq("id", roundId).eq("event_id", eventId).maybeSingle(),
+      supabase.from("questions").select("*").eq("round_id", roundId).order("order", { ascending: true }),
+    ]);
+
     if (!participant) {
       return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
     }
 
-    const supabase = getSupabaseAdmin();
-
-    const { data: event } = await supabase.from("events").select("status").eq("id", eventId).maybeSingle();
-    if (!event || event.status === "closed") {
-      return NextResponse.json({ error: "Evento encerrado." }, { status: 403 });
-    }
-
-    const { data: round } = await supabase.from("rounds").select("status").eq("id", roundId).eq("event_id", eventId).maybeSingle();
+    const round = roundResult.data;
     if (!round || round.status !== "open") {
       return NextResponse.json({ error: "Esta etapa não está aberta." }, { status: 403 });
     }
 
-    const { data: questionRows } = await supabase
-      .from("questions")
-      .select("*")
-      .eq("round_id", roundId)
-      .order("order", { ascending: true });
+    const { data: questionRows } = questionsResult;
 
     const questions: Question[] = (questionRows ?? []).map((q) => ({
       id: q.id,

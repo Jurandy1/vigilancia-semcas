@@ -20,13 +20,12 @@ export async function POST(
 ) {
   try {
     const { eventSlug } = await params;
-    const event = await getEventBySlug(eventSlug);
+    const [event, body] = await Promise.all([getEventBySlug(eventSlug), request.json()]);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }
 
     const eventId = event.id;
-    const body = await request.json();
     const parsed = joinEventSchema.safeParse(body);
 
     if (!parsed.success) {

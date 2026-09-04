@@ -12,29 +12,28 @@ export async function POST(
 ) {
   try {
     const { eventSlug, roundId } = await params;
-    const eventId = await getEventIdFromSlugExact(eventSlug);
+    const [eventId, body] = await Promise.all([getEventIdFromSlugExact(eventSlug), request.json()]);
     if (!eventId) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }
 
-    const body = await request.json();
     const parsed = progressSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
     }
 
-    const participant = await getParticipantFromRequest(request, eventId);
+    const supabase = getSupabaseAdmin();
+
+    const [participant, roundResult] = await Promise.all([
+      getParticipantFromRequest(request, eventId),
+      supabase.from("rounds").select("status").eq("id", roundId).eq("event_id", eventId).maybeSingle(),
+    ]);
+
     if (!participant) {
       return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
     }
 
-    const supabase = getSupabaseAdmin();
-    const { data: round } = await supabase
-      .from("rounds")
-      .select("status")
-      .eq("id", roundId)
-      .eq("event_id", eventId)
-      .maybeSingle();
+    const round = roundResult.data;
     if (!round || round.status !== "open") {
       return NextResponse.json({ error: "Esta etapa não está aberta." }, { status: 403 });
     }
