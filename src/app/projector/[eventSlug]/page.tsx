@@ -78,13 +78,25 @@ export default function ProjectorPage() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [eventUrl, setEventUrl] = useState("");
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  // Duas coisas mudam activeSlug de forma independente (a resolução do
+  // "evento do dia" e o avanço automático da sequência) — sem uma referência
+  // única e sempre atualizada, cada uma só enxerga o próprio último valor
+  // conhecido. Isso fazia a resolução, ao recalcular e coincidentemente
+  // chegar de novo no mesmo slug que ELA MESMA tinha visto da última vez,
+  // achar que "nada mudou" e deixar de corrigir um activeSlug que na
+  // verdade já tinha sido alterado pelo outro efeito.
+  const activeSlugRef = useRef(activeSlug);
+  function setActiveSlugTracked(value: string | null) {
+    activeSlugRef.current = value;
+    setActiveSlug(value);
+  }
   // Permite o efeito mais abaixo (que reage ao evento exibido virar
   // rascunho) forçar uma nova resolução sem esperar o poll de 20s.
   const resolveActiveEventSlugRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (rootSlug !== DAILY_ACTIVE_SLUG) {
-      setActiveSlug(rootSlug);
+      setActiveSlugTracked(rootSlug);
       setResolvingDailyActive(false);
       return;
     }
@@ -99,7 +111,6 @@ export default function ProjectorPage() {
     // status "open" agora (só existe um evento aberto no sistema por vez),
     // e só cai de volta pra raiz se nenhum estiver.
     let cancelled = false;
-    let resolvedSlug: string | null | undefined;
     const supabase = getSupabaseClient();
 
     async function resolveActiveEventSlug() {
@@ -111,10 +122,7 @@ export default function ProjectorPage() {
       if (cancelled || error) return;
 
       if (!rootRow) {
-        if (resolvedSlug !== null) {
-          resolvedSlug = null;
-          setActiveSlug(null);
-        }
+        if (activeSlugRef.current !== null) setActiveSlugTracked(null);
         setResolvingDailyActive(false);
         return;
       }
@@ -129,10 +137,7 @@ export default function ProjectorPage() {
         .maybeSingle();
       if (openRow?.slug) target = openRow.slug as string;
 
-      if (target !== resolvedSlug) {
-        resolvedSlug = target;
-        setActiveSlug(target);
-      }
+      if (target !== activeSlugRef.current) setActiveSlugTracked(target);
       setResolvingDailyActive(false);
     }
     resolveActiveEventSlugRef.current = () => void resolveActiveEventSlug();
@@ -197,7 +202,7 @@ export default function ProjectorPage() {
     }
     recent.push(now);
     advanceTimestampsRef.current = recent;
-    setActiveSlug(next);
+    setActiveSlugTracked(next);
   }, [publicEvent, activeSlug]);
 
   useEffect(() => {
