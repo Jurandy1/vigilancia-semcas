@@ -21,9 +21,30 @@ export default function AguardePage() {
 
   useEffect(() => {
     if (publicEvent?.status !== "closed" || !publicEvent.nextEventSlug) return;
+    const next = publicEvent.nextEventSlug;
+    // Trava de segurança contra ciclo na sequência: se next_event_slug de
+    // algum evento acabar apontando de volta pra um slug já visitado nesta
+    // navegação automática (pode acontecer ao reorganizar a sequência no
+    // meio do dia), sem essa checagem o participante fica sendo redirecionado
+    // de um evento pro outro sem parar. sessionStorage sobrevive à navegação
+    // (diferente de um estado em memória, que reseta a cada redirect).
+    try {
+      const key = "semcas-sequence-chain";
+      const chain = JSON.parse(sessionStorage.getItem(key) ?? "[]") as string[];
+      if (chain.includes(next)) {
+        console.error("Aguarde: ciclo detectado na sequência de eventos, avanço automático interrompido.", {
+          de: eventSlug,
+          para: next,
+        });
+        return;
+      }
+      sessionStorage.setItem(key, JSON.stringify([...chain, eventSlug].slice(-20)));
+    } catch {
+      /* sessionStorage indisponível — segue sem essa proteção extra */
+    }
     reset();
-    router.replace(`/e/${publicEvent.nextEventSlug}`);
-  }, [publicEvent, reset, router]);
+    router.replace(`/e/${next}`);
+  }, [publicEvent, reset, router, eventSlug]);
 
   useEffect(() => {
     async function resolveSession() {

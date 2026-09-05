@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { usePublicEvent } from "@/hooks/use-public-event";
 import { useRoundStats } from "@/hooks/use-round-stats";
@@ -142,9 +142,26 @@ export default function ProjectorPage() {
   const { stats, connectionIssue: statsConnectionIssue } = useRoundStats(publicEvent?.id ?? null, publicEvent?.currentOpenRoundId ?? null);
   const connectionIssue = eventConnectionIssue || statsConnectionIssue;
 
+  // Trava de segurança contra ciclo na sequência: se next_event_slug de
+  // algum evento acabar apontando de volta pra um slug por onde o telão já
+  // passou (reorganizar a sequência no meio do dia pode gerar isso), sem
+  // essa checagem o efeito abaixo fica alternando entre os dois pra sempre —
+  // troca de evento, contagem, título, tudo mudando sem parar até travar a
+  // aba. Cada slug só pode ser visitado uma vez por sessão do telão.
+  const visitedSlugsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (publicEvent?.slug !== activeSlug || publicEvent.status !== "closed" || !publicEvent.nextEventSlug) return;
-    setActiveSlug(publicEvent.nextEventSlug);
+    const next = publicEvent.nextEventSlug;
+    if (next === activeSlug || visitedSlugsRef.current.has(next)) {
+      console.error("Projetor: ciclo detectado na sequência de eventos, avanço automático interrompido.", {
+        de: activeSlug,
+        para: next,
+      });
+      return;
+    }
+    visitedSlugsRef.current.add(activeSlug);
+    setActiveSlug(next);
   }, [publicEvent, activeSlug]);
 
   useEffect(() => {

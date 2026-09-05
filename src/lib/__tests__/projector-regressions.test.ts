@@ -22,6 +22,7 @@ vi.mock("react", async (original) => ({
     }];
   },
   useEffect: (effect: () => void) => harness.effects.push(effect),
+  useRef: (initial: unknown) => ({ current: initial }),
 }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ eventSlug: harness.rootSlug }) }));
 vi.mock("@/hooks/use-public-event", () => ({ usePublicEvent: () => ({ publicEvent: harness.event }) }));
