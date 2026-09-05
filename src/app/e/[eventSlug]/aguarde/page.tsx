@@ -23,22 +23,26 @@ export default function AguardePage() {
     if (publicEvent?.status !== "closed" || !publicEvent.nextEventSlug) return;
     const next = publicEvent.nextEventSlug;
     // Trava de segurança contra ciclo na sequência: se next_event_slug de
-    // algum evento acabar apontando de volta pra um slug já visitado nesta
-    // navegação automática (pode acontecer ao reorganizar a sequência no
-    // meio do dia), sem essa checagem o participante fica sendo redirecionado
-    // de um evento pro outro sem parar. sessionStorage sobrevive à navegação
-    // (diferente de um estado em memória, que reseta a cada redirect).
+    // algum evento acabar apontando de volta pra um evento anterior, sem
+    // essa checagem o participante fica sendo redirecionado sem parar.
+    // sessionStorage sobrevive à navegação (diferente de estado em memória,
+    // que reseta a cada redirect). A checagem é por VELOCIDADE (muitos
+    // redirects em poucos segundos só acontece num loop de verdade) — não
+    // por "esse evento já apareceu alguma vez", que bloquearia passar pelo
+    // mesmo evento de novo depois de um reset legítimo do organizador.
     try {
-      const key = "semcas-sequence-chain";
-      const chain = JSON.parse(sessionStorage.getItem(key) ?? "[]") as string[];
-      if (chain.includes(next)) {
-        console.error("Aguarde: ciclo detectado na sequência de eventos, avanço automático interrompido.", {
+      const key = "semcas-sequence-advance-times";
+      const now = Date.now();
+      const recent = (JSON.parse(sessionStorage.getItem(key) ?? "[]") as number[]).filter((t) => now - t < 5000);
+      if (recent.length >= 5) {
+        console.error("Aguarde: muitos avanços automáticos em poucos segundos (possível ciclo na sequência), avanço interrompido.", {
           de: eventSlug,
           para: next,
         });
         return;
       }
-      sessionStorage.setItem(key, JSON.stringify([...chain, eventSlug].slice(-20)));
+      recent.push(now);
+      sessionStorage.setItem(key, JSON.stringify(recent));
     } catch {
       /* sessionStorage indisponível — segue sem essa proteção extra */
     }

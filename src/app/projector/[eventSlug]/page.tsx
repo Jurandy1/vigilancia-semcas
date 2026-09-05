@@ -144,23 +144,30 @@ export default function ProjectorPage() {
 
   // Trava de segurança contra ciclo na sequência: se next_event_slug de
   // algum evento acabar apontando de volta pra um slug por onde o telão já
-  // passou (reorganizar a sequência no meio do dia pode gerar isso), sem
-  // essa checagem o efeito abaixo fica alternando entre os dois pra sempre —
-  // troca de evento, contagem, título, tudo mudando sem parar até travar a
-  // aba. Cada slug só pode ser visitado uma vez por sessão do telão.
-  const visitedSlugsRef = useRef<Set<string>>(new Set());
+  // passou, sem essa checagem o efeito abaixo fica alternando entre os dois
+  // pra sempre — troca de evento, contagem, título, tudo mudando sem parar
+  // até travar a aba. Mas resetar um evento e refazer a sequência (voltar
+  // pro evento 1 e avançar de novo pro 2) é uso normal e legítimo — por
+  // isso a checagem é por VELOCIDADE (muitos avanços em poucos segundos só
+  // acontece num loop de verdade), não por "esse slug já apareceu alguma
+  // vez", que bloquearia revisitar o mesmo evento depois de um reset.
+  const advanceTimestampsRef = useRef<number[]>([]);
 
   useEffect(() => {
     if (publicEvent?.slug !== activeSlug || publicEvent.status !== "closed" || !publicEvent.nextEventSlug) return;
     const next = publicEvent.nextEventSlug;
-    if (next === activeSlug || visitedSlugsRef.current.has(next)) {
-      console.error("Projetor: ciclo detectado na sequência de eventos, avanço automático interrompido.", {
+    if (next === activeSlug) return;
+    const now = Date.now();
+    const recent = advanceTimestampsRef.current.filter((t) => now - t < 5000);
+    if (recent.length >= 5) {
+      console.error("Projetor: muitos avanços automáticos em poucos segundos (possível ciclo na sequência), avanço interrompido.", {
         de: activeSlug,
         para: next,
       });
       return;
     }
-    visitedSlugsRef.current.add(activeSlug);
+    recent.push(now);
+    advanceTimestampsRef.current = recent;
     setActiveSlug(next);
   }, [publicEvent, activeSlug]);
 
