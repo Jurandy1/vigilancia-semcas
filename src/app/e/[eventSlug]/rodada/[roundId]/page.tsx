@@ -40,6 +40,18 @@ export default function RoundPage() {
   const currentQuestion = questions[currentIndex];
   const totalQuestions = questions.length;
   const progressPercent = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
+  const answeredCount = questions.filter((q) => {
+    const raw = draft[q.id];
+    if (!raw) return false;
+    if (q.type === "multi_choice") {
+      try {
+        return (JSON.parse(raw) as string[]).length > 0;
+      } catch {
+        return false;
+      }
+    }
+    return raw.trim().length > 0;
+  }).length;
 
   useEffect(() => {
     const handleOnline = () => setOffline(false);
@@ -169,12 +181,6 @@ export default function RoundPage() {
 
       const data = await res.json();
 
-      if (res.status === 409) {
-        // Já registrado nesse round — vai para a espera sem alarme.
-        router.replace(`/e/${eventSlug}/aguarde`);
-        return;
-      }
-
       if (res.status === 401) {
         // Sessão perdida (cookie expirado ou evento resetado pelo organizador,
         // que apaga participants). Devolvemos para a entrada para o
@@ -272,7 +278,7 @@ export default function RoundPage() {
           <div style={{ padding: "20px 18px 0" }}>
             <h2 style={{ margin: 0, fontSize: "19px", fontWeight: 700, color: "#11243c" }}>Revisar e enviar</h2>
             <p style={{ margin: "9px 0 0", fontSize: "13px", lineHeight: 1.55, color: "#5b6b7f" }}>
-              Você respondeu {totalQuestions} perguntas. Após o envio, não será possível alterar.
+              Você respondeu {answeredCount} de {totalQuestions} perguntas. Após o envio, não será possível alterar.
             </p>
           </div>
           <div style={{ padding: "14px 18px", overflowY: "auto", flex: 1 }}>

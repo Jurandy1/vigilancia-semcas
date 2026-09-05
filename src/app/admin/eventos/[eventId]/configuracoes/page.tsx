@@ -530,9 +530,10 @@ export default function EventConfiguracoesPage() {
                       </div>
                       <button
                         type="button"
-                        disabled={event.status === "closed"}
+                        disabled={event.status !== "open"}
                         onClick={() => setClosing(true)}
-                        style={{ height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, backgroundColor: "#b42318", color: "#fff", border: "none", borderRadius: "6px", cursor: event.status === "closed" ? "not-allowed" : "pointer", opacity: event.status === "closed" ? 0.5 : 1, flexShrink: 0 }}
+                        title={event.status !== "open" ? "Somente um evento em andamento pode ser encerrado." : undefined}
+                        style={{ height: "38px", padding: "0 14px", fontSize: "13.5px", fontWeight: 600, backgroundColor: "#b42318", color: "#fff", border: "none", borderRadius: "6px", cursor: event.status !== "open" ? "not-allowed" : "pointer", opacity: event.status !== "open" ? 0.5 : 1, flexShrink: 0 }}
                       >
                         {event.status === "closed" ? "Evento encerrado" : "Encerrar evento"}
                       </button>

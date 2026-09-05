@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { SemcasHeader } from "@/components/participant/SemcasLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,18 @@ import { Alert } from "@/components/ui/alert";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
 import { formatAccessCode } from "@/lib/utils/format";
+import type { ParticipantMode } from "@/types/participant";
 
-export default function AccessCodePage() {
+function AccessCodeContent() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const eventSlug = params.eventSlug as string;
+  // Eventos com código exigido pulavam direto para cá sem deixar escolher
+  // identificado/anônimo — a escolha agora acontece antes (EventEntryClient)
+  // e chega como query param; sem ela (link direto antigo), mantém anônimo.
+  const mode = (searchParams.get("mode") ?? "anonymous") as ParticipantMode;
+  const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,11 +33,25 @@ export default function AccessCodePage() {
     setLoading(true);
 
     try {
+      let clientToken: string | undefined;
+      try {
+        const key = `semcas-join-token:${eventSlug}`;
+        clientToken = window.localStorage.getItem(key) ?? undefined;
+        if (!clientToken) {
+          clientToken = crypto.randomUUID();
+          window.localStorage.setItem(key, clientToken);
+        }
+      } catch {
+        /* localStorage indisponível — segue sem token */
+      }
+
       const res = await apiFetch(`/api/events/${eventSlug}/join`, {
         method: "POST",
         body: JSON.stringify({
-          mode: "anonymous",
+          mode,
+          name: mode === "identified" ? name : null,
           accessCode: code.replace(/\s/g, ""),
+          clientToken,
         }),
       });
 
@@ -41,7 +62,14 @@ export default function AccessCodePage() {
       }
 
       setParticipant(data.participantId, data.mode, data.name);
-      router.push(`/e/${eventSlug}/participar?mode=anonymous&verified=1`);
+
+      const sessionRes = await apiFetch(`/api/events/${eventSlug}/session`);
+      const sessionData = await sessionRes.json();
+      if (sessionData.session?.currentOpenRoundId) {
+        router.push(`/e/${eventSlug}/rodada/${sessionData.session.currentOpenRoundId}`);
+      } else {
+        router.push(`/e/${eventSlug}/aguarde`);
+      }
     } catch {
       setError("Não foi possível validar o código. Tente novamente.");
     } finally {
@@ -49,11 +77,27 @@ export default function AccessCodePage() {
     }
   }
 
+  const canSubmit = code.length === 6 && (mode !== "identified" || name.trim().length >= 2);
+
   return (
     <main className="min-h-screen p-6 max-w-md mx-auto">
       <SemcasHeader title="Código de acesso" />
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {mode === "identified" && (
+          <div className="space-y-2">
+            <Label htmlFor="name">Nome completo</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome completo"
+              autoComplete="name"
+              autoFocus
+            />
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="code">Informe o código exibido no projetor</Label>
           <Input
@@ -64,16 +108,24 @@ export default function AccessCodePage() {
             onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
             className="text-center text-2xl tracking-widest font-mono"
             autoComplete="off"
-            autoFocus
+            autoFocus={mode !== "identified"}
           />
         </div>
 
         {error && <Alert variant="destructive">{error}</Alert>}
 
-        <Button type="submit" size="xl" disabled={loading || code.length < 6}>
+        <Button type="submit" size="xl" disabled={loading || !canSubmit}>
           {loading ? "Verificando..." : "CONTINUAR"}
         </Button>
       </form>
     </main>
+  );
+}
+
+export default function AccessCodePage() {
+  return (
+    <Suspense>
+      <AccessCodeContent />
+    </Suspense>
   );
 }

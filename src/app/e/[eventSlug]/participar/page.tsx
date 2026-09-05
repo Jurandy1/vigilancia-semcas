@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect, useRef, useCallback } from "react";
+import { useState, Suspense, useCallback } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { ParticipantShell } from "@/components/participant/ParticipantShell";
 import { apiFetch } from "@/lib/api-client";
@@ -13,16 +13,11 @@ function ParticiparContent() {
   const searchParams = useSearchParams();
   const eventSlug = params.eventSlug as string;
   const mode = (searchParams.get("mode") ?? "identified") as ParticipantMode;
-  // Quando o participante vem da tela de código temporário, essa flag chega
-  // como true — nesse caso o "clique em Continuar" que a tela pede é
-  // redundante: já validamos código, já sabemos o modo. Faz o join direto.
-  const verified = searchParams.get("verified") === "1";
 
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { setParticipant } = useParticipantStore();
-  const autoJoinRef = useRef(false);
 
   const handleContinue = useCallback(async () => {
     setError("");
@@ -76,15 +71,6 @@ function ParticiparContent() {
       setLoading(false);
     }
   }, [eventSlug, mode, name, router, setParticipant]);
-
-  useEffect(() => {
-    // Modo anônimo vindo da tela de código: já validado, faz o join sozinho
-    // e vai para /aguarde. Identificado ainda precisa que o participante
-    // digite o nome, então nunca disparamos automático.
-    if (!verified || mode !== "anonymous" || autoJoinRef.current) return;
-    autoJoinRef.current = true;
-    void handleContinue();
-  }, [verified, mode, handleContinue]);
 
   if (mode === "anonymous") {
     return (

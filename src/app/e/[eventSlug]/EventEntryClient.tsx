@@ -72,12 +72,11 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
     );
   }
 
-  if (event.requireLiveCode) {
-    router.replace(`/e/${event.slug}/codigo`);
-    return null;
-  }
-
   const isDevMock = process.env.NEXT_PUBLIC_USE_DEV_MOCK === "true";
+  // Com código de acesso exigido, o destino é /codigo em vez de /participar —
+  // a escolha identificado/anônimo continua acontecendo aqui, e não fica
+  // travada em "anônimo" pulando essa tela como acontecia antes.
+  const nextStep = event.requireLiveCode ? "codigo" : "participar";
 
   return (
     <ParticipantShell eventTitle={event.title}>
@@ -95,7 +94,7 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
         <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
           <button
             type="button"
-            onClick={() => router.push(`/e/${event.slug}/participar?mode=identified`)}
+            onClick={() => router.push(`/e/${event.slug}/${nextStep}?mode=identified`)}
             style={{ textAlign: "left", padding: "14px 16px", border: "1px solid #c9d4e2", borderRadius: "10px", background: "#fff", cursor: "pointer", minHeight: "64px" }}
             onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }}
             onMouseOut={(e) => { e.currentTarget.style.borderColor = "#c9d4e2"; e.currentTarget.style.background = "#fff"; }}
@@ -107,10 +106,10 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
               Informarei meu nome completo
             </span>
           </button>
-          
+
           <button
             type="button"
-            onClick={() => router.push(`/e/${event.slug}/participar?mode=anonymous`)}
+            onClick={() => router.push(`/e/${event.slug}/${nextStep}?mode=anonymous`)}
             style={{ textAlign: "left", padding: "14px 16px", border: "1px solid #c9d4e2", borderRadius: "10px", background: "#fff", cursor: "pointer", minHeight: "64px" }}
             onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }}
             onMouseOut={(e) => { e.currentTarget.style.borderColor = "#c9d4e2"; e.currentTarget.style.background = "#fff"; }}
@@ -125,8 +124,9 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
         </div>
 
         <p style={{ margin: "auto 0 0", paddingTop: "24px", fontSize: "11.5px", lineHeight: 1.6, color: "#8a97a8" }}>
-          Você entrou pelo QR Code do evento — não é preciso código nem cadastro. As respostas só
-          são enviadas quando você confirmar.
+          {event.requireLiveCode
+            ? "Você entrou pelo QR Code do evento — na próxima tela, informe o código exibido no telão. As respostas só são enviadas quando você confirmar."
+            : "Você entrou pelo QR Code do evento — não é preciso código nem cadastro. As respostas só são enviadas quando você confirmar."}
         </p>
       </section>
     </ParticipantShell>
