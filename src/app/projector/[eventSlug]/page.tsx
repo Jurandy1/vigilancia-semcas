@@ -78,6 +78,9 @@ export default function ProjectorPage() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [eventUrl, setEventUrl] = useState("");
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  // Permite o efeito mais abaixo (que reage ao evento exibido virar
+  // rascunho) forçar uma nova resolução sem esperar o poll de 20s.
+  const resolveActiveEventSlugRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (rootSlug !== DAILY_ACTIVE_SLUG) {
@@ -87,34 +90,58 @@ export default function ProjectorPage() {
     }
     // Link fixo: descobre qual evento está marcado como "o de hoje" antes de
     // assinar os dados ao vivo — a URL/QR exibidos continuam mostrando /atual.
-    // Continua ouvindo depois: se o admin trocar o evento do dia com esse
-    // telão já aberto, antes ele ficava travado no evento antigo até alguém
-    // recarregar a página manualmente — agora acompanha sozinho.
+    // Não basta achar a raiz da sequência e depois só seguir next_event_slug
+    // pra frente: resetar e reabrir um evento anterior da sequência (uso
+    // normal ao refazer o dia) faz o evento realmente em andamento voltar a
+    // ser um que já tinha ficado pra trás — sem checar isso, o telão ficava
+    // preso mostrando o evento errado até alguém recarregar a página manual.
+    // Por isso a resolução busca sempre qual evento da sequência está com
+    // status "open" agora (só existe um evento aberto no sistema por vez),
+    // e só cai de volta pra raiz se nenhum estiver.
     let cancelled = false;
-    let resolvedRoot: string | null | undefined;
+    let resolvedSlug: string | null | undefined;
     const supabase = getSupabaseClient();
 
-    async function resolveDailyActiveSlug() {
-      const { data, error } = await supabase
+    async function resolveActiveEventSlug() {
+      const { data: rootRow, error } = await supabase
         .from("public_events")
-        .select("slug")
+        .select("slug, sequence_root_slug")
         .eq("is_daily_active", true)
         .maybeSingle();
       if (cancelled || error) return;
-      const nextRoot = data?.slug ?? null;
-      // Só uma troca da raiz deve interromper o avanço local da sequência.
-      if (nextRoot !== resolvedRoot) {
-        resolvedRoot = nextRoot;
-        setActiveSlug(nextRoot);
+
+      if (!rootRow) {
+        if (resolvedSlug !== null) {
+          resolvedSlug = null;
+          setActiveSlug(null);
+        }
+        setResolvingDailyActive(false);
+        return;
+      }
+
+      let target = rootRow.slug as string;
+      const seqRoot = (rootRow.sequence_root_slug as string | null) ?? target;
+      const { data: openRow } = await supabase
+        .from("public_events")
+        .select("slug")
+        .eq("sequence_root_slug", seqRoot)
+        .eq("status", "open")
+        .maybeSingle();
+      if (openRow?.slug) target = openRow.slug as string;
+
+      if (target !== resolvedSlug) {
+        resolvedSlug = target;
+        setActiveSlug(target);
       }
       setResolvingDailyActive(false);
     }
+    resolveActiveEventSlugRef.current = () => void resolveActiveEventSlug();
 
     setResolvingDailyActive(true);
-    void resolveDailyActiveSlug();
+    void resolveActiveEventSlug();
 
     const poll = window.setInterval(() => {
-      if (document.visibilityState === "visible") void resolveDailyActiveSlug();
+      if (document.visibilityState === "visible") void resolveActiveEventSlug();
     }, 20_000);
     const channel = supabase
       .channel("projector-daily-active")
@@ -125,9 +152,11 @@ export default function ProjectorPage() {
         // entra ou responde) disparava uma consulta nova aqui — com muita
         // gente votando ao mesmo tempo isso vira uma enxurrada de consultas
         // desnecessárias e trava a aba do telão. Só importa saber quando o
-        // evento marcado como "o de hoje" muda.
+        // evento marcado como "o de hoje" muda; mudanças em outros membros
+        // da sequência (reset/reabertura) são pegas pelo poll de 20s e pelo
+        // efeito abaixo, que reage na hora se o evento exibido virar rascunho.
         { event: "*", schema: "public", table: "public_events", filter: "is_daily_active=eq.true" },
-        () => void resolveDailyActiveSlug()
+        () => void resolveActiveEventSlug()
       )
       .subscribe();
 
@@ -225,6 +254,17 @@ export default function ProjectorPage() {
       window.removeEventListener("online", resume);
     };
   }, [publicEvent?.requireLiveCode, publicEvent?.status, publicEvent?.slug, publicEvent?.accessChallenge?.expiresAt, activeSlug]);
+
+  // Se o evento exibido agora voltou a rascunho/aguardando (reset do
+  // organizador), ele deixou de ser o evento certo pra mostrar — força uma
+  // nova resolução na hora em vez de esperar o poll de 20s.
+  useEffect(() => {
+    if (rootSlug !== DAILY_ACTIVE_SLUG) return;
+    if (!publicEvent || publicEvent.slug !== activeSlug) return;
+    if (publicEvent.status === "draft" || publicEvent.status === "waiting") {
+      resolveActiveEventSlugRef.current();
+    }
+  }, [publicEvent, activeSlug, rootSlug]);
 
   const connectedCount = publicEvent?.participantCount ?? 0;
   const isRoundOpen = publicEvent?.currentRoundStatus === "open";
