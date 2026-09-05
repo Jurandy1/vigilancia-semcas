@@ -6,7 +6,7 @@ import { writeAuditLog } from "@/lib/supabase/helpers";
 import type { Question } from "@/types/round";
 import { findOtherOption } from "@/lib/questions/other-option";
 
-import { getEventBySlugExact } from "@/lib/data/events";
+import { getEventForRoundRoute } from "@/lib/data/events";
 import { enforceRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
@@ -72,7 +72,7 @@ export async function POST(
 ) {
   try {
     const { eventSlug, roundId } = await params;
-    const [event, body] = await Promise.all([getEventBySlugExact(eventSlug), request.json()]);
+    const [event, body] = await Promise.all([getEventForRoundRoute(eventSlug, roundId), request.json()]);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }

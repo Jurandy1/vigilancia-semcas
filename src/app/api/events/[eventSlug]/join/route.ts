@@ -43,6 +43,8 @@ export async function POST(
         participantId: existing.id,
         mode: existing.mode,
         name: existing.name,
+        eventId,
+        eventSlug: event.slug,
         resumed: true,
       });
     }
@@ -110,6 +112,8 @@ export async function POST(
       participantId,
       mode: parsed.data.mode,
       name,
+      eventId,
+      eventSlug: event.slug,
       resumed: false,
     });
 

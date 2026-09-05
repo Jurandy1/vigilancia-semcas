@@ -7,13 +7,13 @@ import QRCode from "qrcode";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { slugify } from "@/lib/utils/format";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { cn } from "@/lib/utils";
 
 interface CreatedEvent {
   eventId: string;
   slug: string;
-  accessSlug: string;
   title: string;
 }
 
@@ -34,10 +34,10 @@ function EventCreatedView({ created }: { created: CreatedEvent }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const url = `${window.location.origin}/e/${created.accessSlug}`;
+    const url = `${window.location.origin}/e/${DAILY_ACTIVE_SLUG}`;
     setEventUrl(url);
     QRCode.toDataURL(url, { width: 260, margin: 2 }).then(setQrDataUrl);
-  }, [created.accessSlug]);
+  }, []);
 
   async function copyLink() {
     await navigator.clipboard.writeText(eventUrl);
@@ -54,9 +54,13 @@ function EventCreatedView({ created }: { created: CreatedEvent }) {
         <div className="mt-6 bg-white border border-[#dde4ee] rounded-lg p-[22px]">
           {qrDataUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={qrDataUrl} alt="QR Code do evento" className="w-52 h-52 mx-auto mb-4" />
+            <img src={qrDataUrl} alt="QR Code fixo do sistema" className="w-52 h-52 mx-auto mb-4" />
           )}
-          <p className="m-0 text-[12.5px] font-semibold text-[#33415c]">Link de participação</p>
+          <p className="m-0 text-[12.5px] font-semibold text-[#33415c]">Link único de participação</p>
+          <p className="mt-1 mb-0 text-[12.5px] text-[#8a97a8] leading-snug">
+            O mesmo QR serve para todos os eventos. A ordem do dia é definida em
+            &quot;Organizar sequência&quot; — o link acompanha o evento em andamento.
+          </p>
           <div className="flex items-center gap-2 mt-2 mb-4">
             <code className="flex-1 text-xs bg-[#f7f9fc] border border-[#dde4ee] rounded-md px-3 py-2 truncate">
               {eventUrl}
@@ -81,6 +85,13 @@ function EventCreatedView({ created }: { created: CreatedEvent }) {
               className="inline-flex items-center h-10 px-4 text-sm font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md no-underline"
             >
               Abrir painel do evento
+            </Link>
+            <Link
+              href={`/print/${DAILY_ACTIVE_SLUG}`}
+              target="_blank"
+              className="inline-flex items-center h-10 px-4 text-sm font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md no-underline"
+            >
+              Imprimir A4
             </Link>
           </div>
         </div>
@@ -170,11 +181,9 @@ export default function NovoEventoPage() {
           return;
         }
       }
-      const anchor = availableEvents.find((event) => event.id === attachToEventId);
       setCreated({
         eventId: data.eventId,
         slug: data.slug,
-        accessSlug: anchor?.sequenceRootSlug ?? anchor?.slug ?? data.slug,
         title,
       });
     } catch (err) {

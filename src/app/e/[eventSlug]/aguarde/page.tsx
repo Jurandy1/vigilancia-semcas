@@ -169,7 +169,7 @@ export default function AguardePage() {
           </p>
           <button
             type="button"
-            onClick={() => router.push(`/e/${eventSlug}/rodada/${newRoundId}`)}
+            onClick={() => router.push(`/e/${publicEvent?.slug ?? eventSlug}/rodada/${newRoundId}`)}
             style={{ marginTop: "32px", height: "52px", padding: "0 24px", background: "#0B3A6E", color: "#fff", borderRadius: "8px", fontSize: "14.5px", fontWeight: 600, border: "none", cursor: "pointer" }}
           >
             Responder agora

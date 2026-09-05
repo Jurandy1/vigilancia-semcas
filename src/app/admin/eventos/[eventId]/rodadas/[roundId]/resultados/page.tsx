@@ -31,7 +31,11 @@ export default function RoundReportPage() {
       ]);
       const reportData = await reportRes.json();
       const eventData = await eventRes.json();
-      setReport(reportData);
+      if (!reportRes.ok) {
+        setReport({ error: reportData.error ?? "Não foi possível carregar o relatório." });
+      } else {
+        setReport(reportData);
+      }
       setEvent(eventData.event ?? null);
       setLoading(false);
     }
@@ -94,6 +98,22 @@ export default function RoundReportPage() {
         <div className="space-y-4 max-w-[840px]">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-48 w-full" />
+        </div>
+      </AdminShell>
+    );
+  }
+
+  if (typeof report.error === "string") {
+    return (
+      <AdminShell
+        eventId={eventId}
+        eventTitle={event?.title}
+        eventSlug={event?.slug}
+        eventStatus={event?.status}
+        screenLabel="Resultados"
+      >
+        <div className="max-w-[840px] rounded-lg border border-[#e3b3ad] bg-[#fdf2f1] px-4 py-3 text-sm text-[#b42318]">
+          {report.error}
         </div>
       </AdminShell>
     );

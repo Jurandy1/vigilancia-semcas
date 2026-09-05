@@ -73,10 +73,11 @@ export default function EventReportPrintPage() {
             `/api/admin/events/${eventId}/rounds/${r.id}/report`,
             token
           );
+          if (!res.ok) return null;
           return (await res.json()) as RoundReport;
         })
       );
-      setReports(loaded);
+      setReports(loaded.filter((r): r is RoundReport => Boolean(r?.round && r?.summary)));
     }
     load();
   }, [eventId]);

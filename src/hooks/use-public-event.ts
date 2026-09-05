@@ -5,6 +5,7 @@ import type { PublicEvent } from "@/types/event";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useParticipantStore } from "@/stores/participant-store";
 import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
+import { resolveLivePublicEventSlug } from "@/lib/events/resolve-live-slug";
 
 interface PublicEventRow {
   event_id: string; slug: string; title: string; description: string | null; projector_title: string | null;
@@ -73,13 +74,8 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
       try { window.localStorage.setItem(cacheKey, JSON.stringify(mapped)); } catch { /* ignore */ }
     }
 
-    // O slug reservado "atual" não existe como row em public_events; o
-    // realtime precisa filtrar pelo slug real do evento marcado como do dia,
-    // senão o canal nunca dispara e o participante fica preso em "Aguarde…".
-    // Fazemos uma primeira busca por is_daily_active para descobrir o slug
-    // real e usamos ele daí pra frente. Se depois mudar o evento do dia, um
-    // reload da tela do participante pega o novo — realtime cross-slug fica
-    // fora de escopo.
+    // O slug reservado "atual" não existe como row. Resolve o evento ao vivo
+    // (aberto ou próximo da sequência) sem depender de marca manual.
     const isDailyAlias = !eventId && eventSlug === DAILY_ACTIVE_SLUG;
 
     async function refresh(explicitSlug?: string) {
@@ -88,8 +84,11 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
         const slugToUse = explicitSlug ?? (isDailyAlias ? null : eventSlug);
         if (resolvedId) query = query.eq("event_id", resolvedId);
         else if (slugToUse) query = query.eq("slug", slugToUse);
-        else if (isDailyAlias) query = query.eq("is_daily_active", true);
-        else return;
+        else if (isDailyAlias) {
+          const live = await resolveLivePublicEventSlug(supabase);
+          if (!live) return;
+          query = supabase.from("public_events").select(FIELDS).eq("slug", live.slug);
+        } else return;
         const { data, error } = await query.maybeSingle();
         if (error) throw error;
         if (data) apply(data as PublicEventRow);
@@ -103,9 +102,8 @@ export function usePublicEvent(eventId: string | null, eventSlug?: string | null
     setConnectionState("connecting");
 
     async function bootstrap() {
-      // Faz um refresh primeiro pra descobrir o event_id real (via
-      // is_daily_active se for /atual), e só depois monta o canal realtime
-      // com o filtro correto.
+      // Resolve o event_id real (via /atual → evento ao vivo) e só depois
+      // monta o canal realtime com o filtro correto.
       await refresh();
       if (disposed) return;
       const filter = resolvedId

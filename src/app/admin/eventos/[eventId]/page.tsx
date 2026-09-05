@@ -234,7 +234,6 @@ export default function EventDashboardPage() {
     })) ?? [];
 
   const lead = choiceBars.slice().sort((a, b) => b.count - a.count)[0];
-  const rootSlug = event.sequenceRootSlug ?? event.slug;
 
   return (
     <AdminShell
@@ -302,7 +301,6 @@ export default function EventDashboardPage() {
             </div>
             <div className="flex flex-col gap-2 w-full sm:contents">
               <EventQrDialog
-                eventSlug={rootSlug}
                 eventTitle={event.title}
                 trigger={
                   <button

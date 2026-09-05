@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEventIdFromSlugExact } from "@/lib/data/events";
+import { getEventForRoundRoute } from "@/lib/data/events";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -11,10 +11,11 @@ export async function GET(
   try {
     const { eventSlug, roundId } = await params;
 
-    const eventId = await getEventIdFromSlugExact(eventSlug);
-    if (!eventId) {
+    const event = await getEventForRoundRoute(eventSlug, roundId);
+    if (!event) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }
+    const eventId = event.id;
 
     const supabase = getSupabaseAdmin();
     const { data: round } = await supabase

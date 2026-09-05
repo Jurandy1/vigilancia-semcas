@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getParticipantFromRequest } from "@/lib/sessions/verify";
 import { progressSchema } from "@/lib/validation/submission";
-import { getEventBySlugExact } from "@/lib/data/events";
+import { getEventForRoundRoute } from "@/lib/data/events";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const { eventSlug, roundId } = await params;
-    const event = await getEventBySlugExact(eventSlug);
+    const event = await getEventForRoundRoute(eventSlug, roundId);
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }

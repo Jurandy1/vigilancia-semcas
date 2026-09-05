@@ -50,13 +50,13 @@ export async function GET(
         mode: participant.mode,
         name: participant.name,
         eventId,
+        eventSlug: event.slug,
         participantRounds,
         currentOpenRoundId: publicEvent?.current_open_round_id ?? null,
         currentRoundTitle: publicEvent?.current_round_title ?? null,
         currentRoundStatus: publicEvent?.current_round_status ?? null,
       },
-    });
-  } catch {
+    });  } catch {
     return NextResponse.json(
       { error: "Não foi possível concluir esta operação. Tente novamente." },
       { status: 500 }

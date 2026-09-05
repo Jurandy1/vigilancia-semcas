@@ -7,7 +7,8 @@ const harness = vi.hoisted(() => ({
   states: [] as unknown[],
   index: 0,
   rootSlug: "atual",
-  dailySlug: "primeiro",
+  openSlug: null as string | null,
+  waitingSlug: "primeiro",
   event: null as any,
   queryError: null as any,
   realtime: null as null | (() => void),
@@ -29,15 +30,45 @@ vi.mock("@/hooks/use-public-event", () => ({ usePublicEvent: () => ({ publicEven
 vi.mock("@/hooks/use-round-stats", () => ({ useRoundStats: () => ({ stats: { registered: 0, answering: 0, completed: 0 } }) }));
 vi.mock("@/lib/supabase/client", () => ({
   getSupabaseClient: () => {
+    let statusEq: string | null = null;
+    let statusIn: string[] | null = null;
     const query: any = {
-      select: () => query, eq: () => query,
-      maybeSingle: async () => ({ data: { slug: harness.dailySlug }, error: harness.queryError }),
+      select: () => query,
+      eq: (col: string, val: string) => {
+        if (col === "status") statusEq = val;
+        return query;
+      },
+      in: (col: string, vals: string[]) => {
+        if (col === "status") statusIn = vals;
+        return query;
+      },
+      not: () => query,
+      order: () => query,
+      limit: () => query,
+      maybeSingle: async () => {
+        if (harness.queryError) return { data: null, error: harness.queryError };
+        if (statusEq === "open") {
+          return { data: harness.openSlug ? { slug: harness.openSlug } : null, error: null };
+        }
+        if (statusIn) {
+          return { data: harness.waitingSlug ? { slug: harness.waitingSlug } : null, error: null };
+        }
+        return { data: null, error: null };
+      },
     };
     const channel: any = {
       on: (_: unknown, __: unknown, callback: () => void) => { harness.realtime = callback; return channel; },
       subscribe: () => channel,
     };
-    return { from: () => query, channel: () => channel, removeChannel: vi.fn() };
+    return {
+      from: () => {
+        statusEq = null;
+        statusIn = null;
+        return query;
+      },
+      channel: () => channel,
+      removeChannel: vi.fn(),
+    };
   },
 }));
 import ProjectorPage from "@/app/projector/[eventSlug]/page";
@@ -45,23 +76,28 @@ import ProjectorPage from "@/app/projector/[eventSlug]/page";
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  Object.assign(harness, { effects: [], states: [], index: 0, rootSlug: "atual", dailySlug: "primeiro", event: null, queryError: null });
+  Object.assign(harness, {
+    effects: [],
+    states: [],
+    index: 0,
+    rootSlug: "atual",
+    openSlug: null,
+    waitingSlug: "primeiro",
+    event: null,
+    queryError: null,
+  });
   vi.stubGlobal("window", { setInterval, clearInterval, addEventListener: vi.fn(), removeEventListener: vi.fn() });
   vi.stubGlobal("document", { visibilityState: "visible", addEventListener: vi.fn(), removeEventListener: vi.fn() });
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("projetor", () => {
-  it("preserva o avanço na sequência e reage apenas à troca da raiz", async () => {
+  it("usa a fila quando não há evento aberto e reage ao abrir", async () => {
     ProjectorPage();
     const cleanup = harness.effects[0]!();
     await vi.advanceTimersByTimeAsync(0);
     expect(harness.states[0]).toBe("primeiro");
-    // O efeito de avanço já levou o telão para o segundo evento.
-    harness.states[0] = "segundo";
-    await vi.advanceTimersByTimeAsync(20_000);
-    expect(harness.states[0]).toBe("segundo");
-    harness.dailySlug = "outro-evento";
+    harness.openSlug = "outro-evento";
     harness.realtime!();
     await vi.advanceTimersByTimeAsync(0);
     expect(harness.states[0]).toBe("outro-evento");
@@ -73,7 +109,7 @@ describe("projetor", () => {
     const cleanup = harness.effects[0]!();
     await vi.advanceTimersByTimeAsync(0);
     harness.queryError = { message: "offline" };
-    harness.dailySlug = "";
+    harness.waitingSlug = "";
     await vi.advanceTimersByTimeAsync(20_000);
     expect(harness.states[0]).toBe("primeiro");
     if (cleanup) cleanup();
@@ -98,8 +134,8 @@ describe("projetor", () => {
   });
 
   it("trata código ausente, vencido e recém-gerado", () => {
-    expect(getAccessCodeRenewalDelay(NaN, 0)).toBe(0);
-    expect(getAccessCodeRenewalDelay(-1, 0)).toBe(0);
-    expect(getAccessCodeRenewalDelay(60_000, 0)).toBe(45_000);
+    expect(getAccessCodeRenewalDelay(Number.NaN)).toBe(0);
+    expect(getAccessCodeRenewalDelay(Date.now() - 1_000)).toBe(0);
+    expect(getAccessCodeRenewalDelay(Date.now() + 60_000)).toBeGreaterThan(0);
   });
 });

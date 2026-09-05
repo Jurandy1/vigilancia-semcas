@@ -25,7 +25,7 @@ function AccessCodeContent() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setParticipant } = useParticipantStore();
+  const { setParticipant, setEvent } = useParticipantStore();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,14 +61,18 @@ function AccessCodeContent() {
         return;
       }
 
+      const resolvedSlug = (data.eventSlug as string | undefined) ?? eventSlug;
+      if (data.eventId && data.eventSlug) {
+        setEvent(data.eventId as string, data.eventSlug as string);
+      }
       setParticipant(data.participantId, data.mode, data.name);
 
-      const sessionRes = await apiFetch(`/api/events/${eventSlug}/session`);
+      const sessionRes = await apiFetch(`/api/events/${resolvedSlug}/session`);
       const sessionData = await sessionRes.json();
       if (sessionData.session?.currentOpenRoundId) {
-        router.push(`/e/${eventSlug}/rodada/${sessionData.session.currentOpenRoundId}`);
+        router.replace(`/e/${resolvedSlug}/rodada/${sessionData.session.currentOpenRoundId}`);
       } else {
-        router.push(`/e/${eventSlug}/aguarde`);
+        router.replace(`/e/${resolvedSlug}/aguarde`);
       }
     } catch {
       setError("Não foi possível validar o código. Tente novamente.");

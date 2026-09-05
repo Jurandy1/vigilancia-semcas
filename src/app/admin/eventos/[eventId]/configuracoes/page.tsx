@@ -60,9 +60,9 @@ export default function EventConfiguracoesPage() {
   const [savingIsTest, setSavingIsTest] = useState(false);
 
   const eventUrl =
-    typeof window !== "undefined" && event
-      ? `${window.location.origin}/e/${event.sequenceRootSlug ?? event.slug}`
-      : "";
+    typeof window !== "undefined" ? `${window.location.origin}/e/${DAILY_ACTIVE_SLUG}` : "";
+  const projectorUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/projector/${DAILY_ACTIVE_SLUG}` : "";
 
   useEffect(() => {
     async function load() {
@@ -390,9 +390,9 @@ export default function EventConfiguracoesPage() {
                 <div>
                   <h2 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: 600 }}>Acesso</h2>
                   <p style={{ margin: "0 0 18px 0", fontSize: "13px", color: "#8a97a8" }}>
-                    Link público, QR Code e cartaz impresso.
+                    Link único de participação, QR Code e cartaz A4 — os mesmos para qualquer evento.
                   </p>
-                  <p style={{ margin: "0 0 6px 0", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>Link público</p>
+                  <p style={{ margin: "0 0 6px 0", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>Link público (participantes)</p>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                     <code style={{ flex: 1, minWidth: "220px", backgroundColor: "#f7f9fc", border: "1px solid #dde4ee", borderRadius: "6px", padding: "10px 12px", fontSize: "12.5px", color: "#33415c", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {eventUrl}
@@ -405,6 +405,10 @@ export default function EventConfiguracoesPage() {
                       {copied ? "Copiado" : "Copiar"}
                     </button>
                   </div>
+                  <p style={{ margin: "14px 0 6px 0", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>Link do projetor (telão)</p>
+                  <code style={{ display: "block", backgroundColor: "#f7f9fc", border: "1px solid #dde4ee", borderRadius: "6px", padding: "10px 12px", fontSize: "12.5px", color: "#33415c", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {projectorUrl}
+                  </code>
                   <div style={{ display: "flex", gap: "20px", alignItems: "center", marginTop: "20px", flexWrap: "wrap" }}>
                     {qrDataUrl && (
                       <img
@@ -415,7 +419,6 @@ export default function EventConfiguracoesPage() {
                     )}
                     <div>
                       <EventQrDialog
-                        eventSlug={event.sequenceRootSlug ?? event.slug}
                         eventTitle={event.title}
                         trigger={
                           <button
@@ -427,8 +430,13 @@ export default function EventConfiguracoesPage() {
                         }
                       />
                       <p style={{ marginTop: "10px", marginBottom: 0, fontSize: "12.5px", color: "#8a97a8", lineHeight: 1.5 }}>
-                        O cartaz A4 fica em{" "}
-                        <code style={{ fontSize: "12px" }}>/print/{event.sequenceRootSlug ?? event.slug}</code>.
+                        QR e cartaz A4 são únicos no sistema (
+                        <code style={{ fontSize: "12px" }}>/e/{DAILY_ACTIVE_SLUG}</code>
+                        {" · "}
+                        <code style={{ fontSize: "12px" }}>/print/{DAILY_ACTIVE_SLUG}</code>
+                        ). O telão fica em{" "}
+                        <code style={{ fontSize: "12px" }}>/projector/{DAILY_ACTIVE_SLUG}</code> e
+                        segue a sequência / evento em andamento.
                       </p>
                     </div>
                   </div>
@@ -478,7 +486,8 @@ export default function EventConfiguracoesPage() {
                 <div>
                   <h2 style={{ margin: "0 0 4px 0", fontSize: "16px", fontWeight: 600 }}>Projetor</h2>
                   <p style={{ margin: "0 0 18px 0", fontSize: "13px", color: "#8a97a8" }}>
-                    O que aparece no telão do evento.
+                    Telão único do sistema (<code style={{ fontSize: "12px" }}>/projector/{DAILY_ACTIVE_SLUG}</code>
+                    ): identifica sozinho o evento que estiver iniciado.
                   </p>
                   <div style={{ border: "1px solid #dde4ee", borderRadius: "6px", padding: "16px" }}>
                     <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>Conteúdo exibido</p>

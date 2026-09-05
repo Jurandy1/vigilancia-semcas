@@ -3,18 +3,27 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { SemcasBrand } from "@/components/branding/SemcasBrand";
+import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 
 interface PrintPosterProps {
-  event: { title: string; slug: string };
   appUrl: string;
 }
 
-export function PrintPoster({ event, appUrl }: PrintPosterProps) {
+/**
+ * Cartaz A4 único do sistema: o QR sempre aponta para /e/atual.
+ * Qualquer evento (rascunho, em andamento, encerrado ou resetado) usa o mesmo
+ * código; o alias "atual" resolve para o evento do dia / aberto no momento.
+ * O telão fica em /projector/atual e identifica sozinho o evento iniciado.
+ */
+export function PrintPoster({ appUrl }: PrintPosterProps) {
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const joinPath = `/e/${DAILY_ACTIVE_SLUG}`;
+  const projectorPath = `/projector/${DAILY_ACTIVE_SLUG}`;
+  const host = appUrl.replace(/^https?:\/\//, "");
 
   useEffect(() => {
-    QRCode.toDataURL(`${appUrl}/e/${event.slug}`, { width: 320, margin: 2 }).then(setQrDataUrl);
-  }, [appUrl, event.slug]);
+    QRCode.toDataURL(`${appUrl}${joinPath}`, { width: 320, margin: 2 }).then(setQrDataUrl);
+  }, [appUrl, joinPath]);
 
   return (
     <main className="min-h-screen bg-white flex flex-col items-center justify-center p-12 print:p-8">
@@ -23,15 +32,18 @@ export function PrintPoster({ event, appUrl }: PrintPosterProps) {
 
         <div>
           <h1 className="text-xl font-bold uppercase leading-relaxed tracking-wide">
-            {event.title}
+            Avaliação ao vivo
           </h1>
+          <p className="mt-2 text-sm text-gray-500">
+            Um único QR para todos os eventos do sistema
+          </p>
         </div>
 
         <p className="text-lg font-semibold uppercase tracking-widest">Participe da avaliação</p>
 
         {qrDataUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={qrDataUrl} alt="QR Code" className="mx-auto w-80 h-80" />
+          <img src={qrDataUrl} alt="QR Code fixo do sistema" className="mx-auto w-80 h-80" />
         )}
 
         <div className="text-sm text-gray-600 space-y-1">
@@ -39,9 +51,19 @@ export function PrintPoster({ event, appUrl }: PrintPosterProps) {
           <p>
             ou acesse:{" "}
             <span className="font-mono text-primary">
-              {appUrl.replace(/^https?:\/\//, "")}/e/{event.slug}
+              {host}
+              {joinPath}
             </span>
           </p>
+        </div>
+
+        <div className="pt-4 border-t border-gray-200 text-xs text-gray-500 space-y-1">
+          <p className="font-semibold uppercase tracking-wide text-gray-700">Telão (projetor)</p>
+          <p className="font-mono">
+            {host}
+            {projectorPath}
+          </p>
+          <p>O projetor identifica automaticamente o evento que estiver iniciado.</p>
         </div>
       </div>
 

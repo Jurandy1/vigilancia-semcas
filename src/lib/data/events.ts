@@ -30,6 +30,38 @@ function mapRow(row: Record<string, unknown>): EventSummary {
 }
 
 /**
+ * Evento atual do sistema (sem marca manual “do dia”):
+ * aberto → senão primeiro da sequência aguardando → senão qualquer aguardando.
+ */
+export async function resolveCurrentEvent(): Promise<EventSummary | null> {
+  const supabase = getSupabaseAdmin();
+
+  const { data: open } = await supabase.from("events").select("*").eq("status", "open").maybeSingle();
+  if (open) return mapRow(open);
+
+  const { data: sequenced } = await supabase
+    .from("events")
+    .select("*")
+    .in("status", ["waiting", "draft"])
+    .not("sequence_id", "is", null)
+    .order("sequence_order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (sequenced) return mapRow(sequenced);
+
+  const { data: solo } = await supabase
+    .from("events")
+    .select("*")
+    .in("status", ["waiting", "draft"])
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (solo) return mapRow(solo);
+
+  return null;
+}
+
+/**
  * Resolve slug considerando o alias `atual` e o fallback de sequência: se o
  * evento pedido pertence a uma sequência mas não está `open`, retorna o
  * evento efetivamente ativo (ou o mais próximo). Use apenas em pontos de
@@ -40,11 +72,12 @@ function mapRow(row: Record<string, unknown>): EventSummary {
  * bloqueando o submit do participante que estava terminando.
  */
 export async function getEventBySlug(slug: string): Promise<EventSummary | null> {
+  if (slug === DAILY_ACTIVE_SLUG) {
+    return resolveCurrentEvent();
+  }
+
   const supabase = getSupabaseAdmin();
-  const { data } =
-    slug === DAILY_ACTIVE_SLUG
-      ? await supabase.from("events").select("*").eq("is_daily_active", true).maybeSingle()
-      : await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
+  const { data } = await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
   if (!data) return null;
 
   let row = data;
@@ -68,20 +101,47 @@ export async function getEventBySlug(slug: string): Promise<EventSummary | null>
 }
 
 /**
- * Resolve slug SEM aplicar fallback de sequência. Use em rotas que trabalham
- * com identificadores derivados do evento (`roundId`, `participantId`),
- * onde retornar outro evento quebra a integridade da requisição.
- * Aceita também o alias `atual`, mas nesse caso resolve para o evento
- * marcado como do dia (sem seguir a sequência para frente).
+ * Resolve slug SEM aplicar fallback de sequência (slug real).
+ * Para o alias `atual`, resolve o evento ao vivo (aberto ou próximo da fila).
  */
 export async function getEventBySlugExact(slug: string): Promise<EventSummary | null> {
+  if (slug === DAILY_ACTIVE_SLUG) {
+    return resolveCurrentEvent();
+  }
   const supabase = getSupabaseAdmin();
-  const { data } =
-    slug === DAILY_ACTIVE_SLUG
-      ? await supabase.from("events").select("*").eq("is_daily_active", true).maybeSingle()
-      : await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
+  const { data } = await supabase.from("events").select("*").eq("slug", slug).maybeSingle();
   if (!data) return null;
   return mapRow(data);
+}
+
+/**
+ * Rotas com `roundId`: o dono da rodada manda. O slug só autoriza o acesso
+ * (`atual`, slug do evento, ou slug raiz da sequência). Assim `/e/atual/rodada/<id>`
+ * grava no evento certo mesmo depois de "Próximo evento".
+ */
+export async function getEventForRoundRoute(
+  slug: string,
+  roundId: string
+): Promise<EventSummary | null> {
+  const supabase = getSupabaseAdmin();
+  const { data: round } = await supabase
+    .from("rounds")
+    .select("event_id")
+    .eq("id", roundId)
+    .maybeSingle();
+  if (!round?.event_id) return null;
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", round.event_id)
+    .maybeSingle();
+  if (!event) return null;
+
+  if (slug === DAILY_ACTIVE_SLUG) return mapRow(event);
+  if (event.slug === slug) return mapRow(event);
+  if ((event.sequence_root_slug as string | null) === slug) return mapRow(event);
+  return null;
 }
 
 export async function getEventIdFromSlug(slug: string): Promise<string | null> {
@@ -89,8 +149,16 @@ export async function getEventIdFromSlug(slug: string): Promise<string | null> {
   return event?.id ?? null;
 }
 
-/** Variante exata (sem fallback) — use em rotas com roundId/participantId. */
+/** Variante exata (sem fallback em slug real) — use em rotas com roundId/participantId. */
 export async function getEventIdFromSlugExact(slug: string): Promise<string | null> {
   const event = await getEventBySlugExact(slug);
+  return event?.id ?? null;
+}
+
+export async function getEventIdForRoundRoute(
+  slug: string,
+  roundId: string
+): Promise<string | null> {
+  const event = await getEventForRoundRoute(slug, roundId);
   return event?.id ?? null;
 }

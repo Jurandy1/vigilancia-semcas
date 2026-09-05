@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+@keyframes semcasPulse { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .3; transform: scale(.82) } }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #f7f9fc; }
+body { font-family: "Barlow", "Segoe UI", system-ui, sans-serif; color: #11243c; -webkit-font-smoothing: antialiased; }
+a { color: #0b4a83; text-decoration: none } a:hover { color: #0b3a6e }
+</style>
+</helmet>
+<div style="height:100svh;min-height:420px;width:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#fff;overflow:hidden;font-family:'Barlow',system-ui,sans-serif">
+
+  <header style="display:flex;align-items:center;gap:clamp(14px,2vw,34px);padding:clamp(10px,1.6vh,26px) clamp(18px,2.4vw,56px);background:linear-gradient(180deg,#ffffff 0%,#eff5fc 100%);border-bottom:1px solid #d7e3f0;box-shadow:inset 0 -4px 0 0 rgba(11,58,110,.06)">
+    <img src="assets/brasao-sao-luis.png" alt="Brasão de São Luís" style="height:clamp(46px,7.2vh,96px);width:auto;display:block;flex:none;mix-blend-mode:multiply" />
+    <div style="flex:none;display:flex;flex-direction:column;gap:clamp(1px,.3vh,4px)">
+      <span style="font-family:'Archivo',sans-serif;font-size:clamp(9px,1.05vh,15px);font-weight:600;letter-spacing:.34em;text-transform:uppercase;color:#4a6280">Prefeitura de</span>
+      <span style="font-family:'Archivo',sans-serif;font-size:clamp(20px,3.1vh,44px);font-weight:800;letter-spacing:.02em;line-height:.95;color:#0B3A6E">SÃO LUÍS</span>
+    </div>
+    <span aria-hidden="true" style="flex:none;width:2px;align-self:stretch;margin:clamp(2px,.6vh,10px) 0;background:linear-gradient(180deg,rgba(11,58,110,0) 0%,rgba(11,58,110,.22) 35%,rgba(11,58,110,.22) 65%,rgba(11,58,110,0) 100%)"></span>
+    <div style="min-width:0;display:flex;flex-direction:column;gap:clamp(1px,.35vh,5px)">
+      <span style="font-family:'Archivo',sans-serif;font-size:clamp(17px,2.7vh,40px);font-weight:800;letter-spacing:.03em;line-height:1;color:#0B3A6E">SEMCAS</span>
+      <span style="font-size:clamp(11px,1.55vh,23px);font-weight:500;line-height:1.2;color:#2c4568">Secretaria Municipal da Criança e Assistência Social</span>
+      <span style="font-size:clamp(10px,1.4vh,21px);font-weight:600;letter-spacing:.12em;text-transform:uppercase;line-height:1.3;color:#4a6280">Coordenação de Planejamento e Vigilância Socioassistencial</span>
+    </div>
+    <div style="margin-left:auto;flex:none;display:flex;align-items:center;gap:clamp(10px,1.4vw,24px)">
+      <sc-if value="{{ accessCode }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:clamp(8px,.9vw,16px);border:1px solid #b9d5ed;background:#edf6fd;border-radius:10px;padding:clamp(6px,.9vh,14px) clamp(12px,1.2vw,24px)">
+          <span style="font-size:clamp(9px,1.05vh,15px);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#0b4a83">Código de acesso</span>
+          <span style="font-family:ui-monospace,Consolas,monospace;font-size:clamp(18px,2.4vh,36px);font-weight:700;letter-spacing:.08em;color:#0b3a6e">{{ accessCode }}</span>
+        </div>
+      </sc-if>
+      <span style="display:inline-flex;align-items:center;gap:clamp(7px,.7vw,12px);font-size:clamp(11px,1.35vh,20px);font-weight:600;color:#18754A;white-space:nowrap">
+        <span aria-hidden="true" style="width:clamp(9px,1.1vh,15px);height:clamp(9px,1.1vh,15px);border-radius:99px;background:#1a7f4b;animation:semcasPulse 2.4s ease-in-out infinite"></span>
+        Atualização em tempo real
+      </span>
+    </div>
+  </header>
+
+  <main style="position:relative;min-height:0;display:block;padding:clamp(12px,2vh,44px) clamp(16px,3vw,72px) clamp(14px,2.4vh,52px);background:radial-gradient(120% 90% at 50% 40%,#ffffff 0%,#ffffff 46%,#eef4fb 100%);overflow:hidden">
+    <img src="assets/palacio-la-ravardiere.jpg" alt="" aria-hidden="true" style="position:absolute;left:0;top:0;height:100%;width:clamp(0px,22vw,460px);object-fit:cover;object-position:60% 50%;opacity:.55;filter:saturate(.85) contrast(.92);mask-image:linear-gradient(90deg,rgba(0,0,0,.95) 0%,rgba(0,0,0,.82) 22%,rgba(0,0,0,.5) 48%,rgba(0,0,0,.22) 70%,rgba(0,0,0,.06) 86%,rgba(0,0,0,0) 100%),linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,1) 22%,rgba(0,0,0,1) 74%,rgba(0,0,0,.4) 100%);-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.95) 0%,rgba(0,0,0,.82) 22%,rgba(0,0,0,.5) 48%,rgba(0,0,0,.22) 70%,rgba(0,0,0,.06) 86%,rgba(0,0,0,0) 100%),linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,1) 22%,rgba(0,0,0,1) 74%,rgba(0,0,0,.4) 100%);mask-composite:intersect;-webkit-mask-composite:source-in;pointer-events:none" />
+    <img src="assets/sao-luis-azulejos.jpg" alt="" aria-hidden="true" style="position:absolute;right:0;top:0;height:100%;width:clamp(0px,22vw,460px);object-fit:cover;object-position:40% 50%;opacity:.55;filter:saturate(.85) contrast(.92);mask-image:linear-gradient(270deg,rgba(0,0,0,.95) 0%,rgba(0,0,0,.82) 22%,rgba(0,0,0,.5) 48%,rgba(0,0,0,.22) 70%,rgba(0,0,0,.06) 86%,rgba(0,0,0,0) 100%),linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,1) 22%,rgba(0,0,0,1) 74%,rgba(0,0,0,.4) 100%);-webkit-mask-image:linear-gradient(270deg,rgba(0,0,0,.95) 0%,rgba(0,0,0,.82) 22%,rgba(0,0,0,.5) 48%,rgba(0,0,0,.22) 70%,rgba(0,0,0,.06) 86%,rgba(0,0,0,0) 100%),linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,1) 22%,rgba(0,0,0,1) 74%,rgba(0,0,0,.4) 100%);mask-composite:intersect;-webkit-mask-composite:source-in;pointer-events:none" />
+
+    <div style="position:relative;width:100%;height:100%;max-width:min(1600px,84vw);margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:clamp(10px,1.8vh,38px);text-align:center">
+
+      <h1 style="margin:0;font-family:'Archivo',sans-serif;font-size:clamp(24px,min(3.1vw,5.2vh),78px);font-weight:800;line-height:1.08;letter-spacing:-.015em;text-transform:uppercase;color:#0B3A6E;text-wrap:pretty;max-width:min(44ch,100%)">{{ eventTitle }}</h1>
+
+      <div style="display:flex;align-items:center;justify-content:center;gap:clamp(10px,1.4vw,28px);width:100%">
+        <span aria-hidden="true" style="height:clamp(3px,.45vh,6px);width:clamp(28px,5vw,110px);background:#F4B223;border-radius:99px"></span>
+        <span style="display:inline-flex;align-items:center;gap:clamp(8px,.9vw,16px);font-family:'Archivo',sans-serif;font-size:clamp(12px,min(1.55vw,2.4vh),32px);font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#33507a;white-space:nowrap">Votação em andamento</span>
+        <span aria-hidden="true" style="height:clamp(3px,.45vh,6px);width:clamp(28px,5vw,110px);background:#F4B223;border-radius:99px"></span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(12px,2vw,44px);width:100%;max-width:min(1240px,72vw);flex:1 1 auto;min-height:0;align-items:stretch">
+        <div style="border:1px solid #b9d5ed;background:linear-gradient(180deg,rgba(237,246,253,.94) 0%,rgba(255,255,255,.96) 100%);border-radius:clamp(6px,.8vh,12px);padding:clamp(10px,2vh,34px) clamp(12px,1.6vw,40px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,1.4vh,26px);min-height:0;backdrop-filter:blur(2px)">
+          <span style="font-size:clamp(11px,min(1.4vw,2.05vh),28px);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#2c4568;line-height:1.2">Participantes até agora</span>
+          <span style="font-family:'Archivo',sans-serif;font-size:clamp(52px,min(10vw,20vh),260px);font-weight:800;line-height:.86;letter-spacing:-.04em;color:#0B3A6E;font-variant-numeric:tabular-nums">{{ total }}</span>
+        </div>
+        <div style="border:1px solid #b6ddc6;background:linear-gradient(180deg,rgba(234,246,239,.94) 0%,rgba(255,255,255,.96) 100%);border-radius:clamp(6px,.8vh,12px);padding:clamp(10px,2vh,34px) clamp(12px,1.6vw,40px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,1.4vh,26px);min-height:0;backdrop-filter:blur(2px)">
+          <span style="font-size:clamp(11px,min(1.4vw,2.05vh),28px);font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#1f4735;line-height:1.2">Já finalizaram</span>
+          <span style="font-family:'Archivo',sans-serif;font-size:clamp(52px,min(10vw,20vh),260px);font-weight:800;line-height:.86;letter-spacing:-.04em;color:#18754A;font-variant-numeric:tabular-nums">{{ completed }}</span>
+        </div>
+      </div>
+
+      <div style="width:100%;max-width:min(1240px,72vw);display:flex;flex-direction:column;gap:clamp(6px,1.1vh,20px)">
+        <div role="img" aria-label="{{ progressLabel }}" style="height:clamp(18px,3vh,46px);background:#e0e8f2;border:1px solid #cddaea;border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:{{ percentCss }};min-width:0;background:linear-gradient(90deg,#0B3A6E 0%,#1663ad 100%);border-radius:99px;transition:width .5s ease-in-out"></div>
+        </div>
+        <p style="margin:0;font-size:clamp(14px,min(1.6vw,2.3vh),32px);font-weight:500;color:#2c4568">{{ progressText }} · <strong style="font-weight:700;color:#0B3A6E">{{ percentText }}</strong></p>
+      </div>
+
+    </div>
+  </main>
+
+  <footer style="border-top:clamp(3px,.5vh,7px) solid #F4B223;background:#0B3A6E;color:#fff;padding:clamp(10px,1.7vh,30px) clamp(18px,2.4vw,56px);display:flex;align-items:center;justify-content:space-between;gap:clamp(14px,2vw,48px)">
+    <p style="margin:0;font-size:clamp(11px,min(1.1vw,1.6vh),22px);line-height:1.45;color:rgba(255,255,255,.86);max-width:78ch">O telão exibe apenas contagens. Perguntas e resultados nunca aparecem para a plateia — permanecem no painel administrativo e nos relatórios.</p>
+    <p style="margin:0;flex:none;font-size:clamp(11px,min(1.1vw,1.6vh),22px);font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.92);white-space:nowrap">Última atualização: {{ lastUpdate }}</p>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;eventTitle&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Avaliação do Encontro de Monitoramento do Plano Operativo 2026&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;participants&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;min&quot;:0,&quot;tsType&quot;:&quot;number&quot;},&quot;completed&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:0,&quot;min&quot;:0,&quot;tsType&quot;:&quot;number&quot;},&quot;accessCode&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Opcional&quot;},&quot;lastUpdate&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;13:06&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Opcional&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const total = Math.max(0, Number(this.props.participants ?? 1) || 0);
+    const completed = Math.max(0, Number(this.props.completed ?? 0) || 0);
+    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return {
+      eventTitle: this.props.eventTitle ?? "Avaliação do Encontro de Monitoramento do Plano Operativo 2026",
+      accessCode: this.props.accessCode || false,
+      lastUpdate: this.props.lastUpdate ?? "13:06",
+      total, completed,
+      percentCss: percent + "%",
+      percentText: percent + "%",
+      progressText: completed + " de " + total + " finalizaram",
+      progressLabel: percent + "% dos participantes finalizaram",
+    };
+  }
+}
+</script>
+</body>
+</html>
