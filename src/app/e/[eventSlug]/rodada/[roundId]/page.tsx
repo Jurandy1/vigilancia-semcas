@@ -84,6 +84,20 @@ export default function RoundPage() {
     loadRound();
   }, [eventSlug, roundId]);
 
+  useEffect(() => {
+    if (loading || error || questions.length === 0) return;
+    void reliableApiFetch(
+      `/api/events/${eventSlug}/rounds/${roundId}/progress`,
+      {
+        method: "POST",
+        body: JSON.stringify({ currentQuestion: currentIndex + 1, status: "answering" }),
+      },
+      { retries: 1, timeoutMs: 8_000 }
+    ).catch(() => {
+      /* progresso é best-effort — não bloqueia o participante */
+    });
+  }, [loading, error, questions.length, currentIndex, eventSlug, roundId]);
+
   function handleAnswer(value: string) {
     if (!currentQuestion) return;
     saveDraftAnswer(roundId, currentQuestion.id, value);

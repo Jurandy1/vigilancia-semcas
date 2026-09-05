@@ -17,9 +17,12 @@ interface RateLimitTier {
   windowSeconds: number;
 }
 
+// Limites pensados para evento presencial: dezenas/centenas de celulares
+// atrás do mesmo NAT (Wi‑Fi do local). Valores baixos (ex.: 20 join/min)
+// bloqueiam a sala inteira com HTTP 429 — evidenciado em probe com 21º join.
 export const RATE_LIMITS: Record<string, { burst: RateLimitTier; sustained: RateLimitTier }> = {
-  join: { burst: { limit: 20, windowSeconds: 60 }, sustained: { limit: 60, windowSeconds: 600 } },
-  submit: { burst: { limit: 30, windowSeconds: 60 }, sustained: { limit: 100, windowSeconds: 600 } },
+  join: { burst: { limit: 350, windowSeconds: 60 }, sustained: { limit: 800, windowSeconds: 600 } },
+  submit: { burst: { limit: 400, windowSeconds: 60 }, sustained: { limit: 1000, windowSeconds: 600 } },
   rotateCode: { burst: { limit: 6, windowSeconds: 60 }, sustained: { limit: 20, windowSeconds: 600 } },
 };
 

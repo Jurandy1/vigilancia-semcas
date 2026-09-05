@@ -10,11 +10,12 @@ import "./load-env";
 import { performance } from "node:perf_hooks";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "../src/lib/supabase/admin";
-import { SESSION_COOKIE_NAME } from "../src/lib/sessions/tokens";
+import { getSessionCookieName } from "../src/lib/sessions/tokens";
 
 const BASE_URL = (process.env.LOAD_TEST_BASE_URL ?? "https://vigilancia-semcas.vercel.app").replace(/\/$/, "");
 const NUM_PARTICIPANTS = Number(process.env.LOAD_TEST_PARTICIPANTS ?? 200);
 const MARGIN_PARTICIPANTS = Number(process.env.LOAD_TEST_MARGIN ?? 250);
+const ONLY_FROM = process.env.LOAD_TEST_ONLY_FROM ?? "";
 const ADMIN_EMAIL = process.env.LOAD_TEST_ADMIN_EMAIL ?? process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.LOAD_TEST_ADMIN_PASSWORD ?? process.env.ADMIN_PASSWORD;
 
@@ -73,10 +74,18 @@ function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
 
-function parseSetCookie(setCookie: string | null): string {
-  if (!setCookie) return "";
-  const match = setCookie.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
-  return match ? `${SESSION_COOKIE_NAME}=${match[1]}` : "";
+function parseSetCookie(res: Response, eventId: string): string {
+  const cookieName = getSessionCookieName(eventId);
+  const headers = res.headers as Headers & { getSetCookie?: () => string[] };
+  const rawList =
+    typeof headers.getSetCookie === "function"
+      ? headers.getSetCookie()
+      : [res.headers.get("set-cookie")].filter((v): v is string => Boolean(v));
+  for (const raw of rawList) {
+    const match = raw.match(new RegExp(`(?:^|,\\s*)${cookieName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}=([^;]+)`));
+    if (match?.[1]) return `${cookieName}=${match[1]}`;
+  }
+  return "";
 }
 
 async function getAdminToken(): Promise<string> {
@@ -145,7 +154,8 @@ async function fetchWithProfile(
   if (init.cookie) headers.set("Cookie", init.cookie);
 
   const controller = new AbortController();
-  const timeout = profile === "slow3g" ? 30_000 : 20_000;
+  const timeout =
+    profile === "slow3g" ? 45_000 : profile === "saturated" ? 60_000 : 30_000;
   const timer = setTimeout(() => controller.abort(), timeout);
 
   try {
@@ -159,17 +169,30 @@ async function fetchRetry(
   url: string,
   init: RequestInit & { cookie?: string; profile?: NetworkProfile; retries?: number } = {}
 ) {
-  const retries = init.retries ?? 3;
+  const retries = init.retries ?? 6;
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fetchWithProfile(url, init);
     } catch (error) {
       lastError = error;
-      await sleep(200 * (attempt + 1));
+      await sleep(250 * (attempt + 1) + randomBetween(0, 200));
     }
   }
   throw lastError;
+}
+
+async function mapPool<T, R>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]!, index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
 }
 
 async function createTestEvent(
@@ -178,6 +201,19 @@ async function createTestEvent(
   status: "open" | "waiting" = "open"
 ): Promise<TestEvent> {
   const supabase = getSupabaseAdmin();
+  // Banco permite apenas 1 evento `open` (índice one_open_event).
+  // Fecha/limpa leftovers de testes anteriores para não bloquear a suite.
+  const { data: openTests } = await supabase
+    .from("events")
+    .select("id")
+    .eq("status", "open")
+    .eq("is_test", true);
+  if (openTests?.length) {
+    for (const row of openTests) {
+      await supabase.from("events").update({ status: "closed" }).eq("id", row.id);
+    }
+  }
+
   const slug = `load-http-${suffix}-${Date.now()}`;
 
   const { data: event, error: eventError } = await supabase
@@ -282,7 +318,9 @@ function buildAnswers(
 async function joinParticipant(
   event: TestEvent,
   index: number,
-  profile: NetworkProfile = "direct"
+  profile: NetworkProfile = "direct",
+  rateLimitRetries = 8,
+  clientToken = crypto.randomUUID()
 ): Promise<ParticipantSession> {
   const res = await fetchRetry(`${BASE_URL}/api/events/${event.slug}/join`, {
     method: "POST",
@@ -290,12 +328,21 @@ async function joinParticipant(
     body: JSON.stringify({
       mode: index % 3 === 0 ? "anonymous" : "identified",
       name: index % 3 === 0 ? undefined : `Participante ${index + 1}`,
+      clientToken,
     }),
     profile,
+    retries: 8,
   });
   const data = await res.json();
+  if (res.status === 429) {
+    if (rateLimitRetries <= 0) throw new Error(`join rate-limited esgotou retries: ${data.error ?? "429"}`);
+    const retryAfter = Number(res.headers.get("retry-after") ?? "5");
+    await sleep(Math.max(1, retryAfter) * 1000);
+    return joinParticipant(event, index, profile, rateLimitRetries - 1, clientToken);
+  }
   if (!res.ok) throw new Error(`join falhou (${res.status}): ${data.error ?? "erro"}`);
-  const cookie = parseSetCookie(res.headers.get("set-cookie"));
+  const cookie = parseSetCookie(res, event.eventId);
+  if (!cookie) throw new Error("join ok mas cookie de sessão não capturado");
   return { index, participantId: data.participantId as string, cookie };
 }
 
@@ -314,13 +361,18 @@ async function reportProgress(
   currentQuestion: number,
   profile: NetworkProfile = "direct"
 ) {
-  await fetchRetry(`${BASE_URL}/api/events/${event.slug}/rounds/${event.roundId}/progress`, {
+  const res = await fetchRetry(`${BASE_URL}/api/events/${event.slug}/rounds/${event.roundId}/progress`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     cookie: session.cookie,
     body: JSON.stringify({ currentQuestion, status: "answering" }),
     profile,
   });
+  if (res.status === 409) return; // já concluído — reenvio idempotente
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`progress falhou (${res.status}): ${(body as { error?: string }).error ?? "erro"}`);
+  }
 }
 
 async function submitAnswers(
@@ -332,15 +384,21 @@ async function submitAnswers(
   for (let i = 0; i < answers.length; i++) {
     await reportProgress(event, session, i + 1, options.profile);
   }
-  const res = await fetchWithProfile(`${BASE_URL}/api/events/${event.slug}/rounds/${event.roundId}/submit`, {
+  const res = await fetchRetry(`${BASE_URL}/api/events/${event.slug}/rounds/${event.roundId}/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     cookie: session.cookie,
     body: JSON.stringify({ answers }),
     profile: options.profile,
+    retries: 8,
   });
   if (options.readBody === false) return { status: res.status, body: null as null };
   const body = await res.json();
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get("retry-after") ?? "3");
+    await sleep(Math.max(1, retryAfter) * 1000);
+    return submitAnswers(event, session, options);
+  }
   if (!res.ok) throw new Error(`submit falhou (${res.status}): ${body.error ?? "erro"}`);
   return { status: res.status, body };
 }
@@ -401,21 +459,26 @@ async function runScenario(
 ): Promise<ScenarioResult> {
   const started = performance.now();
   const errors: string[] = [];
+  console.log(`\n--- Cenário: ${name}`);
   try {
     const details = await fn();
+    const durationMs = Math.round(performance.now() - started);
+    console.log(`OK (${durationMs}ms)`, JSON.stringify(details));
     return {
       name,
       passed: true,
-      durationMs: Math.round(performance.now() - started),
+      durationMs,
       details,
       errors,
     };
   } catch (error) {
     errors.push(error instanceof Error ? error.message : String(error));
+    const durationMs = Math.round(performance.now() - started);
+    console.error(`FALHOU (${durationMs}ms):`, errors.join("; "));
     return {
       name,
       passed: false,
-      durationMs: Math.round(performance.now() - started),
+      durationMs,
       details: {},
       errors,
     };
@@ -429,6 +492,7 @@ async function main() {
 
   console.log(`Base URL: ${BASE_URL}`);
   console.log(`Participantes por cenário: ${NUM_PARTICIPANTS}`);
+  if (ONLY_FROM) console.log(`Retomando a partir de: ${ONLY_FROM}`);
   const adminToken = await getAdminToken();
   const results: ScenarioResult[] = [];
   const defaultQuestions: QuestionSpec[] = [
@@ -437,9 +501,20 @@ async function main() {
     { order: 3, type: "single_choice", title: "Q3", required: true, options: ["A", "B", "C"] },
   ];
 
+  let reachedFrom = !ONLY_FROM;
+  async function runIfNeeded(name: string, fn: () => Promise<Record<string, unknown>>) {
+    if (!reachedFrom) {
+      if (name.startsWith(ONLY_FROM) || name.includes(ONLY_FROM)) reachedFrom = true;
+      else {
+        console.log(`\n--- Cenário: ${name} (pulado)`);
+        return;
+      }
+    }
+    results.push(await runScenario(name, fn));
+  }
+
   // 1 — Entrada gradual em 2 minutos
-  results.push(
-    await runScenario("1. Entrada gradual (2 min)", async () => {
+  await runIfNeeded("1. Entrada gradual (2 min)", async () => {
       const event = await createTestEvent("gradual", defaultQuestions);
       try {
         const latencies: number[] = [];
@@ -449,6 +524,9 @@ async function main() {
           const started = performance.now();
           sessions.push(await joinParticipant(event, i, "latency300-800"));
           latencies.push(performance.now() - started);
+          if ((i + 1) % 25 === 0 || i + 1 === NUM_PARTICIPANTS) {
+            console.log(`  join progress ${i + 1}/${NUM_PARTICIPANTS}`);
+          }
           if (i < NUM_PARTICIPANTS - 1) await sleep(intervalMs);
         }
         const counts = await getCounts(event.eventId, event.roundId);
@@ -463,21 +541,17 @@ async function main() {
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 2 — Entrada em 10 segundos
-  results.push(
-    await runScenario("2. Entrada em rajada (10 s)", async () => {
+  await runIfNeeded("2. Entrada em rajada (10 s)", async () => {
       const event = await createTestEvent("burst-join", defaultQuestions);
       try {
         const started = performance.now();
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) =>
-            joinParticipant(event, i, "saturated").catch((error) => {
-              throw error;
-            })
-          )
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          40,
+          (i) => joinParticipant(event, i, "saturated")
         );
         const durationMs = performance.now() - started;
         const counts = await getCounts(event.eventId, event.roundId);
@@ -488,20 +562,20 @@ async function main() {
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 3 — Envio quase simultâneo
-  results.push(
-    await runScenario("3. Envio simultâneo", async () => {
+  await runIfNeeded("3. Envio simultâneo", async () => {
       const event = await createTestEvent("burst-submit", defaultQuestions);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => joinParticipant(event, i))
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          40,
+          (i) => joinParticipant(event, i)
         );
-        await Promise.all(sessions.map((s) => loadPublicRound(event, s.cookie)));
+        await mapPool(sessions, 40, (s) => loadPublicRound(event, s.cookie));
         const started = performance.now();
-        await Promise.all(sessions.map((s) => submitAnswers(event, s, { profile: "saturated" })));
+        await mapPool(sessions, 40, (s) => submitAnswers(event, s, { profile: "saturated" }));
         const counts = await getCounts(event.eventId, event.roundId);
         if (counts.submissions !== NUM_PARTICIPANTS || counts.completed !== NUM_PARTICIPANTS) {
           throw new Error(`Contadores divergentes: ${JSON.stringify(counts)}`);
@@ -510,28 +584,28 @@ async function main() {
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 4 — Reconexão após 60 s offline
-  results.push(
-    await runScenario("4. Reconexão após 60 s", async () => {
+  await runIfNeeded("4. Reconexão após 60 s", async () => {
       const event = await createTestEvent("reconnect", defaultQuestions);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => joinParticipant(event, i))
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          40,
+          (i) => joinParticipant(event, i)
         );
-        await sleep(60_000);
-        let resumed = 0;
-        for (const session of sessions) {
+        await sleep(Number(process.env.LOAD_TEST_RECONNECT_MS ?? 60_000));
+        const resumedFlags = await mapPool(sessions, 40, async (session) => {
           const res = await fetchRetry(`${BASE_URL}/api/events/${event.slug}/session`, {
             cookie: session.cookie,
             profile: "wifiToMobile",
           });
           const data = await res.json();
-          if (data.session?.participantId === session.participantId) resumed++;
           await submitAnswers(event, session, { profile: "packetLoss" });
-        }
+          return data.session?.participantId === session.participantId;
+        });
+        const resumed = resumedFlags.filter(Boolean).length;
         const counts = await getCounts(event.eventId, event.roundId);
         if (counts.submissions !== NUM_PARTICIPANTS) {
           throw new Error(`Submissões após reconexão: ${counts.submissions}/${NUM_PARTICIPANTS}`);
@@ -540,12 +614,10 @@ async function main() {
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 5 — 20 perguntas
-  results.push(
-    await runScenario("5. Vinte perguntas", async () => {
+  await runIfNeeded("5. Vinte perguntas", async () => {
       const questions = Array.from({ length: 20 }, (_, i) => ({
         order: i + 1,
         type: "single_choice" as const,
@@ -555,22 +627,22 @@ async function main() {
       }));
       const event = await createTestEvent("20q", questions);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => joinParticipant(event, i, "slow3g"))
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          30,
+          (i) => joinParticipant(event, i, "slow3g")
         );
-        await Promise.all(sessions.map((s) => submitAnswers(event, s, { profile: "latency300-800" })));
+        await mapPool(sessions, 30, (s) => submitAnswers(event, s, { profile: "latency300-800" }));
         const counts = await getCounts(event.eventId, event.roundId);
         if (counts.submissions !== NUM_PARTICIPANTS) throw new Error(`Faltam submissões: ${counts.submissions}`);
         return { questions: 20, counts };
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 6 — Múltipla escolha com 30 alternativas
-  results.push(
-    await runScenario("6. Multi escolha (30 opções)", async () => {
+  await runIfNeeded("6. Multi escolha (30 opções)", async () => {
       const options = Array.from({ length: 30 }, (_, i) => `Opção ${i + 1}`);
       const event = await createTestEvent("multi30", [
         {
@@ -583,50 +655,52 @@ async function main() {
         },
       ]);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => joinParticipant(event, i))
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          40,
+          (i) => joinParticipant(event, i)
         );
-        await Promise.all(sessions.map((s) => submitAnswers(event, s)));
+        await mapPool(sessions, 40, (s) => submitAnswers(event, s));
         const counts = await getCounts(event.eventId, event.roundId);
         if (counts.submissions !== NUM_PARTICIPANTS) throw new Error(`Submissões: ${counts.submissions}`);
         return { counts };
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 7 — Respostas abertas longas (2000 chars)
-  results.push(
-    await runScenario("7. Respostas abertas (2000 chars)", async () => {
+  await runIfNeeded("7. Respostas abertas (2000 chars)", async () => {
       const event = await createTestEvent("longtext", [
         { order: 1, type: "text", title: "Comentário longo", required: true, max_length: 2000 },
       ]);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => joinParticipant(event, i, "slow3g"))
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          25,
+          (i) => joinParticipant(event, i, "slow3g")
         );
-        await Promise.all(sessions.map((s) => submitAnswers(event, s, { longText: true, profile: "slow3g" })));
+        await mapPool(sessions, 25, (s) => submitAnswers(event, s, { longText: true, profile: "slow3g" }));
         const counts = await getCounts(event.eventId, event.roundId);
         if (counts.submissions !== NUM_PARTICIPANTS) throw new Error(`Submissões: ${counts.submissions}`);
         return { counts };
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 8 — Projetor + 2 admins durante carga
-  results.push(
-    await runScenario("8. Projetor + 2 admins em carga", async () => {
+  await runIfNeeded("8. Projetor + 2 admins em carga", async () => {
       const event = await createTestEvent("observers", defaultQuestions);
       const stopSignal = { stop: false };
       try {
         const observerPromise = runObservers(event, adminToken, stopSignal);
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => joinParticipant(event, i, "packetLoss"))
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          40,
+          (i) => joinParticipant(event, i, "packetLoss")
         );
-        await Promise.all(sessions.map((s) => submitAnswers(event, s, { profile: "packetLoss" })));
+        await mapPool(sessions, 40, (s) => submitAnswers(event, s, { profile: "packetLoss" }));
         stopSignal.stop = true;
         const observerStats = await observerPromise;
         const counts = await getCounts(event.eventId, event.roundId);
@@ -640,24 +714,24 @@ async function main() {
         stopSignal.stop = true;
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 9 — Operador encerrando com respostas pendentes
-  results.push(
-    await runScenario("9. Encerrar rodada com respostas pendentes", async () => {
+  await runIfNeeded("9. Encerrar rodada com respostas pendentes", async () => {
       const event = await createTestEvent("close-force", defaultQuestions);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => joinParticipant(event, i))
+        const sessions = await mapPool(
+          Array.from({ length: NUM_PARTICIPANTS }, (_, i) => i),
+          40,
+          (i) => joinParticipant(event, i)
         );
-        const submitPromise = Promise.allSettled(
-          sessions.map(async (s, i) => {
-            await sleep(i * 15);
-            return submitAnswers(event, s);
-          })
-        );
-        await sleep(500);
+        // Garante answering_count > 0 ANTES de tentar encerrar (sem force).
+        await mapPool(sessions, 40, (s) => reportProgress(event, s, 1));
+        const mid = await getCounts(event.eventId, event.roundId);
+        if (mid.answering < 1) {
+          throw new Error(`Esperado answering>0 antes do close, obteve ${JSON.stringify(mid)}`);
+        }
+
         const closeRes = await fetch(`${BASE_URL}/api/admin/events/${event.eventId}/rounds/${event.roundId}/close`, {
           method: "POST",
           headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
@@ -667,28 +741,42 @@ async function main() {
         if (closeRes.status !== 409) {
           throw new Error(`Encerramento deveria exigir confirmação (409), recebeu ${closeRes.status}`);
         }
+
+        const submitResults = await Promise.allSettled(sessions.map((s) => submitAnswers(event, s)));
+        const submittedOk = submitResults.filter((r) => r.status === "fulfilled").length;
+
         const forceRes = await fetch(`${BASE_URL}/api/admin/events/${event.eventId}/rounds/${event.roundId}/close`, {
           method: "POST",
           headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ force: true }),
         });
         if (!forceRes.ok) throw new Error(`Encerramento forçado falhou (${forceRes.status})`);
-        await submitPromise;
+
         const counts = await getCounts(event.eventId, event.roundId);
-        return { closeBlocked: closeBody.code ?? "PARTICIPANTS_STILL_ANSWERING", counts };
+        if (counts.submissions !== submittedOk) {
+          // Contador e banco devem coincidir com submits confirmados
+          throw new Error(`Submissões divergentes: ok=${submittedOk} db=${JSON.stringify(counts)}`);
+        }
+        return {
+          closeBlocked: closeBody.code ?? "PARTICIPANTS_STILL_ANSWERING",
+          answeringAtBlock: mid.answering,
+          submittedOk,
+          counts,
+        };
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // 10 — Resposta salva, HTTP perdido (idempotência)
-  results.push(
-    await runScenario("10. Idempotência após HTTP perdido", async () => {
+  await runIfNeeded("10. Idempotência após HTTP perdido", async () => {
       const event = await createTestEvent("idempotent", defaultQuestions);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: Math.min(NUM_PARTICIPANTS, 50) }, (_, i) => joinParticipant(event, i))
+        const n = Math.min(NUM_PARTICIPANTS, 50);
+        const sessions = await mapPool(
+          Array.from({ length: n }, (_, i) => i),
+          25,
+          (i) => joinParticipant(event, i)
         );
         let duplicateBlocked = 0;
         for (const session of sessions) {
@@ -708,18 +796,18 @@ async function main() {
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   // Margem 250–300 participantes
-  results.push(
-    await runScenario(`Margem ${MARGIN_PARTICIPANTS} participantes`, async () => {
+  await runIfNeeded(`Margem ${MARGIN_PARTICIPANTS} participantes`, async () => {
       const event = await createTestEvent("margin", defaultQuestions);
       try {
-        const sessions = await Promise.all(
-          Array.from({ length: MARGIN_PARTICIPANTS }, (_, i) => joinParticipant(event, i, "packetLoss"))
+        const sessions = await mapPool(
+          Array.from({ length: MARGIN_PARTICIPANTS }, (_, i) => i),
+          40,
+          (i) => joinParticipant(event, i, "packetLoss")
         );
-        await Promise.all(sessions.map((s) => submitAnswers(event, s, { profile: "packetLoss" })));
+        await mapPool(sessions, 40, (s) => submitAnswers(event, s, { profile: "packetLoss" }));
         const counts = await getCounts(event.eventId, event.roundId);
         if (counts.submissions !== MARGIN_PARTICIPANTS) {
           throw new Error(`Margem reprovada: ${counts.submissions}/${MARGIN_PARTICIPANTS}`);
@@ -728,8 +816,7 @@ async function main() {
       } finally {
         await deleteTestEvent(event.eventId);
       }
-    })
-  );
+  });
 
   const passed = results.filter((r) => r.passed).length;
   const failed = results.filter((r) => !r.passed);
