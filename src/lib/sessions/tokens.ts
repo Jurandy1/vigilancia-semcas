@@ -3,6 +3,15 @@ import { createHash, randomBytes, timingSafeEqual } from "crypto";
 export const SESSION_COOKIE_NAME = "semcas_session";
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
+// Cookie por evento (não um único cookie global) — sem isso, entrar num
+// evento sobrescrevia o cookie de qualquer outro evento aberto antes no
+// mesmo navegador (ex.: sequência com vários eventos, ou voltar a um evento
+// antigo depois de participar de um novo), perdendo a sessão anterior sem
+// aviso.
+export function getSessionCookieName(eventId: string): string {
+  return `${SESSION_COOKIE_NAME}_${eventId}`;
+}
+
 export function generateSessionToken(): string {
   return randomBytes(32).toString("hex");
 }

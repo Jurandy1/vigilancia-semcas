@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { Participant } from "@/types/participant";
 import { hashTokenForLookup } from "./cookies";
-import { SESSION_COOKIE_NAME } from "./tokens";
+import { getSessionCookieName } from "./tokens";
 
 interface ParticipantRow {
   id: string;
@@ -32,7 +32,7 @@ export async function getParticipantFromRequest(
   request: NextRequest,
   eventId: string
 ): Promise<Participant | null> {
-  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const token = request.cookies.get(getSessionCookieName(eventId))?.value;
   if (!token) return null;
 
   const hash = hashTokenForLookup(token);

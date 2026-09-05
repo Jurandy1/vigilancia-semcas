@@ -6,7 +6,7 @@ import {
   generateSessionToken,
   hashSessionToken,
   getSessionExpiry,
-  SESSION_COOKIE_NAME,
+  getSessionCookieName,
 } from "@/lib/sessions/tokens";
 import { writeAuditLog } from "@/lib/supabase/helpers";
 import { getParticipantFromRequest } from "@/lib/sessions/verify";
@@ -107,7 +107,7 @@ export async function POST(
       resumed: false,
     });
 
-    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, {
+    response.cookies.set(getSessionCookieName(eventId), sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

@@ -157,7 +157,10 @@ export default function RoundPage() {
     } else if (currentIndex > 0) {
       setCurrentIndex((i) => i - 1);
     } else {
-      router.back();
+      // router.back() podia sair do app inteiro quando não havia histórico
+      // no navegador (comum vindo direto de um QR Code) — volta pra sala de
+      // espera, que é sempre um destino válido a partir daqui.
+      router.push(`/e/${eventSlug}/aguarde`);
     }
   }
 

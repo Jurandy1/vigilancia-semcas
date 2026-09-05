@@ -91,7 +91,7 @@ function ParticiparContent() {
           <div className="mt-auto flex gap-2.5">
             <button
               type="button"
-              onClick={() => router.back()}
+              onClick={() => router.push(`/e/${eventSlug}`)}
               className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9]"
             >
               Voltar
@@ -143,7 +143,7 @@ function ParticiparContent() {
         <div className="mt-auto flex gap-2.5">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/e/${eventSlug}`)}
             className="h-[52px] px-[18px] bg-white text-[#33415c] border border-[#c9d4e2] rounded-lg text-base font-semibold hover:bg-[#f4f6f9]"
           >
             Voltar
