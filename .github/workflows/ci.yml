@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Schema readiness greps
+        run: |
+          set -e
+          grep -q "p_client_token" supabase/patch-2026-09-05-join-canonical.sql
+          grep -q "client_token" supabase/patch-2026-09-05-join-canonical.sql
+          grep -q "check_rate_limit" supabase/patch-2026-09-04-rate-limit.sql
+          test ! -f src/app/api/admin/events/daily-active/route.ts

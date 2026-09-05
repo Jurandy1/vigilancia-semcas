@@ -67,6 +67,12 @@ export async function POST(
     if (event.status === "closed") {
       return NextResponse.json({ error: "Este evento foi encerrado." }, { status: 403 });
     }
+    if (event.status !== "open") {
+      return NextResponse.json(
+        { error: "Este evento ainda não foi iniciado pelo organizador." },
+        { status: 409 }
+      );
+    }
 
     const supabase = getSupabaseAdmin();
     const sessionToken = generateSessionToken();

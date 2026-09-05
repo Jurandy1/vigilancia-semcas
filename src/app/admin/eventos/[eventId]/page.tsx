@@ -24,6 +24,7 @@ import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 import { useDashboardRealtime } from "@/hooks/use-dashboard-realtime";
 import { resolveDashboardState } from "@/lib/admin/dashboard-state";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { DashboardErrorBoundary } from "@/components/admin/DashboardErrorBoundary";
 import { EventQrDialog } from "@/components/admin/EventQrDialog";
 import { HorizontalBarChart } from "@/components/admin/HorizontalBarChart";
 import { DonutChart } from "@/components/admin/DonutChart";
@@ -56,8 +57,8 @@ interface QuestionSummary {
 }
 
 interface ReadinessSnapshot {
-  stats: { completed: number; notStarted: number };
-  round: { id: string; title: string; status: string; questionCount: number } | null;
+  stats: { completed: number; notStarted: number; registered?: number; answering?: number };
+  round: { id: string; title: string; status: string; questionCount: number; registeredCount?: number } | null;
   nextRound: { id: string; title: string; questionCount: number } | null;
   nextEvent: { id: string; title: string | null } | null;
   checkedAt: string;
@@ -70,13 +71,16 @@ export default function EventDashboardPage() {
   const [authReady, setAuthReady] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [forceClose, setForceClose] = useState<{ roundId: string; answering: number } | null>(null);
   const [confirmNextRound, setConfirmNextRound] = useState(false);
   const [confirmNextEvent, setConfirmNextEvent] = useState(false);
   const [readiness, setReadiness] = useState<ReadinessSnapshot | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [roundOpenWarning, setRoundOpenWarning] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
   const [questionListOpen, setQuestionListOpen] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const { event, rounds, stats, loading, connectionIssue, lastSyncedAt } = useDashboardRealtime(authReady ? eventId : null);
   const dashboardState = resolveDashboardState(event?.status ?? "draft", rounds);
@@ -101,9 +105,7 @@ export default function EventDashboardPage() {
       const warning = window.sessionStorage.getItem("semcas-round-open-warning");
       if (warning) {
         window.sessionStorage.removeItem("semcas-round-open-warning");
-        setActionError(
-          `O evento avançou, mas a primeira rodada não abriu automaticamente (${warning}). Abra-a manualmente abaixo.`
-        );
+        setRoundOpenWarning(String(warning));
       }
     } catch {
       /* best-effort */
@@ -114,6 +116,7 @@ export default function EventDashboardPage() {
     if (!authReady || !currentRoundId) {
       setQuestions([]);
       setSelectedQuestionId(null);
+      setReportError(null);
       return;
     }
 
@@ -128,14 +131,23 @@ export default function EventDashboardPage() {
           token
         );
         const data = await res.json();
-        if (!res.ok || cancelled) return;
+        if (cancelled) return;
+        if (!res.ok) {
+          setReportError(data.error ?? "Não foi possível carregar os gráficos da rodada.");
+          setQuestions([]);
+          return;
+        }
+        setReportError(null);
         const qs = (data.questions ?? []) as QuestionSummary[];
         setQuestions(qs);
         setSelectedQuestionId((prev) =>
           prev && qs.some((q) => q.id === prev) ? prev : qs[0]?.id ?? null
         );
       } catch {
-        if (!cancelled) setQuestions([]);
+        if (!cancelled) {
+          setReportError("Não foi possível carregar os gráficos da rodada.");
+          setQuestions([]);
+        }
       }
     }
 
@@ -150,10 +162,15 @@ export default function EventDashboardPage() {
     [questions, selectedQuestionId]
   );
 
-  const total = event?.participantCount ?? 0;
+  // Contagens do painel usam a rodada de referência (aberta ou última
+  // encerrada): registered_count, não participant_count do evento.
+  const total = currentRound
+    ? stats.registered
+    : (dashboardState.lastClosedRound?.registeredCount ?? 0);
   const completed = currentRound ? stats.completed : (dashboardState.lastClosedRound?.submissionCount ?? 0);
   const waiting = Math.max(0, total - completed);
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const eventParticipants = event?.participantCount ?? 0;
   const openedTime = event?.openedAt
     ? new Date(event.openedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     : "—";
@@ -193,9 +210,23 @@ export default function EventDashboardPage() {
       });
       const json = await res.json();
       if (!res.ok) {
+        if (
+          path.includes("/close") &&
+          json.code === "PARTICIPANTS_STILL_ANSWERING" &&
+          currentRound
+        ) {
+          setConfirmClose(false);
+          setForceClose({
+            roundId: currentRound.id,
+            answering: Number(json.answering ?? readiness?.stats.answering ?? 1),
+          });
+          return;
+        }
         setActionError(json.error ?? "Não foi possível concluir esta operação.");
         return;
       }
+      setConfirmClose(false);
+      setForceClose(null);
       if (path === "/next" && json.nextEventId) {
         if (json.roundOpenWarning) {
           // A navegação troca de página, então guardamos o aviso para o
@@ -248,6 +279,18 @@ export default function EventDashboardPage() {
           {actionError}
         </div>
       )}
+      {reportError && currentRound && (
+        <div className="mb-4 max-w-xl text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2 flex flex-wrap items-center gap-3">
+          <span>{reportError}</span>
+          <button
+            type="button"
+            className="font-semibold underline"
+            onClick={() => window.location.reload()}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
       {connectionIssue && (
         <div role="status" className="mb-4 max-w-2xl rounded-lg border border-[#ead69c] bg-[#fff8e5] px-4 py-3 text-sm text-[#7a5600]">
           Conexão instável. Mantendo os últimos dados recebidos{lastSyncedAt ? ` às ${lastSyncedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""} e tentando reconectar automaticamente. Ações críticas serão conferidas no servidor antes de executar.
@@ -272,6 +315,11 @@ export default function EventDashboardPage() {
               <p className="m-0 inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.1em] uppercase bg-white/12 border border-white/20 rounded-full px-2.5 py-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#5ecf92] animate-pulse" />
                 {event.status === "open" ? "Em andamento" : event.status === "closed" ? "Encerrado" : "Aguardando início"}
+                {event.status === "open" && !currentRound && (
+                  <span className="text-[#ffc9c2] font-medium normal-case tracking-normal">
+                    &nbsp;| Sem rodada ativa — encerre o evento ou abra outra rodada
+                  </span>
+                )}
                 {event.status === "open" && (
                   <span className="text-[#8fb6e0] font-medium normal-case tracking-normal">
                     &nbsp;| Iniciado às {openedTime}
@@ -346,7 +394,7 @@ export default function EventDashboardPage() {
                   >
                     Iniciar próxima rodada
                   </button>
-                ) : event.nextEventId && (event.status === "open" || event.status === "closed") ? (
+                ) : event.nextEventId && event.status === "open" ? (
                   <button
                     type="button"
                     onClick={() => void prepareAction("event")}
@@ -354,6 +402,15 @@ export default function EventDashboardPage() {
                     className="h-11 sm:h-10 px-4 text-sm font-semibold bg-[#5ecf92] text-[#082f57] border border-[#5ecf92] rounded-md hover:bg-[#7bdda7] disabled:opacity-50 flex-1 min-w-[140px] sm:flex-none sm:min-w-0"
                   >
                     Próximo evento
+                  </button>
+                ) : event.status === "open" ? (
+                  <button
+                    type="button"
+                    onClick={() => void runAction("/close")}
+                    disabled={actionLoading}
+                    className="inline-flex items-center justify-center gap-2 h-11 sm:h-10 px-4 text-sm font-semibold text-[#ffc9c2] border border-[rgba(255,201,194,.5)] rounded-md hover:bg-[rgba(180,35,24,.28)] hover:text-white disabled:opacity-50 flex-1 min-w-[140px] sm:flex-none sm:min-w-0"
+                  >
+                    <XCircle size={16} /> Encerrar evento
                   </button>
                 ) : null}
               </div>
@@ -363,7 +420,7 @@ export default function EventDashboardPage() {
 
         <div className="mt-4 sm:mt-5 grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
           {[
-            { label: "Registrados", value: String(total), sub: "participante" + (total === 1 ? "" : "s"), icon: Users, iconBg: "#e7effa", iconColor: "#0b3a6e" },
+            { label: "Registrados", value: String(total), sub: currentRound || dashboardState.lastClosedRound ? "nesta rodada" : "participante" + (total === 1 ? "" : "s"), icon: Users, iconBg: "#e7effa", iconColor: "#0b3a6e" },
             { label: "Finalizaram", value: String(completed), sub: `${percent}% do total`, icon: CheckCircle2, iconBg: "#e4f5ea", iconColor: "#18754a" },
             { label: "Conclusão", value: `${percent}%`, sub: "da rodada", icon: BarChart3, iconBg: "#e7effa", iconColor: "#0b3a6e" },
           ].map((m, idx) => (
@@ -393,6 +450,7 @@ export default function EventDashboardPage() {
         </div>
 
         {currentRound ? (
+          <DashboardErrorBoundary label="os gráficos da rodada">
           <div className="mt-4 sm:mt-5 grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)_280px] gap-4 sm:gap-5">
             <div className="bg-white border border-[#dde4ee] rounded-lg p-3.5 sm:p-4 min-w-0">
               {/* Mobile/tablet: compact question navigator (reuses questions/selectedQuestionId state) */}
@@ -417,6 +475,8 @@ export default function EventDashboardPage() {
                       {selectedQuestion.title}
                     </p>
                   </div>
+                ) : reportError ? (
+                  <p className="text-[12.5px] text-[#b42318] mb-3">{reportError}</p>
                 ) : (
                   <p className="text-[12.5px] text-[#8a97a8] mb-3">Carregando perguntas…</p>
                 )}
@@ -613,7 +673,9 @@ export default function EventDashboardPage() {
                   Participantes e conclusões
                 </p>
                 <p className="mt-1.5 mb-0 text-[12.5px] text-[#5b6b7f] leading-relaxed">
-                  O projetor mostra apenas {total} participantes e {completed} conclusões.
+                  O projetor mostra apenas {total} participantes desta rodada e {completed}{" "}
+                  conclusões
+                  {eventParticipants > total ? ` (${eventParticipants} no evento)` : ""}.
                   Perguntas e resultados não aparecem para a plateia.
                 </p>
                 <Link
@@ -642,6 +704,7 @@ export default function EventDashboardPage() {
               </div>
             </div>
           </div>
+          </DashboardErrorBoundary>
         ) : (
           <div className="mt-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-5">
             <div className="flex flex-col gap-5 min-w-0">
@@ -655,7 +718,9 @@ export default function EventDashboardPage() {
                         ? "Evento encerrado."
                         : dashboardState.case === "event_waiting"
                           ? "Este evento ainda não foi iniciado. A primeira rodada disponível será aberta automaticamente."
-                          : "Nenhuma rodada aberta no momento."}
+                          : dashboardState.case === "no_next_round"
+                            ? "Todas as rodadas deste evento foram encerradas. Encerre o evento para liberar o QR ou avance para o próximo."
+                            : "Nenhuma rodada aberta no momento."}
                 </p>
                 {dashboardState.case === "no_rounds_yet" && (
                   <Link
@@ -665,6 +730,35 @@ export default function EventDashboardPage() {
                     Criar primeira rodada
                   </Link>
                 )}
+                {dashboardState.case === "no_next_round" && event.status === "open" && (
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <Link
+                      href={`/admin/eventos/${eventId}/relatorios`}
+                      className="inline-flex items-center h-10 px-4 text-sm font-semibold text-[#0b3a6e] border border-[#c9d4e2] rounded-md no-underline"
+                    >
+                      Ver relatório deste evento
+                    </Link>
+                    {event.nextEventId ? (
+                      <button
+                        type="button"
+                        onClick={() => void prepareAction("event")}
+                        disabled={actionLoading}
+                        className="inline-flex items-center h-10 px-4 text-sm font-semibold bg-[#18754a] text-white rounded-md disabled:opacity-50"
+                      >
+                        Próximo evento
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void runAction("/close")}
+                        disabled={actionLoading}
+                        className="inline-flex items-center h-10 px-4 text-sm font-semibold bg-[#0b3a6e] text-white rounded-md disabled:opacity-50"
+                      >
+                        Encerrar evento
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {total > 0 && (
@@ -673,7 +767,10 @@ export default function EventDashboardPage() {
                     <Users size={14} /> Situação da participação
                   </h2>
                   <p className="m-0 mb-3.5 text-[12.5px] text-[#8a97a8]">
-                    Distribuição dos {total} participantes do evento
+                    Distribuição dos {total} participantes desta rodada
+                    {eventParticipants > 0 && eventParticipants !== total
+                      ? ` · ${eventParticipants} no evento`
+                      : ""}
                   </p>
                   <div className="flex flex-wrap items-center gap-6">
                     <div className="relative w-[168px] h-[168px] shrink-0">
@@ -804,27 +901,93 @@ export default function EventDashboardPage() {
         </Dialog>
       )}
 
+      <AlertDialog
+        open={Boolean(roundOpenWarning)}
+        onOpenChange={(open) => {
+          if (!open) setRoundOpenWarning(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Evento avançou, mas a rodada não abriu</AlertDialogTitle>
+            <AlertDialogDescription>
+              O próximo evento da sequência já está em andamento, porém a primeira rodada não
+              abriu automaticamente
+              {roundOpenWarning ? ` (${roundOpenWarning})` : ""}. Sem isso, a plateia fica em
+              &quot;Aguarde&quot; no celular.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Fechar e abrir depois</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={actionLoading || !nextRound}
+              onClick={() => {
+                setRoundOpenWarning(null);
+                void runAction("/rounds/next/open");
+              }}
+            >
+              Abrir primeira rodada agora
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Encerrar rodada?</AlertDialogTitle>
             <AlertDialogDescription>
               Foram recebidas {readiness?.stats.completed ?? completed} respostas
-              {readiness?.stats.notStarted ? ` · ${readiness.stats.notStarted} ainda não responderam` : ""}.
-              Após o encerramento, novas respostas não serão aceitas nesta rodada.
+              {readiness?.stats.notStarted ? ` · ${readiness.stats.notStarted} ainda não responderam` : ""}
+              {(readiness?.stats.answering ?? stats.answering) > 0
+                ? ` · ${readiness?.stats.answering ?? stats.answering} com a tela aberta agora`
+                : ""}
+              . Após o encerramento, novas respostas não serão aceitas nesta rodada.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={actionLoading}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
                 if (!currentRound) return;
-                setConfirmClose(false);
                 void runAction(`/rounds/${currentRound.id}/close`);
               }}
             >
               Encerrar rodada
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={forceClose !== null}
+        onOpenChange={(open) => {
+          if (!open) setForceClose(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar mesmo assim?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {forceClose?.answering ?? 1} participante(s) ainda estão com a votação aberta e não
+              enviaram. Se encerrar agora, essas respostas incompletas{" "}
+              <strong>não entram no relatório</strong>. Quem já enviou continua contado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Voltar a aguardar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={actionLoading || !forceClose}
+              className="bg-[#b42318] hover:bg-[#912018]"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!forceClose) return;
+                void runAction(`/rounds/${forceClose.roundId}/close`, { force: true });
+              }}
+            >
+              Encerrar forçado
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

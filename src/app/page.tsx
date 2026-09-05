@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SemcasBrand } from "@/components/branding/SemcasBrand";
+import { ORG_SHORT } from "@/lib/branding";
 
 export default function HomePage() {
   return (
@@ -18,13 +19,13 @@ export default function HomePage() {
         <section className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1.1fr_.9fr] lg:py-16">
           <div>
             <p className="mb-4 mt-0 text-xs font-bold uppercase tracking-[0.14em] text-[#18754a]">
-              SEMCAS
+              {ORG_SHORT}
             </p>
             <h1 className="m-0 max-w-[14ch] text-[clamp(2.2rem,6vw,4.5rem)] font-bold leading-[1.02] tracking-[-0.045em] text-[#0c2947]">
               Sua participação transforma o evento.
             </h1>
             <p className="mb-0 mt-6 max-w-[52ch] text-base leading-relaxed text-[#5b6b7f] sm:text-lg">
-              Responda avaliações e consultas da SEMCAS usando o link ou QR Code apresentado durante o encontro.
+              Responda avaliações e consultas da {ORG_SHORT} usando o link ou QR Code apresentado durante o encontro.
             </p>
           </div>
 

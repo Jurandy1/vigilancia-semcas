@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { adminLogout } from "@/lib/supabase/auth-client";
 import { SemcasBrand } from "@/components/branding/SemcasBrand";
-import { ORG_TAGLINE } from "@/lib/branding";
+import { ORG_SHORT, ORG_TAGLINE, CITY_NAME } from "@/lib/branding";
 import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
 
 interface AdminShellProps {
@@ -178,8 +178,8 @@ export function AdminShell({
   const aside = (
     <>
       <div style={{ padding: "18px 18px 16px", borderBottom: "1px solid rgba(255,255,255,.12)" }}>
-        <p style={{ margin: 0, fontSize: "9.5px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.55)" }}>Prefeitura de São Luís</p>
-        <p style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: ".14em", lineHeight: 1 }}>SEMCAS</p>
+        <p style={{ margin: 0, fontSize: "9.5px", fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.55)" }}>{CITY_NAME}</p>
+        <p style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 700, letterSpacing: ".14em", lineHeight: 1 }}>{ORG_SHORT}</p>
         <p style={{ margin: "7px 0 0", fontSize: "10.5px", lineHeight: 1.45, color: "rgba(255,255,255,.6)" }}>Secretaria Municipal da Criança e Assistência Social</p>
       </div>
 

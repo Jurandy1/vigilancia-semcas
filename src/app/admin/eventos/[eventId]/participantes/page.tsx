@@ -68,10 +68,23 @@ export default function EventParticipantsPage() {
   if (!data) {
     return (
       <AdminShell eventId={eventId} screenLabel="Participantes">
-        <div className="space-y-4 max-w-[1000px]">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-96 w-full" />
-        </div>
+        {loadError ? (
+          <div style={{ maxWidth: "560px", borderRadius: "12px", border: "1px solid #fecaca", background: "#fef2f2", padding: "16px", fontSize: "14px", color: "#b91c1c" }}>
+            <p style={{ margin: 0 }}>Não foi possível carregar a lista de participantes.</p>
+            <button
+              type="button"
+              onClick={() => void load()}
+              style={{ marginTop: "12px", height: "36px", padding: "0 14px", borderRadius: "8px", border: "1px solid #f0b4b0", background: "#fff", fontWeight: 600, color: "#b42318", cursor: "pointer" }}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4 max-w-[1000px]">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-96 w-full" />
+          </div>
+        )}
       </AdminShell>
     );
   }

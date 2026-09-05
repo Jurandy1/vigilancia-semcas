@@ -99,11 +99,14 @@ export async function POST(request: NextRequest) {
     await supabase.from("public_events").update(sequence).eq("event_id", row.id);
   }
 
-  // (legado) realinha marca antiga de "evento do dia" para a raiz, se ainda
-  // existir em algum membro — o QR fixo não depende mais disso.
+  // Limpa marca legada is_daily_active se ainda existir em algum membro.
   const staleDailyActive = docs.find((row) => row.is_daily_active && row.id !== root.id);
-  if (staleDailyActive) {
-    await supabase.rpc("clear_daily_active_event");
+  if (staleDailyActive || docs.some((row) => row.is_daily_active)) {
+    try {
+      await supabase.rpc("clear_daily_active_event");
+    } catch {
+      /* RPC pode não existir em ambientes sem o patch antigo */
+    }
   }
 
   return NextResponse.json({

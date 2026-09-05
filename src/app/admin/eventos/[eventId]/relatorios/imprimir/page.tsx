@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ORG_SHORT, SECRETARIAT_NAME, SECTOR_NAME } from "@/lib/branding";
+import { ORG_SHORT, SECRETARIAT_NAME, SECTOR_NAME, CITY_NAME_FULL } from "@/lib/branding";
 
 interface RoundReport {
   round: { id: string; title: string };
@@ -45,6 +45,8 @@ export default function EventReportPrintPage() {
   const [closedAt, setClosedAt] = useState<string | null>(null);
   const [participantCount, setParticipantCount] = useState(0);
   const [reports, setReports] = useState<RoundReport[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [failedRounds, setFailedRounds] = useState<string[]>([]);
 
   useEffect(() => {
     const unsub = onAdminAuthChange((user) => {
@@ -55,38 +57,65 @@ export default function EventReportPrintPage() {
 
   useEffect(() => {
     async function load() {
-      const token = await getAdminIdToken();
-      if (!token) return;
+      try {
+        const token = await getAdminIdToken();
+        if (!token) return;
 
-      const dashRes = await adminFetch(`/api/admin/events/${eventId}/dashboard`, token);
-      const dash = await dashRes.json();
-      setEventTitle(dash.event?.title ?? "");
-      setEventStatus(dash.event?.status ?? "");
-      setOpenedAt(dash.event?.openedAt ?? null);
-      setClosedAt(dash.event?.closedAt ?? null);
-      setParticipantCount(dash.event?.participantCount ?? 0);
+        const dashRes = await adminFetch(`/api/admin/events/${eventId}/dashboard`, token);
+        const dash = await dashRes.json();
+        if (!dashRes.ok) throw new Error(dash.error ?? "Não foi possível carregar o dashboard.");
+        setEventTitle(dash.event?.title ?? "");
+        setEventStatus(dash.event?.status ?? "");
+        setOpenedAt(dash.event?.openedAt ?? null);
+        setClosedAt(dash.event?.closedAt ?? null);
+        setParticipantCount(dash.event?.participantCount ?? 0);
 
-      const rounds = (dash.rounds ?? []) as Array<{ id: string; title: string }>;
-      const loaded = await Promise.all(
-        rounds.map(async (r) => {
-          const res = await adminFetch(
-            `/api/admin/events/${eventId}/rounds/${r.id}/report`,
-            token
-          );
-          if (!res.ok) return null;
-          return (await res.json()) as RoundReport;
-        })
-      );
-      setReports(loaded.filter((r): r is RoundReport => Boolean(r?.round && r?.summary)));
+        const rounds = (dash.rounds ?? []) as Array<{ id: string; title: string }>;
+        const failures: string[] = [];
+        const loaded = await Promise.all(
+          rounds.map(async (r) => {
+            const res = await adminFetch(
+              `/api/admin/events/${eventId}/rounds/${r.id}/report`,
+              token
+            );
+            if (!res.ok) {
+              failures.push(r.title);
+              return null;
+            }
+            return (await res.json()) as RoundReport;
+          })
+        );
+        setFailedRounds(failures);
+        setReports(loaded.filter((r): r is RoundReport => Boolean(r?.round && r?.summary)));
+        setLoadError(null);
+      } catch (err) {
+        setLoadError(err instanceof Error ? err.message : "Não foi possível carregar o relatório.");
+        setReports([]);
+      }
     }
-    load();
+    void load();
   }, [eventId]);
 
-  if (!reports) {
+  if (reports === null) {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-6 max-w-xl">
+        <p className="text-sm text-[#b42318] bg-[#fdf2f1] border border-[#e3b3ad] rounded-md px-3 py-2">{loadError}</p>
+        <button
+          type="button"
+          className="mt-3 h-9 px-3 text-sm font-semibold border border-[#c9d4e2] rounded-md"
+          onClick={() => window.location.reload()}
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }
@@ -126,10 +155,10 @@ export default function EventReportPrintPage() {
       {/* Timbre oficial */}
       <header className="flex items-start gap-4 border-b-[3px] border-[#0b3a6e] pb-4 mb-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-prefeitura-saoluis.jpg" alt="Prefeitura de São Luís" className="h-14 w-auto shrink-0" />
+        <img src="/logo-prefeitura-saoluis.jpg" alt={CITY_NAME_FULL} className="h-14 w-auto shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="m-0 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#5b6b7f]">
-            Prefeitura Municipal de São Luís
+            {CITY_NAME_FULL}
           </p>
           <p className="m-0 mt-0.5 text-[13px] font-bold uppercase tracking-[0.04em] text-[#0b3a6e]">
             {ORG_SHORT} — {SECRETARIAT_NAME}
@@ -144,6 +173,13 @@ export default function EventReportPrintPage() {
         </p>
         <h1 className="m-0 mt-2 text-lg font-bold leading-snug text-[#11243c]">{eventTitle}</h1>
       </div>
+
+      {failedRounds.length > 0 && (
+        <div className="mb-6 rounded-md border border-[#e3b3ad] bg-[#fdf2f1] px-3 py-2 text-[12.5px] text-[#b42318] no-print">
+          Não foi possível incluir {failedRounds.length === 1 ? "a rodada" : "as rodadas"}:{" "}
+          <strong>{failedRounds.join(", ")}</strong>. Recarregue a página antes de imprimir.
+        </div>
+      )}
 
       {/* Ficha do evento */}
       <table className="w-full mb-8 border border-[#dbe4ef] text-[12px]">

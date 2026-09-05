@@ -58,31 +58,40 @@ export default function EventConfiguracoesPage() {
   const [closing, setClosing] = useState(false);
   const [closeLoading, setCloseLoading] = useState(false);
   const [savingIsTest, setSavingIsTest] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const eventUrl =
     typeof window !== "undefined" ? `${window.location.origin}/e/${DAILY_ACTIVE_SLUG}` : "";
   const projectorUrl =
     typeof window !== "undefined" ? `${window.location.origin}/projector/${DAILY_ACTIVE_SLUG}` : "";
 
-  useEffect(() => {
-    async function load() {
+  async function loadEvent() {
+    try {
       const token = await getAdminIdToken();
       if (!token) return;
       const res = await adminFetch(`/api/admin/events/${eventId}`, token);
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Não foi possível carregar as configurações.");
       setEvent(data.event);
       setTitleDraft(data.event.title ?? "");
       setDescriptionDraft(data.event.description ?? "");
       setProjectorTitleDraft(data.event.projectorTitle ?? "");
+      setLoadError(null);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Não foi possível carregar as configurações.");
     }
+  }
+
+  useEffect(() => {
     const unsub = onAdminAuthChange((user) => {
       if (!user) {
         router.replace("/admin/login");
         return;
       }
-      load();
+      void loadEvent();
     });
     return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, router]);
 
   useEffect(() => {
@@ -214,10 +223,23 @@ export default function EventConfiguracoesPage() {
   if (!event) {
     return (
       <AdminShell eventId={eventId} screenLabel="Configurações">
-        <div className="space-y-4">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-64 w-full" />
-        </div>
+        {loadError ? (
+          <div style={{ maxWidth: "560px", borderRadius: "12px", border: "1px solid #fecaca", background: "#fef2f2", padding: "16px", fontSize: "14px", color: "#b91c1c" }}>
+            <p style={{ margin: 0 }}>{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void loadEvent()}
+              style={{ marginTop: "12px", height: "36px", padding: "0 14px", borderRadius: "8px", border: "1px solid #f0b4b0", background: "#fff", fontWeight: 600, color: "#b42318", cursor: "pointer" }}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        )}
       </AdminShell>
     );
   }

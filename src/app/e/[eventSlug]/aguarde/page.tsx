@@ -94,8 +94,18 @@ export default function AguardePage() {
       }
     }
 
-    checkRoundStatus();
+    void checkRoundStatus();
   }, [publicEvent, eventSlug]);
+
+  // Auto-avança para a rodada nova após um breve destaque — evita depender
+  // só do toque em "Responder agora" quando a sala está em silêncio.
+  useEffect(() => {
+    if (!newRoundAvailable || !newRoundId || !publicEvent) return;
+    const timer = window.setTimeout(() => {
+      router.push(`/e/${publicEvent.slug ?? eventSlug}/rodada/${newRoundId}`);
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [newRoundAvailable, newRoundId, publicEvent, eventSlug, router]);
 
   if (loading) {
     return (
@@ -149,6 +159,11 @@ export default function AguardePage() {
               ? "O organizador ainda vai abrir a próxima etapa."
               : "Aguarde o organizador iniciar a primeira atividade."}
           </p>
+          {publicEvent?.requireLiveCode && (
+            <p style={{ margin: "14px 0 0", maxWidth: "340px", fontSize: "13px", color: "#0B3A6E", lineHeight: 1.45 }}>
+              Se o próximo evento pedir código ao vivo, entre de novo com o código do telão.
+            </p>
+          )}
           <p style={{ margin: "22px 0 0", fontSize: "11.5px", color: "#8a97a8", display: "inline-flex", alignItems: "center", gap: "7px" }}>
             <span style={{ width: "7px", height: "7px", borderRadius: "99px", background: "#8a97a8" }}></span>Atualiza sozinha quando a atividade abrir
           </p>
@@ -167,10 +182,13 @@ export default function AguardePage() {
               ? `Uma nova atividade foi aberta: ${publicEvent.currentRoundTitle}`
               : "Uma nova atividade foi aberta."}
           </p>
+          <p style={{ margin: "10px 0 0", fontSize: "12.5px", color: "#8a97a8" }}>
+            Abrindo automaticamente em instantes…
+          </p>
           <button
             type="button"
             onClick={() => router.push(`/e/${publicEvent?.slug ?? eventSlug}/rodada/${newRoundId}`)}
-            style={{ marginTop: "32px", height: "52px", padding: "0 24px", background: "#0B3A6E", color: "#fff", borderRadius: "8px", fontSize: "14.5px", fontWeight: 600, border: "none", cursor: "pointer" }}
+            style={{ marginTop: "28px", height: "56px", minWidth: "220px", padding: "0 28px", background: "#0B3A6E", color: "#fff", borderRadius: "8px", fontSize: "16px", fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 8px 20px rgba(11,58,110,.22)" }}
           >
             Responder agora
           </button>

@@ -11,12 +11,14 @@ export function ProjectorShell({
   title,
   accessCode,
   connectionIssue,
+  codeRenewIssue,
   lastUpdate,
   children,
 }: {
   title: string;
   accessCode?: string | null;
   connectionIssue?: boolean;
+  codeRenewIssue?: boolean;
   lastUpdate: Date;
   children: ReactNode;
 }) {
@@ -181,7 +183,7 @@ export function ProjectorShell({
               gap: "clamp(7px,.7vw,12px)",
               fontSize: "clamp(11px,1.35vh,20px)",
               fontWeight: 600,
-              color: connectionIssue ? "#9a6700" : "#18754A",
+              color: codeRenewIssue || connectionIssue ? "#9a6700" : "#18754A",
               whiteSpace: "nowrap",
             }}
           >
@@ -191,11 +193,15 @@ export function ProjectorShell({
                 width: "clamp(9px,1.1vh,15px)",
                 height: "clamp(9px,1.1vh,15px)",
                 borderRadius: 99,
-                background: connectionIssue ? "#dba514" : "#1a7f4b",
-                animation: connectionIssue ? "none" : "semcasPulse 2.4s ease-in-out infinite",
+                background: codeRenewIssue || connectionIssue ? "#dba514" : "#1a7f4b",
+                animation: codeRenewIssue || connectionIssue ? "none" : "semcasPulse 2.4s ease-in-out infinite",
               }}
             />
-            {connectionIssue ? "Conexão instável" : "Atualização em tempo real"}
+            {codeRenewIssue
+              ? "Falha ao renovar o código — tentando de novo"
+              : connectionIssue
+                ? "Conexão instável"
+                : "Atualização em tempo real"}
           </span>
         </div>
       </header>

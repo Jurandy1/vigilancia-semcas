@@ -10,8 +10,9 @@ Sistema web institucional para avaliações, pesquisas, consultas e votações e
 
 ## Supabase — projeto vigilancia
 
-1. Aplique o schema (tabelas, RLS, funções) rodando o conteúdo de
-   `supabase/schema.sql` no SQL Editor do projeto Supabase.
+1. Aplique o schema em `supabase/schema.sql` e, em seguida, os patches na
+   ordem documentada em `docs/supabase-patches.md` (o patch
+   `patch-2026-09-05-join-canonical.sql` deve ser o último que redefine o join).
 
 2. Preencha no `.env.local`:
    ```

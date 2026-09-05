@@ -23,6 +23,7 @@ interface RateLimitTier {
 export const RATE_LIMITS: Record<string, { burst: RateLimitTier; sustained: RateLimitTier }> = {
   join: { burst: { limit: 350, windowSeconds: 60 }, sustained: { limit: 800, windowSeconds: 600 } },
   submit: { burst: { limit: 400, windowSeconds: 60 }, sustained: { limit: 1000, windowSeconds: 600 } },
+  progress: { burst: { limit: 600, windowSeconds: 60 }, sustained: { limit: 2000, windowSeconds: 600 } },
   rotateCode: { burst: { limit: 6, windowSeconds: 60 }, sustained: { limit: 20, windowSeconds: 600 } },
 };
 

@@ -51,6 +51,10 @@ function ParticiparContent() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 429) {
+          setError(data.error ?? "Muitas tentativas agora. Aguarde alguns segundos e toque em Continuar de novo.");
+          return;
+        }
         setError(data.error ?? "Não foi possível continuar.");
         return;
       }

@@ -53,6 +53,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { ORG_SHORT } from "@/lib/branding";
 
 interface EventItem {
   id: string;
@@ -60,7 +61,6 @@ interface EventItem {
   slug: string;
   status: string;
   isTest: boolean;
-  isDailyActive: boolean;
   participantCount: number;
   submissionCount: number;
   currentRoundTitle: string | null;
@@ -312,7 +312,7 @@ export default function AdminEventosPage() {
           <div style={{ minWidth: 0 }}>
             <p style={{ margin: "0 0 6px", fontSize: "10.5px", fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "#18754A" }}>Painel administrativo</p>
             <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700, letterSpacing: "-.02em", color: "#11243c" }}>Eventos</h1>
-            <p style={{ margin: "6px 0 0", fontSize: "13.5px", color: "#5b6b7f" }}>Avaliações, consultas e atividades participativas da SEMCAS.</p>
+            <p style={{ margin: "6px 0 0", fontSize: "13.5px", color: "#5b6b7f" }}>Avaliações, consultas e atividades participativas da {ORG_SHORT}.</p>
           </div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <button type="button" onClick={() => router.push("/admin/eventos/sequencia")} style={{ height: "38px", padding: "0 14px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "13px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer", textDecoration: "none" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}>
@@ -435,7 +435,9 @@ export default function AdminEventosPage() {
                       </h2>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 600, color: event.status === "open" ? "#1a7f4b" : "#5b6b7f", background: event.status === "open" ? "#e8f5ee" : "#f4f6f9", border: event.status === "open" ? "1px solid #c3e4d1" : "1px solid #dde4ee", borderRadius: "4px", padding: "2px 6px" }}>
                         <span style={{ width: "6px", height: "6px", borderRadius: "99px", background: statusStyle.dotColor }} />
-                        {statusLabel[event.status] ?? event.status}
+                        {event.status === "open" && !event.currentRoundTitle
+                          ? "Aberto · sem rodada"
+                          : (statusLabel[event.status] ?? event.status)}
                       </span>
                       {event.isTest && (
                         <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.02em", textTransform: "uppercase", color: "#8a5a00", background: "#fdf5e3", border: "1px solid #f0dfae", borderRadius: "4px", padding: "2px 6px" }}>
@@ -453,6 +455,10 @@ export default function AdminEventosPage() {
                       <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#5b6b7f" }}>
                         Rodada atual: <strong style={{ color: "#33415c", fontWeight: 600 }}>{event.currentRoundTitle}</strong>
                       </p>
+                    ) : event.status === "open" ? (
+                      <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#9a6700" }}>
+                        Nenhuma rodada ativa — encerre o evento ou abra outra rodada
+                      </p>
                     ) : (
                       <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#8a97a8" }}>Nenhuma rodada ativa</p>
                     )}
@@ -467,6 +473,9 @@ export default function AdminEventosPage() {
                   </div>
                   
                   <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => router.push(`/admin/eventos/${event.id}/relatorios`)} style={{ height: "36px", padding: "0 13px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}>
+                      Relatório
+                    </button>
                     <button type="button" onClick={() => router.push(`/admin/eventos/${event.id}/perguntas`)} style={{ height: "36px", padding: "0 13px", border: "1px solid #b9c9d9", background: "#fff", borderRadius: "8px", fontSize: "12.5px", fontWeight: 600, color: "#0B3A6E", cursor: "pointer" }} onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }} onMouseOut={(e) => { e.currentTarget.style.borderColor = "#b9c9d9"; e.currentTarget.style.background = "#fff"; }}>
                       Editar perguntas
                     </button>

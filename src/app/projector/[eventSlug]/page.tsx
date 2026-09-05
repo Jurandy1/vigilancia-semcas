@@ -15,16 +15,47 @@ import { ProjectorShell, ProjectorStatusLabel } from "@/components/projector/Pro
 function LoadingScreen({ message }: { message: string }) {
   return (
     <div
+      className="projector-root"
       style={{
-        minHeight: "100svh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#f7f9fc",
-        fontFamily: '"Barlow",system-ui,sans-serif',
+        height: "100svh",
+        minHeight: 420,
+        width: "100%",
+        display: "grid",
+        gridTemplateRows: "auto minmax(0,1fr)",
+        background: "#fff",
+        overflow: "hidden",
+        fontFamily: 'var(--font-barlow), "Segoe UI", system-ui, sans-serif',
+        color: "#11243c",
       }}
     >
-      <p style={{ fontSize: "clamp(18px,2.4vh,28px)", color: "#5b6b7f", margin: 0 }}>{message}</p>
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "clamp(14px,2vw,34px)",
+          padding: "clamp(10px,1.6vh,26px) clamp(18px,2.4vw,56px)",
+          background: "linear-gradient(180deg,#ffffff 0%,#eff5fc 100%)",
+          borderBottom: "1px solid #d7e3f0",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/projector/brasao-sao-luis.png"
+          alt="Brasão de São Luís"
+          style={{ height: "clamp(46px,7.2vh,96px)", width: "auto", display: "block", mixBlendMode: "multiply" }}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: "clamp(9px,1.05vh,15px)", fontWeight: 600, letterSpacing: ".34em", textTransform: "uppercase", color: "#4a6280" }}>
+            Prefeitura de
+          </span>
+          <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: "clamp(20px,3.1vh,44px)", fontWeight: 800, letterSpacing: ".02em", lineHeight: 0.95, color: "#0B3A6E" }}>
+            SÃO LUÍS
+          </span>
+        </div>
+      </header>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+        <p style={{ fontSize: "clamp(18px,2.4vh,28px)", color: "#5b6b7f", margin: 0, textAlign: "center" }}>{message}</p>
+      </div>
     </div>
   );
 }
@@ -181,10 +212,12 @@ function WaitingView({
   hasHadRound,
   qrDataUrl,
   connectedCount,
+  requireLiveCode,
 }: {
   hasHadRound: boolean;
   qrDataUrl: string;
   connectedCount: number;
+  requireLiveCode?: boolean;
 }) {
   return (
     <>
@@ -199,7 +232,9 @@ function WaitingView({
         }}
       >
         {hasHadRound
-          ? "Aguarde a próxima rodada. Escaneie o QR Code para entrar na sala:"
+          ? requireLiveCode
+            ? "Aguarde a próxima rodada. Se for um novo evento, entre de novo com o código do telão."
+            : "Aguarde a próxima rodada. Escaneie o QR Code para entrar na sala:"
           : "Escaneie o QR Code para participar"}
       </p>
       <div
@@ -278,6 +313,7 @@ export default function ProjectorPage() {
   const [resolvingDailyActive, setResolvingDailyActive] = useState(rootSlug === DAILY_ACTIVE_SLUG);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [codeRenewFailures, setCodeRenewFailures] = useState(0);
   const activeSlugRef = useRef(activeSlug);
   function setActiveSlugTracked(value: string | null) {
     activeSlugRef.current = value;
@@ -334,7 +370,7 @@ export default function ProjectorPage() {
     publicEvent?.id ?? null,
     publicEvent?.currentOpenRoundId ?? null
   );
-  const connectionIssue = eventConnectionIssue || statsConnectionIssue;
+  const connectionIssue = eventConnectionIssue || statsConnectionIssue || codeRenewFailures >= 3;
 
   const advanceTimestampsRef = useRef<number[]>([]);
 
@@ -386,9 +422,15 @@ export default function ProjectorPage() {
         const result = await response.json();
         expiresAt = Date.parse(result.expiresAt);
         if (!Number.isFinite(expiresAt)) throw new Error("Validade inválida");
-        if (!cancelled) schedule();
+        if (!cancelled) {
+          setCodeRenewFailures(0);
+          schedule();
+        }
       } catch {
-        if (!cancelled) timer = setTimeout(renew, 5_000);
+        if (!cancelled) {
+          setCodeRenewFailures((n) => n + 1);
+          timer = setTimeout(renew, 5_000);
+        }
       } finally {
         inFlight = false;
       }
@@ -454,12 +496,18 @@ export default function ProjectorPage() {
       title={projectorTitle}
       accessCode={accessCode}
       connectionIssue={connectionIssue}
+      codeRenewIssue={codeRenewFailures >= 3}
       lastUpdate={lastUpdate}
     >
       {isFinished ? (
         <FinishedView />
       ) : !isRoundOpen ? (
-        <WaitingView hasHadRound={hasHadRound} qrDataUrl={qrDataUrl} connectedCount={connectedCount} />
+        <WaitingView
+          hasHadRound={hasHadRound}
+          qrDataUrl={qrDataUrl}
+          connectedCount={connectedCount}
+          requireLiveCode={Boolean(publicEvent.requireLiveCode)}
+        />
       ) : (
         <VotingView total={total} completed={completed} percent={percent} />
       )}

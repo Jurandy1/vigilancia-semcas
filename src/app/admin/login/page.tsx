@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SemcasBrand } from "@/components/branding/SemcasBrand";
-import { ORG_TAGLINE, SECRETARIAT_NAME } from "@/lib/branding";
+import { ORG_TAGLINE, SECRETARIAT_NAME, ORG_SHORT, CITY_NAME } from "@/lib/branding";
 import { adminLogin, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { resolvePostLoginDestination } from "@/lib/admin/post-login-destination";
 
@@ -45,15 +45,15 @@ export default function AdminLoginPage() {
         
         <div style={{ background: "#082F57", color: "#fff", padding: "40px 38px", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "36px", minWidth: 0 }}>
           <div>
-            <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.6)" }}>Prefeitura de São Luís</p>
-            <p style={{ margin: "14px 0 0", fontSize: "34px", fontWeight: 700, letterSpacing: ".12em", lineHeight: 1 }}>SEMCAS</p>
+            <p style={{ margin: 0, fontSize: "10.5px", fontWeight: 700, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(255,255,255,.6)" }}>{CITY_NAME}</p>
+            <p style={{ margin: "14px 0 0", fontSize: "34px", fontWeight: 700, letterSpacing: ".12em", lineHeight: 1 }}>{ORG_SHORT}</p>
             <p style={{ margin: "14px 0 0", fontSize: "15px", lineHeight: 1.55, color: "rgba(255,255,255,.72)", maxWidth: "28ch" }}>Secretaria Municipal da Criança e Assistência Social</p>
           </div>
           <div>
             <span aria-hidden="true" style={{ display: "block", width: "44px", height: "2px", background: "#65d49b", marginBottom: "18px" }}></span>
             <p style={{ margin: 0, fontSize: "19px", lineHeight: 1.5, color: "#fff", maxWidth: "30ch", textWrap: "pretty" }}>Plataforma de participação e avaliação em tempo real.</p>
           </div>
-          <p style={{ margin: 0, fontSize: "12px", lineHeight: 1.7, color: "rgba(255,255,255,.5)" }}>Acesso restrito a servidores autorizados.<br />Sistema oficial da Prefeitura de São Luís.</p>
+          <p style={{ margin: 0, fontSize: "12px", lineHeight: 1.7, color: "rgba(255,255,255,.5)" }}>Acesso restrito a servidores autorizados.<br />Sistema oficial da {CITY_NAME}.</p>
         </div>
 
         <div style={{ padding: "40px 38px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0 }}>
@@ -102,7 +102,7 @@ export default function AdminLoginPage() {
               {loading ? "Entrando..." : "Entrar"}
             </button>
 
-            <p style={{ margin: "18px 0 0", maxWidth: "400px", fontSize: "12.5px", lineHeight: 1.6, color: "#8a97a8" }}>Problemas de acesso? Procure a equipe responsável pelo sistema na SEMCAS.</p>
+            <p style={{ margin: "18px 0 0", maxWidth: "400px", fontSize: "12.5px", lineHeight: 1.6, color: "#8a97a8" }}>Problemas de acesso? Procure a equipe responsável pelo sistema na {ORG_SHORT}.</p>
             <p style={{ margin: "24px 0 0", maxWidth: "400px", paddingTop: "18px", borderTop: "1px solid #e2e8f0", fontSize: "13px", color: "#5b6b7f" }}>
               Vai apenas responder a um evento?{" "}
               <Link href="/" style={{ color: "#0B3A6E", textDecoration: "none" }}>Acesse pelo link ou QR Code do evento</Link>.

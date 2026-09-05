@@ -57,6 +57,10 @@ function AccessCodeContent() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 429) {
+          setError(data.error ?? "Muitas tentativas agora. Aguarde alguns segundos e tente de novo.");
+          return;
+        }
         setError(data.error ?? "Código inválido.");
         return;
       }

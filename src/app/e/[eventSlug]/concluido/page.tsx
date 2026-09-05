@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ParticipantShell } from "@/components/participant/ParticipantShell";
+import { ORG_SHORT, SECRETARIAT_NAME } from "@/lib/branding";
 
 export default function ConcluidoPage() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function ConcluidoPage() {
         <h2 style={{ margin: "20px 0 0", fontSize: "21px", fontWeight: 700, color: "#11243c" }}>Resposta registrada</h2>
         <p style={{ margin: "9px 0 0", fontSize: "14.5px", color: "#5b6b7f" }}>Obrigado por participar.</p>
         <p style={{ margin: "24px 0 0", fontSize: "12px", lineHeight: 1.6, color: "#8a97a8", maxWidth: "30ch" }}>
-          SEMCAS — Secretaria Municipal da Criança e Assistência Social
+          {ORG_SHORT} — {SECRETARIAT_NAME}
         </p>
       </section>
     </ParticipantShell>

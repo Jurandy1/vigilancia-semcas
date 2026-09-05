@@ -26,6 +26,10 @@ export default function RelatoriosPage() {
   const [eventSlug, setEventSlug] = useState("");
   const [eventStatus, setEventStatus] = useState<string | undefined>();
   const [participantCount, setParticipantCount] = useState(0);
+  const [sequenceId, setSequenceId] = useState<string | null>(null);
+  const [sequencePeers, setSequencePeers] = useState<
+    Array<{ id: string; title: string; status: string; sequenceOrder: number | null; submissionCount: number }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +46,27 @@ export default function RelatoriosPage() {
         setEventStatus(data.event?.status);
         setParticipantCount(data.event?.participantCount ?? 0);
         setRounds(data.rounds ?? []);
+        const seqId = (data.event?.sequenceId as string | null) ?? null;
+        setSequenceId(seqId);
+        if (seqId) {
+          const listRes = await adminFetch("/api/admin/events", token);
+          const listData = await listRes.json();
+          if (listRes.ok) {
+            const peers = ((listData.events ?? []) as Array<{
+              id: string;
+              title: string;
+              status: string;
+              sequenceId: string | null;
+              sequenceOrder: number | null;
+              submissionCount: number;
+            }>)
+              .filter((e) => e.sequenceId === seqId)
+              .sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
+            setSequencePeers(peers);
+          }
+        } else {
+          setSequencePeers([]);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Não foi possível carregar o relatório.");
       } finally {
@@ -65,6 +90,23 @@ export default function RelatoriosPage() {
     );
   }
 
+  if (error) {
+    return (
+      <AdminShell eventId={eventId} screenLabel="Relatório">
+        <div style={{ maxWidth: "640px", borderRadius: "12px", border: "1px solid #fecaca", background: "#fef2f2", padding: "16px", fontSize: "14px", color: "#b91c1c" }}>
+          <p style={{ margin: 0 }}>{error}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{ marginTop: "12px", height: "36px", padding: "0 14px", borderRadius: "8px", border: "1px solid #f0b4b0", background: "#fff", fontWeight: 600, color: "#b42318", cursor: "pointer" }}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </AdminShell>
+    );
+  }
+
   const totalResponses = rounds.reduce((sum, r) => sum + (r.submissionCount ?? 0), 0);
   const roundsWithResponses = rounds.filter((round) => round.submissionCount > 0).length;
   const averageResponses = rounds.length > 0 ? Math.round(totalResponses / rounds.length) : 0;
@@ -79,23 +121,25 @@ export default function RelatoriosPage() {
     const XLSX = await import("xlsx");
     const rows = [
       ["Relatório consolidado", eventTitle],
-      ["Participantes", participantCount],
+      ["Participantes no evento", participantCount],
+      ["Registrados nas rodadas (soma)", totalRegistered],
       ["Total de respostas", totalResponses],
       ["Média de respostas por rodada", averageResponses],
       [],
-      ["Ordem", "Rodada", "Status", "Respostas", "Participação"],
+      ["Ordem", "Rodada", "Status", "Respostas", "Registrados na rodada", "Participação"],
       ...rounds.map((round, index) => [
         index + 1,
         round.title,
         statusLabel[round.status] ?? round.status,
         round.submissionCount ?? 0,
+        round.registeredCount ?? 0,
         round.registeredCount > 0
           ? `${Math.min(100, Math.round(((round.submissionCount ?? 0) / round.registeredCount) * 100))}%`
           : "0%",
       ]),
     ];
     const sheet = XLSX.utils.aoa_to_sheet(rows);
-    sheet["!cols"] = [{ wch: 12 }, { wch: 48 }, { wch: 18 }, { wch: 14 }, { wch: 16 }];
+    sheet["!cols"] = [{ wch: 12 }, { wch: 48 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 16 }];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "Resumo");
     XLSX.writeFile(workbook, `relatorio-consolidado-${eventSlug || eventId}.xlsx`);
@@ -199,6 +243,58 @@ export default function RelatoriosPage() {
             </div>
           )}
         </div>
+
+        {sequenceId && sequencePeers.length > 1 && (
+          <div style={{ border: "1px solid #dbe4ef", borderRadius: "10px", background: "#fff", padding: "18px 20px", marginTop: "18px" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: "11px", fontWeight: 700, letterSpacing: ".12em", textTransform: "uppercase", color: "#5b6b7f" }}>
+              Sequência — um relatório por evento
+            </h2>
+            <p style={{ margin: "0 0 14px", fontSize: "13px", color: "#5b6b7f", lineHeight: 1.45 }}>
+              Cada evento da sequência tem relatório próprio. Abra o card correspondente para ver resultados e PDF.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {sequencePeers.map((peer) => {
+                const isCurrent = peer.id === eventId;
+                return (
+                  <Link
+                    key={peer.id}
+                    href={`/admin/eventos/${peer.id}/relatorios`}
+                    style={{
+                      textDecoration: "none",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 14px",
+                      borderRadius: "8px",
+                      border: isCurrent ? "1px solid #0b3a6e" : "1px solid #dbe4ef",
+                      background: isCurrent ? "#f3f7fc" : "#fff",
+                      color: "#11243c",
+                    }}
+                  >
+                    <span style={{ fontSize: "13.5px", fontWeight: 600, minWidth: 0, flex: 1 }}>
+                      <span style={{ color: "#8a97a8", fontFamily: "ui-monospace,Consolas,monospace", marginRight: "8px" }}>
+                        {peer.sequenceOrder !== null ? peer.sequenceOrder + 1 : "?"}
+                      </span>
+                      {peer.title}
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#5b6b7f" }}>
+                      {statusLabel[peer.status] ?? peer.status} · {peer.submissionCount} respostas
+                      {isCurrent ? " · atual" : ""}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {totalResponses === 0 && (
+          <p style={{ margin: "16px 0 0", fontSize: "13px", lineHeight: 1.55, color: "#9a6700", background: "#fff8e5", border: "1px solid #ead69c", borderRadius: "8px", padding: "12px 14px" }}>
+            Ainda não há respostas enviadas neste evento. Quem só entrou e não concluiu a votação não aparece no relatório.
+          </p>
+        )}
 
         <p style={{ margin: "16px 0 0", fontSize: "12px", lineHeight: 1.6, color: "#8a97a8" }}>
           O documento oficial com cabeçalho institucional fica em Imprimir / PDF. Exportações CSV e Excel estão disponíveis na tela de resultados de cada rodada.

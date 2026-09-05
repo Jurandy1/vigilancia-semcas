@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { SemcasBrand } from "@/components/branding/SemcasBrand";
+import { ORG_SHORT, CITY_NAME } from "@/lib/branding";
 
 interface ParticipantShellProps {
   eventTitle?: string;
@@ -24,9 +24,9 @@ export function ParticipantShell({
       <div style={{ border: "1px solid #dbe4ef", borderRadius: "14px", background: "#fff", overflow: "hidden", minHeight: "600px", width: "100%", maxWidth: "460px", display: "flex", flexDirection: "column", boxShadow: "0 10px 30px rgba(18,43,70,0.05)" }}>
         <header style={{ padding: "14px 18px", borderBottom: "1px solid #eef1f5", display: "flex", alignItems: "center", gap: "12px" }}>
           {/* Logo prefeitura */}
-          <img src="/logo-prefeitura-saoluis.jpg" alt="Prefeitura de São Luís" style={{ height: "26px", width: "auto", display: "block" }} />
+          <img src="/logo-prefeitura-saoluis.jpg" alt={CITY_NAME} style={{ height: "26px", width: "auto", display: "block" }} />
           <span aria-hidden="true" style={{ width: "1px", height: "22px", background: "#e6ecf4" }}></span>
-          <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: ".12em", color: "#0B3A6E" }}>SEMCAS</span>
+          <span style={{ fontSize: "12px", fontWeight: 700, letterSpacing: ".12em", color: "#0B3A6E" }}>{ORG_SHORT}</span>
         </header>
         <div className={cn("flex-1 flex flex-col min-h-0", contentClassName)}>{children}</div>
       </div>

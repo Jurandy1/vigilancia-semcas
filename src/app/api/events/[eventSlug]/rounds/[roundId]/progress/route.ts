@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getParticipantFromRequest } from "@/lib/sessions/verify";
 import { progressSchema } from "@/lib/validation/submission";
 import { getEventForRoundRoute } from "@/lib/data/events";
+import { enforceRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,11 @@ export async function POST(
       return NextResponse.json({ error: "Evento encerrado." }, { status: 403 });
     }
     const eventId = event.id;
+
+    const rateLimit = await enforceRateLimit("progress", getClientIp(request), eventId);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.retryAfterSeconds);
+    }
 
     const body = await request.json();
     const parsed = progressSchema.safeParse(body);

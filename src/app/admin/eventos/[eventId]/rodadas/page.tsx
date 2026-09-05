@@ -87,6 +87,7 @@ export default function RodadasPage() {
   const [rounds, setRounds] = useState<RoundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<PendingAction>(null);
+  const [forceClose, setForceClose] = useState<{ roundId: string; answering: number } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,7 +114,7 @@ export default function RodadasPage() {
 
   const hasOpenRound = rounds.some((r) => r.status === "open");
 
-  async function confirmAction() {
+  async function confirmAction(force = false) {
     if (!pending) return;
     setActionLoading(true);
     setError(null);
@@ -123,14 +124,25 @@ export default function RodadasPage() {
       const res = await adminFetch(
         `/api/admin/events/${eventId}/rounds/${pending.round.id}/${pending.type}`,
         token,
-        { method: "POST" }
+        {
+          method: "POST",
+          ...(pending.type === "close" && force ? { body: JSON.stringify({ force: true }) } : {}),
+        }
       );
       const json = await res.json();
       if (!res.ok) {
+        if (pending.type === "close" && json.code === "PARTICIPANTS_STILL_ANSWERING" && !force) {
+          setForceClose({
+            roundId: pending.round.id,
+            answering: Number(json.answering ?? 1),
+          });
+          return;
+        }
         setError(json.error ?? "Não foi possível concluir esta operação. Tente novamente.");
         return;
       }
       setPending(null);
+      setForceClose(null);
       await load();
     } catch {
       setError("Não foi possível concluir esta operação. Tente novamente.");
@@ -322,7 +334,7 @@ export default function RodadasPage() {
         )}
       </section>
 
-      <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+      <AlertDialog open={pending !== null && forceClose === null} onOpenChange={(open) => !open && setPending(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -331,17 +343,53 @@ export default function RodadasPage() {
             <AlertDialogDescription>
               {pending?.type === "open"
                 ? "Todos os participantes aptos poderão responder esta etapa."
-                : "Após o encerramento, novas respostas não serão aceitas."}
+                : "Após o encerramento, novas respostas não serão aceitas. Quem ainda estiver no meio da votação precisará de encerramento forçado."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmAction} disabled={actionLoading}>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmAction(false);
+              }}
+              disabled={actionLoading}
+            >
               {actionLoading
                 ? "Aguarde..."
                 : pending?.type === "open"
                   ? "Abrir rodada"
                   : "Encerrar rodada"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={forceClose !== null}
+        onOpenChange={(open) => {
+          if (!open) setForceClose(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar mesmo assim?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {forceClose?.answering ?? 1} participante(s) ainda estão respondendo e não enviaram.
+              Se encerrar agora, essas respostas incompletas não entram no relatório.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Voltar a aguardar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={actionLoading}
+              className="bg-[#b42318] hover:bg-[#912018]"
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmAction(true);
+              }}
+            >
+              Encerrar forçado
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ParticipantShell } from "@/components/participant/ParticipantShell";
 import { apiFetch } from "@/lib/api-client";
 import { useParticipantStore } from "@/stores/participant-store";
+import { usePublicEvent } from "@/hooks/use-public-event";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface EventEntryClientProps {
@@ -22,9 +23,20 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const { setEvent, setParticipant } = useParticipantStore();
+  const notOpenYet = event.status === "draft" || event.status === "waiting";
+  // Poll realtime enquanto o evento ainda não abriu — o QR fixo pode ser
+  // escaneado cedo; sem isso a pessoa cairia no fluxo de join e receberia erro.
+  const { publicEvent } = usePublicEvent(notOpenYet ? event.id : null, notOpenYet ? event.slug : null);
+  const liveStatus = publicEvent?.status ?? event.status;
+  const isOpen = liveStatus === "open";
 
   useEffect(() => {
     setEvent(event.id, event.slug);
+
+    if (!isOpen) {
+      setLoading(false);
+      return;
+    }
 
     async function checkSession() {
       try {
@@ -57,8 +69,8 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
       }
     }
 
-    checkSession();
-  }, [event, router, setEvent, setParticipant]);
+    void checkSession();
+  }, [event, router, setEvent, setParticipant, isOpen]);
 
   if (loading) {
     return (
@@ -72,17 +84,81 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
     );
   }
 
+  if (!isOpen) {
+    return (
+      <ParticipantShell eventTitle={publicEvent?.title ?? event.title}>
+        <section
+          aria-label="Aguardando início"
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            padding: "26px",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "99px",
+              background: "#eef3f9",
+              border: "1px solid #d6e0ec",
+              color: "#0B3A6E",
+              fontSize: "24px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            ⏳
+          </span>
+          <h2 style={{ margin: "18px 0 0", fontSize: "19px", fontWeight: 700, color: "#11243c" }}>
+            Aguarde o início
+          </h2>
+          <p style={{ margin: "9px 0 0", fontSize: "14.5px", color: "#5b6b7f", maxWidth: "32ch" }}>
+            O organizador ainda não iniciou este evento. Deixe esta tela aberta — ela libera sozinha
+            quando a participação começar.
+          </p>
+          <p
+            style={{
+              margin: "22px 0 0",
+              fontSize: "11.5px",
+              color: "#8a97a8",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "7px",
+            }}
+          >
+            <span style={{ width: "7px", height: "7px", borderRadius: "99px", background: "#8a97a8" }} />
+            Atualiza automaticamente
+          </p>
+        </section>
+      </ParticipantShell>
+    );
+  }
+
   const isDevMock = process.env.NEXT_PUBLIC_USE_DEV_MOCK === "true";
-  // Com código de acesso exigido, o destino é /codigo em vez de /participar —
-  // a escolha identificado/anônimo continua acontecendo aqui, e não fica
-  // travada em "anônimo" pulando essa tela como acontecia antes.
   const nextStep = event.requireLiveCode ? "codigo" : "participar";
 
   return (
     <ParticipantShell eventTitle={event.title}>
       <section aria-label="Entrada" style={{ padding: "20px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
         {isDevMock && (
-          <div style={{ marginBottom: "16px", borderRadius: "6px", background: "#fdf5e3", border: "1px solid #f0dfae", padding: "8px 12px", fontSize: "12px", color: "#8a5a00" }}>
+          <div
+            style={{
+              marginBottom: "16px",
+              borderRadius: "6px",
+              background: "#fdf5e3",
+              border: "1px solid #f0dfae",
+              padding: "8px 12px",
+              fontSize: "12px",
+              color: "#8a5a00",
+            }}
+          >
             Modo desenvolvimento local — dados simulados
           </div>
         )}
@@ -95,9 +171,23 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
           <button
             type="button"
             onClick={() => router.push(`/e/${event.slug}/${nextStep}?mode=identified`)}
-            style={{ textAlign: "left", padding: "14px 16px", border: "1px solid #c9d4e2", borderRadius: "10px", background: "#fff", cursor: "pointer", minHeight: "64px" }}
-            onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }}
-            onMouseOut={(e) => { e.currentTarget.style.borderColor = "#c9d4e2"; e.currentTarget.style.background = "#fff"; }}
+            style={{
+              textAlign: "left",
+              padding: "14px 16px",
+              border: "1px solid #c9d4e2",
+              borderRadius: "10px",
+              background: "#fff",
+              cursor: "pointer",
+              minHeight: "64px",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.borderColor = "#0B3A6E";
+              e.currentTarget.style.background = "#f7fafd";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.borderColor = "#c9d4e2";
+              e.currentTarget.style.background = "#fff";
+            }}
           >
             <span style={{ display: "block", fontSize: "14.5px", fontWeight: 600, color: "#11243c" }}>
               Responder com identificação
@@ -110,9 +200,23 @@ export function EventEntryClient({ event }: EventEntryClientProps) {
           <button
             type="button"
             onClick={() => router.push(`/e/${event.slug}/${nextStep}?mode=anonymous`)}
-            style={{ textAlign: "left", padding: "14px 16px", border: "1px solid #c9d4e2", borderRadius: "10px", background: "#fff", cursor: "pointer", minHeight: "64px" }}
-            onMouseOver={(e) => { e.currentTarget.style.borderColor = "#0B3A6E"; e.currentTarget.style.background = "#f7fafd"; }}
-            onMouseOut={(e) => { e.currentTarget.style.borderColor = "#c9d4e2"; e.currentTarget.style.background = "#fff"; }}
+            style={{
+              textAlign: "left",
+              padding: "14px 16px",
+              border: "1px solid #c9d4e2",
+              borderRadius: "10px",
+              background: "#fff",
+              cursor: "pointer",
+              minHeight: "64px",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.borderColor = "#0B3A6E";
+              e.currentTarget.style.background = "#f7fafd";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.borderColor = "#c9d4e2";
+              e.currentTarget.style.background = "#fff";
+            }}
           >
             <span style={{ display: "block", fontSize: "14.5px", fontWeight: 600, color: "#11243c" }}>
               Responder anonimamente
