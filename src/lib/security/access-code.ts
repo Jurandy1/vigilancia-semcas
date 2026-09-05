@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { generateAccessCode, hashAccessCode } from "@/lib/sessions/tokens";
+import { generateAccessCode, hashAccessCode, verifyAccessCode as verifyAccessCodeHash } from "@/lib/sessions/tokens";
 
 const ROTATION_SECONDS = 60;
 
@@ -46,6 +46,5 @@ export async function validateAccessCode(eventId: string, inputCode: string): Pr
   const expiresAt = new Date(data.access_code_expires_at);
   if (expiresAt < new Date()) return false;
 
-  const inputHash = hashAccessCode(inputCode);
-  return inputHash === data.access_code_hash;
+  return verifyAccessCodeHash(inputCode, data.access_code_hash);
 }

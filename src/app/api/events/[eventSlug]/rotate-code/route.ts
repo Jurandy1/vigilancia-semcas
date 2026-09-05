@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEventBySlugExact } from "@/lib/data/events";
 import { rotateAccessChallenge } from "@/lib/security/access-code";
+import { enforceRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,12 @@ export async function POST(
     if (!event) {
       return NextResponse.json({ error: "Evento não encontrado." }, { status: 404 });
     }
+
+    const rateLimit = await enforceRateLimit("rotateCode", getClientIp(request), event.id);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.retryAfterSeconds);
+    }
+
     if (!event.requireLiveCode || event.status !== "open") {
       return NextResponse.json({ error: "Este evento não usa código de acesso agora." }, { status: 409 });
     }

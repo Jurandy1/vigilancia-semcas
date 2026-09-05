@@ -32,7 +32,7 @@ export const createRoundSchema = z.object({
   type: roundTypeSchema.default("survey"),
   allowNewParticipants: z.boolean().default(true),
   resultsVisibility: resultsVisibilitySchema.default("after_close"),
-  questions: z.array(questionSchema).min(1),
+  questions: z.array(questionSchema).min(1).max(50),
 });
 
 export type CreateRoundInput = z.infer<typeof createRoundSchema>;

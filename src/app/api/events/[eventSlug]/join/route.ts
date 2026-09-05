@@ -11,6 +11,7 @@ import {
 import { writeAuditLog } from "@/lib/supabase/helpers";
 import { getParticipantFromRequest } from "@/lib/sessions/verify";
 import { getEventBySlug } from "@/lib/data/events";
+import { enforceRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -44,6 +45,11 @@ export async function POST(
         name: existing.name,
         resumed: true,
       });
+    }
+
+    const rateLimit = await enforceRateLimit("join", getClientIp(request), eventId);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.retryAfterSeconds);
     }
 
     if (event.requireLiveCode) {

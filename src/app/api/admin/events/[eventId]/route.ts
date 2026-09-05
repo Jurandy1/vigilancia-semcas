@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { updateEventSettingsSchema } from "@/lib/validation/event";
 import { rotateAccessChallenge } from "@/lib/security/access-code";
+import { writeAuditLog } from "@/lib/supabase/helpers";
 
 export const runtime = "nodejs";
 
@@ -211,6 +212,23 @@ export async function DELETE(
   if (event.current_open_round_id) {
     await supabase.from("events").update({ current_open_round_id: null }).eq("id", eventId);
   }
+
+  // Precisa ser gravado ANTES do delete: audit_log.event_id referencia
+  // events.id, então logar depois da exclusão falharia a FK. A ação fica
+  // registrada mesmo depois (a FK usa "on delete set null", não cascade).
+  await writeAuditLog({
+    eventId,
+    action: "event_deleted",
+    actorType: "admin",
+    actorId: admin.uid,
+    metadata: {
+      eventId,
+      title: event.title,
+      slug: event.slug,
+      status: event.status,
+      participantCount: event.participant_count ?? 0,
+    },
+  });
 
   // ON DELETE CASCADE cuida de rounds/questions/participants/participantRounds/submissions/public_round_stats.
   const { error: deleteError } = await supabase.from("events").delete().eq("id", eventId);

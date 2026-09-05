@@ -7,6 +7,7 @@ import type { Question } from "@/types/round";
 import { findOtherOption } from "@/lib/questions/other-option";
 
 import { getEventBySlugExact } from "@/lib/data/events";
+import { enforceRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -79,6 +80,11 @@ export async function POST(
       return NextResponse.json({ error: "Evento encerrado." }, { status: 403 });
     }
     const eventId = event.id;
+
+    const rateLimit = await enforceRateLimit("submit", getClientIp(request), eventId);
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.retryAfterSeconds);
+    }
 
     const parsed = submitSchema.safeParse(body);
     if (!parsed.success) {

@@ -12,6 +12,7 @@ export type AuditAction =
   | "event_opened"
   | "event_closed"
   | "event_reset"
+  | "event_deleted"
   | "report_exported";
 
 export interface AuditEntry {
