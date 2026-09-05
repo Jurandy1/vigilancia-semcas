@@ -14,7 +14,7 @@ import { resolve } from "node:path";
 const BASE_URL = (process.env.LOAD_TEST_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const ROOT = process.cwd();
 
-function run(command: string, args: string[], env: NodeJS.ProcessEnv = {}) {
+function run(command: string, args: string[], env: Record<string, string | undefined> = {}) {
   return new Promise<number>((resolvePromise) => {
     console.log(`\n>>> ${command} ${args.join(" ")}`);
     const child = spawn(command, args, {
