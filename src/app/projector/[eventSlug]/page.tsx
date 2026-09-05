@@ -120,7 +120,13 @@ export default function ProjectorPage() {
       .channel("projector-daily-active")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "public_events" },
+        // Sem esse filtro, QUALQUER escrita em public_events (inclusive as
+        // contagens do evento ao vivo, que mudam a cada participante que
+        // entra ou responde) disparava uma consulta nova aqui — com muita
+        // gente votando ao mesmo tempo isso vira uma enxurrada de consultas
+        // desnecessárias e trava a aba do telão. Só importa saber quando o
+        // evento marcado como "o de hoje" muda.
+        { event: "*", schema: "public", table: "public_events", filter: "is_daily_active=eq.true" },
         () => void resolveDailyActiveSlug()
       )
       .subscribe();
