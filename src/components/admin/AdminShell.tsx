@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -19,7 +19,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { adminLogout } from "@/lib/supabase/auth-client";
+import { adminFetch } from "@/lib/api-client";
+import { adminLogout, getAdminIdToken, onAdminAuthChange } from "@/lib/supabase/auth-client";
 import { SemcasBrand } from "@/components/branding/SemcasBrand";
 import { ORG_SHORT, ORG_TAGLINE, CITY_NAME } from "@/lib/branding";
 import { DAILY_ACTIVE_SLUG } from "@/lib/constants";
@@ -101,12 +102,53 @@ export function AdminShell({
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [rememberedEvent, setRememberedEvent] = useState<RememberedEvent | null>(null);
+  const [liveEvent, setLiveEvent] = useState<RememberedEvent | null>(null);
+
+  const refreshLiveEvent = useCallback(async () => {
+    try {
+      const token = await getAdminIdToken();
+      if (!token) return;
+      const res = await adminFetch("/api/admin/events/current", token, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { event: RememberedEvent | null };
+      const next = data.event;
+      setLiveEvent(next);
+      if (next) {
+        window.localStorage.setItem(SELECTED_EVENT_KEY, JSON.stringify(next));
+        setRememberedEvent(next);
+      }
+    } catch {
+      /* best-effort */
+    }
+  }, []);
+
+  useEffect(() => {
+    return onAdminAuthChange((user) => {
+      if (user) void refreshLiveEvent();
+    });
+  }, [refreshLiveEvent]);
+
+  useEffect(() => {
+    void refreshLiveEvent();
+    const onFocus = () => void refreshLiveEvent();
+    window.addEventListener("focus", onFocus);
+    const timer = window.setInterval(() => void refreshLiveEvent(), 20_000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(timer);
+    };
+  }, [refreshLiveEvent, pathname]);
 
   useEffect(() => {
     if (eventId && eventTitle) {
       const selected = { id: eventId, slug: eventSlug, title: eventTitle, status: eventStatus };
-      setRememberedEvent(selected);
-      window.localStorage.setItem(SELECTED_EVENT_KEY, JSON.stringify(selected));
+      // Só grava como “selecionado” se ainda for o evento ao vivo (ou se ainda
+      // não sabemos o ao vivo). Evento encerrado da sequência não deve sequestrar
+      // o bloco “Evento atual” do menu.
+      if (!liveEvent || liveEvent.id === eventId) {
+        setRememberedEvent(selected);
+        window.localStorage.setItem(SELECTED_EVENT_KEY, JSON.stringify(selected));
+      }
       return;
     }
 
@@ -116,7 +158,7 @@ export function AdminShell({
     } catch {
       window.localStorage.removeItem(SELECTED_EVENT_KEY);
     }
-  }, [eventId, eventSlug, eventStatus, eventTitle]);
+  }, [eventId, eventSlug, eventStatus, eventTitle, liveEvent]);
 
   async function handleLogout() {
     await adminLogout();
@@ -124,12 +166,15 @@ export function AdminShell({
     router.push("/admin/login");
   }
 
-  const selectedEvent = eventId
+  // “Evento atual” no menu = mesmo critério de /e/atual (open → fila da sequência),
+  // não o último evento que o admin abriu na lista.
+  const selectedEvent = liveEvent ?? (eventId
     ? { id: eventId, slug: eventSlug, title: eventTitle ?? "Evento", status: eventStatus }
-    : rememberedEvent;
+    : rememberedEvent);
   const selectedEventId = selectedEvent?.id;
   const base = selectedEventId ? `/admin/eventos/${selectedEventId}` : "/admin/eventos";
   const label = resolveScreenLabel(pathname, eventId, screenLabel);
+  const viewingOtherEvent = Boolean(eventId && selectedEventId && eventId !== selectedEventId);
 
   const navGroups: Array<{ label: string; items: NavItem[] }> = [
     {
@@ -397,6 +442,28 @@ export function AdminShell({
 
         <main className="pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-11" style={{ flex: 1, paddingTop: "26px", paddingLeft: "22px", paddingRight: "22px" }}>
           <div style={{ maxWidth: "1320px", margin: "0 auto" }}>
+            {viewingOtherEvent && selectedEvent && (
+              <div
+                className="mb-4 flex flex-col gap-2 rounded-lg border border-[#b9d5ed] bg-[#edf6fd] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                role="status"
+              >
+                <p className="m-0 text-sm text-[#244c70]">
+                  O evento atual da sequência é <strong>{selectedEvent.title}</strong>
+                  {selectedEvent.status === "open"
+                    ? " (em andamento)"
+                    : selectedEvent.status === "waiting" || selectedEvent.status === "draft"
+                      ? " — pronto para iniciar"
+                      : ""}
+                  . O menu lateral já aponta para ele.
+                </p>
+                <Link
+                  href={base}
+                  className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-[#0b4a83] px-3 text-sm font-semibold text-white no-underline hover:bg-[#093a68]"
+                >
+                  Ir ao painel atual
+                </Link>
+              </div>
+            )}
             {children}
           </div>
         </main>

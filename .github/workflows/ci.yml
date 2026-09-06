@@ -23,4 +23,5 @@ jobs:
           grep -q "p_client_token" supabase/patch-2026-09-05-join-canonical.sql
           grep -q "client_token" supabase/patch-2026-09-05-join-canonical.sql
           grep -q "check_rate_limit" supabase/patch-2026-09-04-rate-limit.sql
+          grep -q "close_round_atomic" supabase/patch-2026-09-06-close-atomic-rpc-lockdown.sql
           test ! -f src/app/api/admin/events/daily-active/route.ts

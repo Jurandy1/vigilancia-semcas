@@ -225,6 +225,11 @@ export default function AdminEventosPage() {
         return;
       }
       setSequenceOpen(false);
+      const rootEventId = data.rootEventId as string | undefined;
+      if (rootEventId) {
+        router.push(`/admin/eventos/${rootEventId}`);
+        return;
+      }
       await load();
     } catch {
       setError("Não foi possível salvar a sequência.");

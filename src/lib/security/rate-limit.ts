@@ -27,7 +27,13 @@ export const RATE_LIMITS: Record<string, { burst: RateLimitTier; sustained: Rate
   rotateCode: { burst: { limit: 6, windowSeconds: 60 }, sustained: { limit: 20, windowSeconds: 600 } },
 };
 
-async function checkRateLimit(bucket: string, key: string, limit: number, windowSeconds: number) {
+async function checkRateLimit(
+  bucket: string,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+  failOpen: boolean
+) {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .rpc("check_rate_limit", { p_bucket: bucket, p_key: key, p_limit: limit, p_window_seconds: windowSeconds })
@@ -35,9 +41,10 @@ async function checkRateLimit(bucket: string, key: string, limit: number, window
 
   if (error) {
     console.error("Erro ao checar rate limit:", error);
-    // Fail-open: é um sistema de votação pública ao vivo — uma falha no
-    // limitador não pode derrubar a votação real.
-    return { allowed: true, retryAfterSeconds: 0 };
+    // join/submit/progress: fail-open (sala ao vivo não pode cair por falha do limitador).
+    // rotateCode: fail-closed (endpoint público que renova código do telão).
+    if (failOpen) return { allowed: true, retryAfterSeconds: 0 };
+    return { allowed: false, retryAfterSeconds: 30 };
   }
 
   return { allowed: data?.allowed ?? true, retryAfterSeconds: data?.retry_after_seconds ?? 0 };
@@ -50,12 +57,19 @@ export async function enforceRateLimit(
 ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
   const key = `${ip}:${eventKey}`;
   const tiers = RATE_LIMITS[bucketName];
+  const failOpen = bucketName !== "rotateCode";
   // Cada nível (rajada/sustentado) precisa da sua própria linha — usar o
   // mesmo bucket para os dois faria a checagem do segundo nível incrementar
   // (e ler) o mesmo contador que o primeiro acabou de tocar, dobrando a
   // contagem por requisição em vez de aplicar dois limites independentes.
   for (const [tierName, tier] of [["burst", tiers.burst], ["sustained", tiers.sustained]] as const) {
-    const result = await checkRateLimit(`${bucketName}_${tierName}`, key, tier.limit, tier.windowSeconds);
+    const result = await checkRateLimit(
+      `${bucketName}_${tierName}`,
+      key,
+      tier.limit,
+      tier.windowSeconds,
+      failOpen
+    );
     if (!result.allowed) return result;
   }
   return { allowed: true, retryAfterSeconds: 0 };

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CheckCircle2, ListOrdered, Plus, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface EventItem {
 }
 
 export default function EventSequencePage() {
+  const router = useRouter();
   const [events, setEvents] = useState<EventItem[]>([]);
   const [lockedIds, setLockedIds] = useState<string[]>([]);
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
@@ -128,6 +130,26 @@ export default function EventSequencePage() {
         return;
       }
       setSaved(true);
+      const rootEventId = data.rootEventId as string | undefined;
+      const rootTitle = events.find((e) => e.id === rootEventId)?.title;
+      if (rootEventId) {
+        try {
+          window.localStorage.setItem(
+            "semcas-admin-selected-event",
+            JSON.stringify({
+              id: rootEventId,
+              title: rootTitle ?? "Evento",
+              status: events.find((e) => e.id === rootEventId)?.status,
+            })
+          );
+        } catch {
+          /* best-effort */
+        }
+        // Mesma regra de /e/atual: o 1º da sequência vira o “Evento atual”
+        // no admin — sem precisar voltar à lista de eventos para abrir o painel.
+        router.push(`/admin/eventos/${rootEventId}`);
+        return;
+      }
       await load();
     } catch {
       setError("Não foi possível salvar a sequência.");
