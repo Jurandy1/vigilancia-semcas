@@ -15,6 +15,8 @@ export interface QuestionDraft {
   required: boolean;
   maxSelections?: number;
   maxLength?: number;
+  showIfQuestionOrder?: number;
+  showIfValue?: string;
 }
 
 export const TYPE_LABELS: Record<QuestionType, string> = {
@@ -29,6 +31,18 @@ export function blankQuestion(): QuestionDraft {
 
 export function cloneQuestions(source: QuestionDraft[]): QuestionDraft[] {
   return source.map((q) => ({ ...q, options: [...q.options] }));
+}
+
+function remapConditions(previous: QuestionDraft[], next: QuestionDraft[]) {
+  return next.map((question, questionIndex) => {
+    if (!question.showIfQuestionOrder) return question;
+    const parent = previous[question.showIfQuestionOrder - 1];
+    const parentIndex = parent ? next.indexOf(parent) : -1;
+    if (parentIndex < 0 || parentIndex >= questionIndex) {
+      return { ...question, showIfQuestionOrder: undefined, showIfValue: undefined };
+    }
+    return { ...question, showIfQuestionOrder: parentIndex + 1 };
+  });
 }
 
 export function validateQuestions(questions: QuestionDraft[]): string | null {
@@ -96,13 +110,13 @@ export function QuestionEditorList({ questions, onChange, disabled }: QuestionEd
     const copy = { ...questions[index]!, id: undefined, options: [...questions[index]!.options] };
     const next = [...questions];
     next.splice(index + 1, 0, copy);
-    onChange(next);
+    onChange(remapConditions(questions, next));
     setSelected(index + 1);
   }
 
   function removeQuestion(index: number) {
     if (questions.length <= 1) return;
-    onChange(questions.filter((_, i) => i !== index));
+    onChange(remapConditions(questions, questions.filter((_, i) => i !== index)));
     setSelected(Math.max(0, index - 1));
   }
 
@@ -111,7 +125,7 @@ export function QuestionEditorList({ questions, onChange, disabled }: QuestionEd
     if (target < 0 || target >= questions.length) return;
     const next = [...questions];
     [next[index], next[target]] = [next[target]!, next[index]!];
-    onChange(next);
+    onChange(remapConditions(questions, next));
     setSelected(target);
   }
 
@@ -341,6 +355,52 @@ export function QuestionEditorList({ questions, onChange, disabled }: QuestionEd
               />
             </div>
           )}
+
+          <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #eef1f5" }}>
+            <label style={{ display: "block", marginBottom: "6px", fontSize: "12.5px", fontWeight: 600, color: "#33415c" }}>
+              Exibição condicional
+            </label>
+            <select
+              value={q.showIfQuestionOrder ?? ""}
+              disabled={disabled || safeIndex === 0}
+              onChange={(e) => {
+                const parentOrder = Number(e.target.value) || undefined;
+                const parent = parentOrder ? questions[parentOrder - 1] : undefined;
+                updateQuestion(safeIndex, {
+                  showIfQuestionOrder: parentOrder,
+                  showIfValue: parent?.options.find((option) => option.trim()) || undefined,
+                });
+              }}
+              style={{ width: "100%", height: "42px", border: "1px solid #c9d4e2", borderRadius: "8px", padding: "0 10px", fontSize: "14px", background: "#fff" }}
+            >
+              <option value="">Sempre mostrar</option>
+              {questions.slice(0, safeIndex).map((parent, index) =>
+                parent.type !== "text" && parent.options.some((option) => option.trim()) ? (
+                  <option key={parent.id ?? index} value={index + 1}>
+                    Se a pergunta {index + 1} for...
+                  </option>
+                ) : null
+              )}
+            </select>
+            {q.showIfQuestionOrder && questions[q.showIfQuestionOrder - 1] && (
+              <select
+                value={q.showIfValue ?? ""}
+                disabled={disabled}
+                aria-label="Resposta que exibe esta pergunta"
+                onChange={(e) => updateQuestion(safeIndex, { showIfValue: e.target.value })}
+                style={{ width: "100%", height: "42px", marginTop: "8px", border: "1px solid #c9d4e2", borderRadius: "8px", padding: "0 10px", fontSize: "14px", background: "#fff" }}
+              >
+                {questions[q.showIfQuestionOrder - 1]!.options
+                  .filter((option) => option.trim())
+                  .map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+              </select>
+            )}
+            <p style={{ margin: "7px 0 0", fontSize: "11.5px", lineHeight: 1.5, color: "#8a97a8" }}>
+              A pergunta só será mostrada quando a alternativa escolhida corresponder à condição.
+            </p>
+          </div>
 
           <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #eef1f5" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", color: "#33415c", cursor: "pointer" }}>

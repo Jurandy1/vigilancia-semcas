@@ -44,6 +44,8 @@ export async function GET(
       options: q.options ?? undefined,
       maxLength: q.max_length ?? undefined,
       maxSelections: q.max_selections ?? undefined,
+      showIfQuestionOrder: q.show_if_question_order ?? undefined,
+      showIfValue: q.show_if_value ?? undefined,
     }));
 
     return NextResponse.json({

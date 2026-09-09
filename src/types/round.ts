@@ -12,6 +12,8 @@ export interface Question {
   options?: string[];
   maxLength?: number;
   maxSelections?: number;
+  showIfQuestionOrder?: number | null;
+  showIfValue?: string | null;
 }
 
 export interface Round {

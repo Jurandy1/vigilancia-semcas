@@ -79,6 +79,8 @@ export async function POST(
       options: q.options ?? null,
       maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),
       maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
+      showIfQuestionOrder: q.showIfQuestionOrder ?? null,
+      showIfValue: q.showIfValue ?? null,
     })),
   });
 

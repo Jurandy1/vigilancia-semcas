@@ -14,6 +14,7 @@ import {
 import type { Question } from "@/types/round";
 import { Skeleton } from "@/components/ui/skeleton";
 import { findOtherOption, getOtherDraftKey } from "@/lib/questions/other-option";
+import { getVisibleQuestions } from "@/lib/questions/conditional";
 
 export default function RoundPage() {
   const router = useRouter();
@@ -37,10 +38,11 @@ export default function RoundPage() {
   const [offline, setOffline] = useState(false);
 
   const draft = getDraftAnswers(roundId);
-  const currentQuestion = questions[currentIndex];
-  const totalQuestions = questions.length;
+  const visibleQuestions = getVisibleQuestions(questions, (questionId) => draft[questionId]);
+  const currentQuestion = visibleQuestions[currentIndex];
+  const totalQuestions = visibleQuestions.length;
   const progressPercent = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
-  const answeredCount = questions.filter((q) => {
+  const answeredCount = visibleQuestions.filter((q) => {
     const raw = draft[q.id];
     if (!raw) return false;
     if (q.type === "multi_choice") {
@@ -187,7 +189,7 @@ export default function RoundPage() {
     setSubmissionState("submitting");
     setError("");
 
-    const answers = buildAnswersFromDraft(questions, draft);
+    const answers = buildAnswersFromDraft(visibleQuestions, draft);
 
     try {
       const res = await reliableApiFetch(
@@ -299,7 +301,7 @@ export default function RoundPage() {
             </p>
           </div>
           <div style={{ padding: "14px 18px", overflowY: "auto", flex: 1 }}>
-            {questions.map((q, idx) => (
+            {visibleQuestions.map((q, idx) => (
               <div key={q.id} style={{ padding: "12px 0", borderBottom: "1px solid #f2f5f8" }}>
                 <p style={{ margin: 0, fontSize: "11.5px", color: "#8a97a8" }}>
                   {idx + 1} · {q.type === "text" ? "Aberta" : q.type === "multi_choice" ? "Múltipla" : "Única"}

@@ -8,6 +8,7 @@ const patches = [
   "supabase/patch-2026-09-05-join-canonical.sql",
   "supabase/patch-2026-09-06-close-atomic-rpc-lockdown.sql",
   "supabase/patch-2026-09-08-integrity-hardening.sql",
+  "supabase/patch-2026-09-08-question-conditions.sql",
 ];
 
 const current = readFileSync(schemaPath, "utf8");

@@ -5,6 +5,7 @@ import { submitSchema } from "@/lib/validation/submission";
 import { writeAuditLog } from "@/lib/supabase/helpers";
 import type { Question } from "@/types/round";
 import { findOtherOption } from "@/lib/questions/other-option";
+import { getVisibleQuestions } from "@/lib/questions/conditional";
 
 import { getEventForRoundRoute } from "@/lib/data/events";
 import { enforceRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
@@ -132,9 +133,32 @@ export async function POST(
       options: q.options ?? undefined,
       maxLength: q.max_length ?? undefined,
       maxSelections: q.max_selections ?? undefined,
+      showIfQuestionOrder: q.show_if_question_order ?? undefined,
+      showIfValue: q.show_if_value ?? undefined,
     }));
 
-    const validationErrors = validateAnswers(questions, parsed.data.answers);
+    const knownQuestionIds = new Set(questions.map((question) => question.id));
+    if (parsed.data.answers.some((answer) => !knownQuestionIds.has(answer.questionId))) {
+      return NextResponse.json(
+        { error: "O envio contém resposta para uma pergunta inexistente." },
+        { status: 400 }
+      );
+    }
+
+    const submittedValues = new Map(
+      parsed.data.answers.map((answer) => [answer.questionId, answer.value])
+    );
+    const visibleQuestions = getVisibleQuestions(
+      questions,
+      (questionId) => submittedValues.get(questionId)
+    );
+    const visibleQuestionIds = new Set(visibleQuestions.map((question) => question.id));
+    // Descarta respostas antigas de uma ramificação que deixou de ser aplicável.
+    const applicableAnswers = parsed.data.answers.filter((answer) =>
+      visibleQuestionIds.has(answer.questionId)
+    );
+
+    const validationErrors = validateAnswers(visibleQuestions, applicableAnswers);
     if (validationErrors.length > 0) {
       return NextResponse.json({ error: validationErrors[0] }, { status: 400 });
     }
@@ -145,7 +169,7 @@ export async function POST(
         p_round_id: roundId,
         p_participant_id: participant.id,
         p_mode: participant.mode,
-        p_answers: parsed.data.answers,
+        p_answers: applicableAnswers,
       })
       .single<{ already_submitted: boolean }>();
 

@@ -56,6 +56,8 @@ export default function EditarRodadaPage() {
           required: (q.required as boolean) ?? true,
           maxSelections: (q.maxSelections as number | null) ?? undefined,
           maxLength: (q.maxLength as number | null) ?? undefined,
+          showIfQuestionOrder: (q.showIfQuestionOrder as number | null) ?? undefined,
+          showIfValue: (q.showIfValue as string | null) ?? undefined,
         }))
       );
       setEditable(roundData.editable);
@@ -96,6 +98,8 @@ export default function EditarRodadaPage() {
             maxLength: q.type === "text" ? q.maxLength ?? 2000 : undefined,
             maxSelections:
               q.type === "multi_choice" && q.maxSelections ? q.maxSelections : undefined,
+            showIfQuestionOrder: q.showIfQuestionOrder,
+            showIfValue: q.showIfValue,
           })),
         }),
       });

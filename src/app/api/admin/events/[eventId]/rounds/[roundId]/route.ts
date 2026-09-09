@@ -37,6 +37,8 @@ export async function GET(
     options: q.options,
     maxLength: q.max_length,
     maxSelections: q.max_selections,
+    showIfQuestionOrder: q.show_if_question_order,
+    showIfValue: q.show_if_value,
   }));
 
   return NextResponse.json({
@@ -100,6 +102,8 @@ export async function PATCH(
     options: q.options ?? null,
     maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),
     maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
+    showIfQuestionOrder: q.showIfQuestionOrder ?? null,
+    showIfValue: q.showIfValue ?? null,
   }));
 
   const { error } = await supabase.rpc("update_round_content", {

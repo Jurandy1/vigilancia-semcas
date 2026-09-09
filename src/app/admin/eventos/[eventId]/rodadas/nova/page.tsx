@@ -65,6 +65,8 @@ export default function NovaRodadaPage() {
             maxLength: q.type === "text" ? q.maxLength ?? 2000 : undefined,
             maxSelections:
               q.type === "multi_choice" && q.maxSelections ? q.maxSelections : undefined,
+            showIfQuestionOrder: q.showIfQuestionOrder,
+            showIfValue: q.showIfValue,
           })),
         }),
       });
