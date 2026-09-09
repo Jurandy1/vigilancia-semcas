@@ -105,15 +105,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Não foi possível criar o evento." }, { status: 500 });
   }
 
-  await supabase.from("public_events").insert({
-    event_id: inserted.id,
-    slug,
-    title: parsed.data.title,
-    description: parsed.data.description ?? null,
-    projector_title: parsed.data.projectorTitle ?? null,
-    status: "draft",
-    require_live_code: parsed.data.requireLiveCode,
-  });
-
+  // O trigger events_sync_public_mirror cria public_events na mesma transação
+  // do INSERT acima. Se o espelho falhar, o próprio INSERT é revertido.
   return NextResponse.json({ success: true, eventId: inserted.id, slug });
 }

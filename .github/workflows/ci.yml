@@ -24,4 +24,9 @@ jobs:
           grep -q "client_token" supabase/patch-2026-09-05-join-canonical.sql
           grep -q "check_rate_limit" supabase/patch-2026-09-04-rate-limit.sql
           grep -q "close_round_atomic" supabase/patch-2026-09-06-close-atomic-rpc-lockdown.sql
+          grep -q "for key share" supabase/patch-2026-09-08-integrity-hardening.sql
+          grep -q "create_round_content" supabase/patch-2026-09-08-integrity-hardening.sql
+          grep -q "save_event_sequence_atomic" supabase/patch-2026-09-08-integrity-hardening.sql
+          grep -q "CONSOLIDATED PATCHES" supabase/schema.sql
+          grep -q "save_event_sequence_atomic" supabase/schema.sql
           test ! -f src/app/api/admin/events/daily-active/route.ts

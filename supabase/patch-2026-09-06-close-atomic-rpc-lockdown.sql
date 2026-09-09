@@ -23,6 +23,11 @@ declare
 begin
   v_stale := greatest(coalesce(p_stale_seconds, 120), 0);
 
+  -- Exclusivo contra os locks compartilhados de submit/progresso. O lock é
+  -- sempre o primeiro recurso adquirido, eliminando inversão com
+  -- participant_rounds e definindo um corte claro para novos envios.
+  perform pg_advisory_xact_lock(hashtextextended(p_round_id::text, 0));
+
   select event_id, status into v_event_id, v_status
   from rounds where id = p_round_id for update;
   if v_status is null then

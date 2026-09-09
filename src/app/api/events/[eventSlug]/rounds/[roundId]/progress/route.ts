@@ -67,6 +67,12 @@ export async function POST(
       p_current_question: parsed.data.currentQuestion,
     });
     if (error) {
+      if (error.message === "ROUND_NOT_OPEN" || error.message === "ROUND_NOT_FOUND") {
+        return NextResponse.json(
+          { error: "Esta etapa foi encerrada pelo organizador." },
+          { status: 403 }
+        );
+      }
       console.error("Erro ao registrar progresso:", error);
       return NextResponse.json(
         { error: "Não foi possível concluir esta operação. Tente novamente." },

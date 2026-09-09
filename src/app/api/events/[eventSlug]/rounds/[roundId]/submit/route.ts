@@ -17,6 +17,18 @@ function validateAnswers(
 ) {
   const errors: string[] = [];
   const answerMap = new Map(answers.map((a) => [a.questionId, a]));
+  const questionMap = new Map(questions.map((q) => [q.id, q]));
+
+  for (const answer of answers) {
+    const question = questionMap.get(answer.questionId);
+    if (!question) {
+      errors.push("O envio contém resposta para uma pergunta inexistente.");
+      continue;
+    }
+    if (answer.type !== question.type) {
+      errors.push(`Tipo de resposta inválido para: ${question.title}`);
+    }
+  }
 
   for (const q of questions) {
     const answer = answerMap.get(q.id);

@@ -13,6 +13,11 @@ novo: `schema.sql` e depois os patches na ordem abaixo. O último patch de join
 4. `patch-2026-09-04-reduce-lock-contention.sql` — cuidado: redefine join **sem** client_token
 5. **`patch-2026-09-05-join-canonical.sql`** — join idempotente + status `open` + sem FOR UPDATE longo
 6. **`patch-2026-09-06-close-atomic-rpc-lockdown.sql`** — `close_round_atomic` + REVOKE EXECUTE das RPCs sensíveis
+7. **`patch-2026-09-08-integrity-hardening.sql`** — lock compartilhado submit/close, privacidade do join, criação de rodada e sequência atômicas, espelho por trigger
+
+O `schema.sql` é consolidado e já inclui os patches obrigatórios acima para
+instalações novas. Depois de alterar um patch consolidado, execute
+`node scripts/consolidate-schema.mjs`.
 
 ## Checagens (CI)
 
@@ -21,3 +26,5 @@ O workflow `.github/workflows/ci.yml` verifica se o repositório ainda contém:
 - `client_token` / `p_client_token` no patch canônico de join
 - `check_rate_limit` no patch de rate limit
 - `close_round_atomic` no patch de close atômico
+- `FOR KEY SHARE`, `create_round_content` e `save_event_sequence_atomic` no patch de integridade
+- os mesmos contratos no `schema.sql` consolidado

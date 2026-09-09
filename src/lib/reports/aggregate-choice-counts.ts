@@ -9,6 +9,19 @@ interface SubmissionLike {
   answers?: AnswerLike[];
 }
 
+/** Compatibilidade com payloads históricos: a validação antiga usava Map,
+ * portanto a última ocorrência era a resposta efetivamente validada. */
+export function findLastAnswerByQuestionId<T extends { questionId: string }>(
+  answers: T[] | undefined,
+  questionId: string
+): T | undefined {
+  if (!answers) return undefined;
+  for (let index = answers.length - 1; index >= 0; index--) {
+    if (answers[index]?.questionId === questionId) return answers[index];
+  }
+  return undefined;
+}
+
 /**
  * Conta seleções por opção para perguntas de escolha única ou múltipla.
  * Para múltipla escolha, um mesmo respondente pode contribuir para várias
@@ -29,7 +42,7 @@ export function aggregateChoiceCounts(
   let respondents = 0;
 
   submissions.forEach((sub) => {
-    const answer = sub.answers?.find((a) => a.questionId === questionId);
+    const answer = findLastAnswerByQuestionId(sub.answers, questionId);
     if (!answer) return;
 
     if (Array.isArray(answer.value)) {

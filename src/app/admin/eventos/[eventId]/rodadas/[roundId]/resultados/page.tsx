@@ -8,6 +8,8 @@ import { adminFetch } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { HorizontalBarChart } from "@/components/admin/HorizontalBarChart";
+import { findLastAnswerByQuestionId } from "@/lib/reports/aggregate-choice-counts";
+import { downloadExcelSpreadsheet } from "@/lib/export/spreadsheet-xml";
 
 export default function RoundReportPage() {
   const params = useParams();
@@ -57,7 +59,7 @@ export default function RoundReportPage() {
     individual.forEach((ind) => {
       const answers = qTitles.map((_, i) => {
         const qId = (questions[i] as { id: string }).id;
-        const ans = ind.answers.find((a) => a.questionId === qId);
+        const ans = findLastAnswerByQuestionId(ind.answers, qId);
         if (!ans) return "";
         const value = Array.isArray(ans.value) ? ans.value.join("; ") : ans.value;
         return ans.otherText ? `${value} — ${ans.otherText}` : value;
@@ -84,12 +86,8 @@ export default function RoundReportPage() {
 
   async function exportExcel() {
     if (!report) return;
-    const XLSX = await import("xlsx");
     const rows = buildReportRows(report);
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Respostas");
-    XLSX.writeFile(wb, `relatorio-${roundId}.xlsx`);
+    downloadExcelSpreadsheet(rows, `relatorio-${roundId}.xml`, "Respostas");
   }
 
   if (loading || !report) {

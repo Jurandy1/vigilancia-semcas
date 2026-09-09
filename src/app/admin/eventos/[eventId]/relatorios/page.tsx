@@ -7,6 +7,7 @@ import { onAdminAuthChange, getAdminIdToken } from "@/lib/supabase/auth-client";
 import { adminFetch } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { downloadExcelSpreadsheet } from "@/lib/export/spreadsheet-xml";
 import { BarChart3, Download, FileText, UsersRound } from "lucide-react";
 
 const statusLabel: Record<string, string> = {
@@ -118,7 +119,6 @@ export default function RelatoriosPage() {
   const participationRate = totalRegistered > 0 ? Math.min(100, Math.round((totalResponses / totalRegistered) * 100)) : 0;
 
   async function exportSummaryExcel() {
-    const XLSX = await import("xlsx");
     const rows = [
       ["Relatório consolidado", eventTitle],
       ["Participantes no evento", participantCount],
@@ -138,11 +138,11 @@ export default function RelatoriosPage() {
           : "0%",
       ]),
     ];
-    const sheet = XLSX.utils.aoa_to_sheet(rows);
-    sheet["!cols"] = [{ wch: 12 }, { wch: 48 }, { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 16 }];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, sheet, "Resumo");
-    XLSX.writeFile(workbook, `relatorio-consolidado-${eventSlug || eventId}.xlsx`);
+    downloadExcelSpreadsheet(
+      rows,
+      `relatorio-consolidado-${eventSlug || eventId}.xml`,
+      "Resumo"
+    );
   }
 
   return (

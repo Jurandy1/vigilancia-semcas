@@ -9,7 +9,7 @@ import {
   getSessionCookieName,
 } from "@/lib/sessions/tokens";
 import { writeAuditLog } from "@/lib/supabase/helpers";
-import { getParticipantFromRequest } from "@/lib/sessions/verify";
+import { getParticipantById, getParticipantFromRequest } from "@/lib/sessions/verify";
 import { getEventBySlug } from "@/lib/data/events";
 import { enforceRateLimit, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
@@ -105,19 +105,30 @@ export async function POST(
       );
     }
 
+    // Em retry idempotente, responde sempre com o estado que realmente ficou
+    // no banco. Isso impede a UI de mostrar “anônimo” enquanto um registro
+    // identificado antigo ainda estivesse persistido.
+    const persisted = await getParticipantById(eventId, participantId as string);
+    if (!persisted) {
+      return NextResponse.json(
+        { error: "Não foi possível confirmar a participação. Tente novamente." },
+        { status: 500 }
+      );
+    }
+
     await writeAuditLog({
       eventId,
       action: "participant_started",
       actorType: "participant",
       actorId: participantId as string,
-      metadata: { mode: parsed.data.mode },
+      metadata: { mode: persisted.mode },
     });
 
     const response = NextResponse.json({
       success: true,
       participantId,
-      mode: parsed.data.mode,
-      name,
+      mode: persisted.mode,
+      name: persisted.name,
       eventId,
       eventSlug: event.slug,
       resumed: false,

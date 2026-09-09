@@ -3,7 +3,10 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyAdminRequest, adminUnauthorized } from "@/lib/security/admin-auth";
 import { getParticipantDisplayName } from "@/lib/utils/participant-display";
 import { formatPercent } from "@/lib/utils/format";
-import { aggregateChoiceCounts } from "@/lib/reports/aggregate-choice-counts";
+import {
+  aggregateChoiceCounts,
+  findLastAnswerByQuestionId,
+} from "@/lib/reports/aggregate-choice-counts";
 
 export const runtime = "nodejs";
 
@@ -56,8 +59,9 @@ export async function GET(
       questionReport.allowsMultiple = q.type === "multi_choice";
       questionReport.otherAnswers = submissions
         .map((sub) => {
-          const answer = (sub.answers as Array<{ questionId: string; otherText?: string }>)?.find(
-            (item) => item.questionId === q.id
+          const answer = findLastAnswerByQuestionId(
+            sub.answers as Array<{ questionId: string; otherText?: string }>,
+            q.id
           );
           if (!answer?.otherText) return null;
           const participant = participantMap.get(sub.participant_id);
@@ -73,8 +77,9 @@ export async function GET(
       questionReport.answers = submissions
         .map((sub) => {
           const p = participantMap.get(sub.participant_id);
-          const answer = (sub.answers as Array<{ questionId: string; value: unknown }>)?.find(
-            (a) => a.questionId === q.id
+          const answer = findLastAnswerByQuestionId(
+            sub.answers as Array<{ questionId: string; value: unknown }>,
+            q.id
           );
           return {
             displayName: getParticipantDisplayName({ mode: sub.mode, name: p?.name ?? null }),

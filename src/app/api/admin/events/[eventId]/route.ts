@@ -76,30 +76,32 @@ export async function PATCH(
 
   const now = new Date().toISOString();
   const eventUpdates: Record<string, unknown> = { updated_at: now };
-  const publicUpdates: Record<string, unknown> = { updated_at: now };
 
   if (parsed.data.title !== undefined) {
     eventUpdates.title = parsed.data.title;
-    publicUpdates.title = parsed.data.title;
   }
   if (parsed.data.description !== undefined) {
     eventUpdates.description = parsed.data.description;
-    publicUpdates.description = parsed.data.description;
   }
   if (parsed.data.projectorTitle !== undefined) {
     eventUpdates.projector_title = parsed.data.projectorTitle;
-    publicUpdates.projector_title = parsed.data.projectorTitle;
   }
   if (parsed.data.requireLiveCode !== undefined) {
     eventUpdates.require_live_code = parsed.data.requireLiveCode;
-    publicUpdates.require_live_code = parsed.data.requireLiveCode;
   }
   if (parsed.data.isTest !== undefined) {
     eventUpdates.is_test = parsed.data.isTest;
   }
 
-  await supabase.from("events").update(eventUpdates).eq("id", eventId);
-  await supabase.from("public_events").update(publicUpdates).eq("event_id", eventId);
+  // O trigger events_sync_public_mirror atualiza public_events na mesma
+  // transação; não existe mais uma segunda gravação que possa ficar pela metade.
+  const { error } = await supabase.from("events").update(eventUpdates).eq("id", eventId);
+  if (error) {
+    return NextResponse.json(
+      { error: "Não foi possível atualizar o evento." },
+      { status: 500 }
+    );
+  }
 
   // Ligar "Exigir código temporário" não gerava código nenhum — o campo só
   // era populado ao abrir uma rodada ou pelo telão se autorrenovando. Se o

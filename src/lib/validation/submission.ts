@@ -24,7 +24,22 @@ export const progressSchema = z.object({
 // Sem .min(1): uma rodada onde toda pergunta é opcional e o participante não
 // marcou nada precisa poder ser enviada com answers = [].
 export const submitSchema = z.object({
-  answers: z.array(answerSchema),
+  answers: z
+    .array(answerSchema)
+    .max(50)
+    .superRefine((answers, ctx) => {
+      const seen = new Set<string>();
+      answers.forEach((answer, index) => {
+        if (seen.has(answer.questionId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Uma pergunta não pode ter mais de uma resposta.",
+            path: [index, "questionId"],
+          });
+        }
+        seen.add(answer.questionId);
+      });
+    }),
 });
 
 export type SubmitInput = z.infer<typeof submitSchema>;

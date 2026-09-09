@@ -61,48 +61,39 @@ export async function POST(
   }
 
   const supabase = getSupabaseAdmin();
-  const { data: lastRound } = await supabase
-    .from("rounds")
-    .select("order")
-    .eq("event_id", eventId)
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const nextOrder = (lastRound?.order ?? 0) + 1;
-
-  const { data: round, error } = await supabase
-    .from("rounds")
-    .insert({
-      event_id: eventId,
+  const { data: roundId, error } = await supabase.rpc("create_round_content", {
+    p_event_id: eventId,
+    p_settings: {
       title: parsed.data.title,
       description: parsed.data.description ?? null,
-      order: nextOrder,
       type: parsed.data.type,
-      status: "draft",
-      allow_new_participants: parsed.data.allowNewParticipants,
-      results_visibility: parsed.data.resultsVisibility,
-      question_count: parsed.data.questions.length,
-    })
-    .select("id")
-    .single();
+      allowNewParticipants: parsed.data.allowNewParticipants,
+      resultsVisibility: parsed.data.resultsVisibility,
+    },
+    p_questions: parsed.data.questions.map((q, index) => ({
+      order: q.order ?? index + 1,
+      type: q.type,
+      title: q.title,
+      explanation: q.explanation ?? null,
+      required: q.required ?? true,
+      options: q.options ?? null,
+      maxLength: q.maxLength ?? (q.type === "text" ? 2000 : null),
+      maxSelections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
+    })),
+  });
 
-  if (error || !round) {
-    return NextResponse.json({ error: "Não foi possível criar a rodada." }, { status: 500 });
+  if (error || !roundId) {
+    const status = error?.message === "EVENT_NOT_FOUND" ? 404 : 500;
+    return NextResponse.json(
+      {
+        error:
+          status === 404
+            ? "Evento não encontrado."
+            : "Não foi possível criar a rodada e suas perguntas.",
+      },
+      { status }
+    );
   }
 
-  const questions = parsed.data.questions.map((q, index) => ({
-    round_id: round.id,
-    order: q.order ?? index + 1,
-    type: q.type,
-    title: q.title,
-    explanation: q.explanation ?? null,
-    required: q.required ?? true,
-    options: q.options ?? null,
-    max_length: q.maxLength ?? (q.type === "text" ? 2000 : null),
-    max_selections: q.type === "multi_choice" ? q.maxSelections ?? null : null,
-  }));
-
-  await supabase.from("questions").insert(questions);
-
-  return NextResponse.json({ success: true, roundId: round.id });
+  return NextResponse.json({ success: true, roundId });
 }
